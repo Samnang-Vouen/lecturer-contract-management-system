@@ -1,0 +1,231 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>khmer_contract</title>
+    <style>
+      @page {
+        size: A4;
+        margin: 40px;
+      }
+      body {
+        font-family: 'Khmer OS Siemreap';
+        font-size: 11pt;
+        line-height: 1.5;
+        margin: 0;
+        padding: 0;
+      }
+      h1 {
+        margin-bottom: 0;
+        margin-top: 0;
+        font-size: 11pt;
+        font-weight: bold;
+        text-decoration: underline;
+      }
+      .logo-flex {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 5px;
+      }
+      .logo-flex img {
+        max-width: 150px;
+        height: auto;
+        display: block;
+      }
+      .title-flex {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 20px;
+      }
+      p {
+        margin: 12px 0;
+        text-align: justify;
+      }
+      .bold {
+        font-weight: bold;
+      }
+      .first-indent {
+        text-indent: 2em;
+      }
+      .hanging-indent {
+        padding-left: 2em;
+        text-indent: -2em;
+        margin-bottom: 12px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin-top: 15px;
+        font-size: 10.5pt;
+      }
+      table,
+      th,
+      td {
+        border: 1px solid #000;
+      }
+      th,
+      td {
+        padding: 8px;
+        text-align: left;
+      }
+      .no-col {
+        width: 40px;
+        text-align: center;
+        position: sticky;
+        left: 0;
+        z-index: 1;
+      }
+      .blue-row {
+        background: #e6f0ff;
+        color: #003366;
+        font-weight: bold;
+      }
+      .total-fee-row {
+        background: #b3d1ff !important;
+        color: #003366;
+        font-size: 11pt !important;
+        font-weight: bold;
+        text-align: right;
+      }
+      .signature {
+        margin-top: 20px;
+        display: flex;
+        justify-content: space-between;
+      }
+      .signature div {
+        text-align: center;
+        width: 45%;
+      }
+      /* Signature alignment helpers to center image, line, and captions */
+      .sig-wrap {
+        width: 260px;
+        margin: 0 auto;
+        text-align: center;
+      }
+      .sig-box {
+        height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .sig-row {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 12px;
+        white-space: nowrap;
+      }
+      .nowrap {
+        white-space: nowrap;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="logo-flex">
+      <img src="cadt_logo.png" alt="School Logo" />
+    </div>
+    <div class="title-flex">
+      <h1>កិច្ចសន្យាការងារ</h1>
+    </div>
+
+    <p class="first-indent">
+      កិច្ចសន្យាការងាររវាង<span class="bold">បណ្ឌិត្យសភាបច្ចេកវិទ្យាឌីជីថលកម្ពុជា (CADT) </span> និង
+      <span class="bold">{lecturer_nameKh}</span> ({positionKh})។​
+    </p>
+
+    <p class="first-indent">CADT បានជួលសាស្ត្រាចារ្យទៅតាមខចែង និងលក្ខខណ្ឌ ខាងក្រោមនេះ៖</p>
+
+    <p class="hanging-indent">
+      <span class="bold">១. លក្ខខណ្ឌការងារៈ</span>
+      តម្រូវឲ្យផ្តល់នូវសេវាមួយចប់កម្មវិធីដែលមានចែងក្នុងកិច្ចសន្យាខាងក្រោម ហើយកិច្ចសន្យា និង
+      ត្រូវចាប់ផ្តើមពីថ្ងៃទី​ ដែលមានរយៈពេល
+      <span class="bold">{start_date}</span> ដែលមានរយៈពេល <span class="bold">៣ខែ</span>។
+    </p>
+
+    <p class="hanging-indent">
+      <span class="bold">២. បៀវត្សរ៍:</span> The
+      <span class="bold">CADT</span> នឹងបើកជូននូវបៀវត្សរ៍សាស្ត្រាចារ្យចំនួន {salary}<span
+        class="bold"
+      >
+        រៀល</span
+      >
+      ក្នុង០១ខែ សម្រាប់រយៈពេល <span class="bold">3</span>
+      ខែ ដោយបើកជូនទៀងទាត់ក្នុងកំឡុងពេលទូទាត់បៀវត្សរ៍ប្រចាំខែ។
+    </p>
+
+    <p class="hanging-indent">
+      <span class="bold">៣. ភារកិច្ច និងតួនាទី:</span> The
+      <span class="bold">CADT</span> ជួលសាស្ត្រាចារ្យដើម្បីបង្រៀនមុខវិជ្ជា៖
+      <span class="bold">{subject}</span> នៅវត្តសិក្សាទី <span class="bold">{term}</span>, ជំនាន់ទី
+      <span class="bold">{gen}</span> នៃដេប៉ាតឺម៉ង <span class="bold">{dept_name}</span>
+    </p>
+
+    <p>សាស្ត្រាចារ្យត្រូវទទួលនូវភារកិច្ចដូចខាងក្រោមនេះ៖</p>
+
+    <table>
+      <tr style="background: #b3d1ff; color: #003366; font-weight: bold">
+        <th
+          style="
+            width: 40px;
+            text-align: center;
+            background: #b3d1ff;
+            color: #003366;
+            font-weight: bold;
+          "
+        >
+          ល.រ
+        </th>
+        <th style="background: #b3d1ff; color: #003366; font-weight: bold">បរិយាយ</th>
+      </tr>
+      {items_rows}
+      <tr>
+        <td
+          colspan="2"
+          style="
+            background: #b3d1ff;
+            color: #003366;
+            font-size: 11pt;
+            font-weight: bold;
+            text-align: right;
+          "
+        >
+          ប្រាក់បៀវត្សរ៍សរុប៖ {total_salary} រៀល
+        </td>
+      </tr>
+    </table>
+
+    <p class="first-indent">
+      ភារកិច្ចរបស់សាស្ត្រាចារ្យអាចនឹងបញ្ជាក់ដោយសមហេតុផល នៃការសម្រេចចិត្តរបស់
+      <span class="bold">CADT</span> ពីគ្រាមួយទៅគ្រាមួយ ទៀត។
+    </p>
+
+    <p></p>
+    <span class="bold">ដើម្បីជាភស្តុតាង</span>
+    <p></p>
+
+    <div class="signature">
+      <div>
+        ធ្វើនៅ រាជធានីភ្នំពេញ <br />
+        ថ្ងៃទី <span class="bold">{date}</span> ខែ <span class="bold">{month}</span> ឆ្នាំ
+        <span class="bold">{year}</span> <br />
+        <div class="sig-wrap">
+          <div class="sig-box">{management_signature}</div>
+          <div>_________________</div>
+          <div class="nowrap">ភាគីតំណាង <span class="bold">CADT</span></div>
+        </div>
+      </div>
+      <div>
+        ធ្វើនៅ រាជធានីភ្នំពេញ <br />
+        ថ្ងៃទី <span class="bold">{date}</span> ខែ <span class="bold">{month}</span> ឆ្នាំ
+        <span class="bold">{year}</span> <br />
+        <div class="sig-wrap">
+          <div class="sig-box">{lecturer_signature}</div>
+          <div>_________________</div>
+          <!-- <div class="sig-row"><span class="bold">{lecturer_name}</span><span> </span></div> -->
+          <div class="nowrap">{lecturer_nameKh}</div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

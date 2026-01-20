@@ -1,0 +1,26 @@
+{
+  "root": true,
+  "env": {
+    "es2023": true,
+    "node": true
+  },
+  "parserOptions": {
+    "ecmaVersion": 2023,
+    "sourceType": "module"
+  },
+  "extends": ["eslint:recommended"],
+  "rules": {
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+    "no-console": "off",
+    "consistent-return": "warn",
+    "curly": ["error", "multi-line"],
+    "eqeqeq": ["error", "always"],
+    "no-magic-numbers": [
+      "warn",
+      { "ignore": [0, 1, 2, 7], "ignoreArrayIndexes": true, "enforceConst": true }
+    ],
+    "max-depth": ["warn", 3],
+    "complexity": ["warn", { "max": 10 }],
+    "prefer-const": "error"
+  }
+}

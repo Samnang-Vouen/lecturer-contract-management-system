@@ -1,0 +1,1542 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Lecturer Contract Generation System API",
+    "description": "API documentation for Lecturer Contract Generation System: authentication, recruitment candidates, interview questions, lecturers, courses, classes, course mappings, onboarding, catalog, dashboard, profiles, and users.\n\nSecurity: Most endpoints require a JWT cookie (httpOnly) set by /auth/login. Alternatively you may send an Authorization: Bearer <token> header.\n\nConventions:\n- Pagination: query params page (1-based), limit (default 10, max 100). Responses include page, limit, total, totalPages, hasMore.\n- Sorting: where implemented, optional sort / order query params (not all endpoints expose yet).\n- Filtering: resource-specific query params (e.g., department scoping enforced server-side).\n- Date/time fields are ISO8601 strings in UTC.\n- Errors follow the Error schema.",
+    "version": "1.0.0"
+  },
+  "externalDocs": {
+    "description": "Project README",
+    "url": "https://github.com/Samnang-Vouen/Lecturer-Information-System-Contract-Generation"
+  },
+  "servers": [{ "url": "http://localhost:4000", "description": "Local" }],
+  "tags": [
+    { "name": "Auth", "description": "Authentication & session" },
+    { "name": "Candidates", "description": "Recruitment candidates" },
+    { "name": "Interview", "description": "Interview questions & candidate responses" },
+    { "name": "Lecturers", "description": "Lecturer management" },
+    { "name": "LecturerProfile", "description": "Lecturer self-service profile" },
+    { "name": "Onboarding", "description": "Lecturer onboarding submissions" },
+    { "name": "Catalog", "description": "Reference data (departments, courses)" },
+    { "name": "Courses", "description": "Course definitions" },
+    { "name": "Classes", "description": "Class management" },
+    { "name": "CourseMappings", "description": "Class-course mapping records" },
+    { "name": "Users", "description": "Administrative user management" },
+    { "name": "Dashboard", "description": "Dashboard stats" },
+    { "name": "Profile", "description": "Authenticated user profile & password" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "cookieAuth": { "type": "apiKey", "in": "cookie", "name": "jwt" },
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "email": { "type": "string", "format": "email" },
+          "role": { "type": "string", "enum": ["superadmin", "admin", "management", "lecturer"] },
+          "fullName": { "type": "string", "nullable": true },
+          "department": { "type": "string", "nullable": true },
+          "status": { "type": "string", "enum": ["active", "inactive"] },
+          "lastLogin": { "type": "string", "format": "date-time", "nullable": true }
+        }
+      },
+      "Candidate": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "fullName": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "phone": { "type": "string", "nullable": true },
+          "positionAppliedFor": { "type": "string" },
+          "interviewDate": { "type": "string", "format": "date-time", "nullable": true },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "interview", "discussion", "final", "accepted", "rejected"]
+          },
+          "interviewScore": { "type": "number", "format": "float", "nullable": true },
+          "rejectionReason": { "type": "string", "nullable": true },
+          "hourlyRate": { "type": "number", "nullable": true },
+          "rateReason": { "type": "string", "nullable": true },
+          "evaluator": { "type": "string", "nullable": true },
+          "dept_id": { "type": "integer", "nullable": true },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "InterviewQuestion": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "question_text": { "type": "string" },
+          "category": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CandidateQuestionResponse": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "candidate_id": { "type": "integer" },
+          "question_id": { "type": "integer" },
+          "rating": { "type": "number", "format": "float", "nullable": true },
+          "noted": { "type": "string", "nullable": true },
+          "category": { "type": "string" },
+          "question_text": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Course": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "course_code": { "type": "string" },
+          "course_name": { "type": "string" },
+          "credit_hours": { "type": "integer" },
+          "dept_id": { "type": "integer", "nullable": true }
+        }
+      },
+      "Class": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "class_name": { "type": "string" },
+          "dept_id": { "type": "integer", "nullable": true },
+          "courses": {
+            "type": "array",
+            "items": { "type": "integer" },
+            "description": "Array of course IDs assigned (serialized)"
+          }
+        }
+      },
+      "CourseMapping": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "class_id": { "type": "integer" },
+          "course_id": { "type": "integer" },
+          "lecturer_id": { "type": "integer", "nullable": true },
+          "hours": { "type": "number" }
+        }
+      },
+      "LecturerProfile": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "user_id": { "type": "integer" },
+          "bio": { "type": "string", "nullable": true },
+          "status": { "type": "string" },
+          "department": { "type": "string", "nullable": true }
+        }
+      },
+      "OnboardingSubmission": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "user_id": { "type": "integer" },
+          "status": { "type": "string" },
+          "submitted_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "PaginatedCandidates": {
+        "type": "object",
+        "properties": {
+          "data": { "type": "array", "items": { "$ref": "#/components/schemas/Candidate" } },
+          "page": { "type": "integer" },
+          "limit": { "type": "integer" },
+          "total": { "type": "integer" },
+          "totalPages": { "type": "integer" },
+          "hasMore": { "type": "boolean" }
+        }
+      },
+      "DashboardStats": {
+        "type": "object",
+        "properties": {
+          "totalCandidates": { "type": "integer" },
+          "totalLecturers": { "type": "integer" }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": ["message"],
+        "properties": {
+          "message": { "type": "string" },
+          "code": { "type": "string", "nullable": true },
+          "details": { "type": "object", "nullable": true }
+        }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Unauthorized",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": { "message": "Not authorized" }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Forbidden",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": { "message": "Access denied" }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Not Found",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": { "message": "Resource not found" }
+          }
+        }
+      },
+      "ValidationError": {
+        "description": "Validation error",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": { "message": "Invalid input" }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Conflict",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": { "message": "Email already exists" }
+          }
+        }
+      },
+      "ServerError": {
+        "description": "Server error",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": { "message": "Server error" }
+          }
+        }
+      }
+    }
+  },
+  "security": [{ "cookieAuth": [], "bearerAuth": [] }],
+  "paths": {
+    "/api/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Login and obtain JWT cookie",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": { "type": "string", "format": "email" },
+                  "password": { "type": "string", "minLength": 6 }
+                }
+              },
+              "example": { "email": "admin@cadt.edu.kh", "password": "secret123" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "user": { "$ref": "#/components/schemas/User" }
+                  }
+                },
+                "example": {
+                  "success": true,
+                  "user": { "id": 1, "email": "admin@cadt.edu.kh", "role": "admin" }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Logout (clear JWT)",
+        "responses": {
+          "200": {
+            "description": "Logged out",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object", "properties": { "message": { "type": "string" } } },
+                "example": { "message": "Logged out successfully" }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        }
+      }
+    },
+    "/api/auth/check": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Check authentication status",
+        "responses": {
+          "200": {
+            "description": "Auth status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "authenticated": { "type": "boolean" },
+                    "user": { "$ref": "#/components/schemas/User" }
+                  }
+                },
+                "examples": {
+                  "unauthenticated": {
+                    "summary": "Not logged in",
+                    "value": { "authenticated": false }
+                  },
+                  "authenticated": {
+                    "summary": "Logged in",
+                    "value": {
+                      "authenticated": true,
+                      "user": { "id": 1, "email": "admin@cadt.edu.kh", "role": "admin" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/candidates": {
+      "get": {
+        "tags": ["Candidates"],
+        "summary": "List candidates (paginated)",
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 10 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated candidates",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PaginatedCandidates" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      },
+      "post": {
+        "tags": ["Candidates"],
+        "summary": "Create candidate",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["fullName", "email"],
+                "properties": {
+                  "fullName": { "type": "string" },
+                  "email": { "type": "string", "format": "email" },
+                  "phone": { "type": "string" },
+                  "positionAppliedFor": { "type": "string" },
+                  "interviewDate": { "type": "string", "format": "date-time" }
+                }
+              },
+              "example": {
+                "fullName": "Jane Doe",
+                "email": "jane@cadt.edu.kh",
+                "positionAppliedFor": "Lecturer"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Candidate" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+    "/api/candidates/{id}": {
+      "patch": {
+        "tags": ["Candidates"],
+        "summary": "Update candidate",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/Candidate" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Candidate" } }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      },
+      "delete": {
+        "tags": ["Candidates"],
+        "summary": "Delete candidate",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object", "properties": { "message": { "type": "string" } } },
+                "example": { "message": "Candidate deleted" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+
+    "/api/interview-questions": {
+      "get": {
+        "tags": ["Interview"],
+        "summary": "List interview questions grouped by category",
+        "parameters": [
+          {
+            "name": "defaultOnly",
+            "in": "query",
+            "schema": { "type": "boolean" },
+            "description": "Return only default (seeded) questions"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Questions grouped by category",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "categories": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": { "$ref": "#/components/schemas/InterviewQuestion" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      },
+      "post": {
+        "tags": ["Interview"],
+        "summary": "Add interview question",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["question_text", "category"],
+                "properties": {
+                  "question_text": { "type": "string" },
+                  "category": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/InterviewQuestion" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+    "/api/interview-questions/{id}": {
+      "put": {
+        "tags": ["Interview"],
+        "summary": "Update interview question text",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["question_text"],
+                "properties": { "question_text": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/InterviewQuestion" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+    "/api/interview-questions/search": {
+      "get": {
+        "tags": ["Interview"],
+        "summary": "Search interview questions",
+        "parameters": [
+          { "name": "query", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Search results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/InterviewQuestion" }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+    "/api/interview-questions/candidate-questions": {
+      "post": {
+        "tags": ["Interview"],
+        "summary": "Add/update candidate response (rating or note)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["candidate_id", "question_id"],
+                "properties": {
+                  "candidate_id": { "type": "integer" },
+                  "question_id": { "type": "integer" },
+                  "rating": { "type": "number", "nullable": true },
+                  "noted": { "type": "string", "nullable": true }
+                }
+              },
+              "example": {
+                "candidate_id": 5,
+                "question_id": 12,
+                "rating": 4,
+                "noted": "Good explanation"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CandidateQuestionResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+    "/api/candidates/{id}/interview-details": {
+      "get": {
+        "tags": ["Candidates"],
+        "summary": "Full interview responses (ratings & notes) for candidate",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Interview responses (may be empty)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "candidate_id": { "type": "integer" },
+                    "responses": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/CandidateQuestionResponse" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+
+    "/api/lecturers": {
+      "get": {
+        "tags": ["Lecturers"],
+        "summary": "List lecturers",
+        "responses": {
+          "200": {
+            "description": "Lecturer profiles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/LecturerProfile" }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      },
+      "post": {
+        "tags": ["Lecturers"],
+        "summary": "Create lecturer user",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+    "/api/lecturers/{id}/detail": {
+      "get": {
+        "tags": ["Lecturers"],
+        "summary": "Get lecturer detail",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detail",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/LecturerProfile" } }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+    "/api/lecturers/{id}/courses": {
+      "put": {
+        "tags": ["Lecturers"],
+        "summary": "Update lecturer courses",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": { "courseIds": { "type": "array", "items": { "type": "integer" } } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/LecturerProfile" } }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+    "/api/lecturers/{id}/profile": {
+      "patch": {
+        "tags": ["Lecturers"],
+        "summary": "Patch lecturer profile fields",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/LecturerProfile" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/LecturerProfile" } }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+    "/api/lecturers/{id}": {
+      "put": {
+        "tags": ["Lecturers"],
+        "summary": "Update lecturer user",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      },
+      "delete": {
+        "tags": ["Lecturers"],
+        "summary": "Delete lecturer user",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object", "properties": { "message": { "type": "string" } } },
+                "example": { "message": "User deleted" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+    "/api/lecturers/{id}/status": {
+      "patch": {
+        "tags": ["Lecturers"],
+        "summary": "Toggle lecturer status",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Status updated",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+
+    "/api/lecturer-profile/me": {
+      "get": {
+        "tags": ["LecturerProfile"],
+        "summary": "Get my lecturer profile",
+        "responses": {
+          "200": {
+            "description": "Profile",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/LecturerProfile" } }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      },
+      "put": {
+        "tags": ["LecturerProfile"],
+        "summary": "Update my lecturer profile",
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/LecturerProfile" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/LecturerProfile" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+    "/api/lecturer-profile/me/files": {
+      "post": {
+        "tags": ["LecturerProfile"],
+        "summary": "Upload CV/Syllabus files",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "cv": { "type": "string", "format": "binary" },
+                  "syllabus": { "type": "string", "format": "binary" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Uploaded",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/LecturerProfile" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "413": { "description": "Payload too large" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+
+    "/api/lecturers/onboarding/status": {
+      "get": {
+        "tags": ["Onboarding"],
+        "summary": "Check my onboarding status",
+        "responses": {
+          "200": {
+            "description": "Status",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OnboardingSubmission" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+    "/api/lecturers/onboarding": {
+      "post": {
+        "tags": ["Onboarding"],
+        "summary": "Submit onboarding form & files",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "form": { "type": "string" },
+                  "attachments": {
+                    "type": "array",
+                    "items": { "type": "string", "format": "binary" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Submitted",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OnboardingSubmission" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+
+    "/api/catalog/departments": {
+      "get": {
+        "tags": ["Catalog"],
+        "summary": "List departments",
+        "responses": {
+          "200": {
+            "description": "Departments",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": { "id": { "type": "integer" }, "dept_name": { "type": "string" } }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+    "/api/catalog/courses": {
+      "get": {
+        "tags": ["Catalog"],
+        "summary": "List catalog courses",
+        "responses": {
+          "200": {
+            "description": "Courses",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Course" } }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+
+    "/api/courses": {
+      "get": {
+        "tags": ["Courses"],
+        "summary": "List courses (paginated)",
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 10 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated courses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/Course" } },
+                    "page": { "type": "integer" },
+                    "limit": { "type": "integer" },
+                    "total": { "type": "integer" },
+                    "totalPages": { "type": "integer" },
+                    "hasMore": { "type": "boolean" },
+                    "note": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      },
+      "post": {
+        "tags": ["Courses"],
+        "summary": "Create course",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Course" } } }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Course" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+    "/api/courses/{id}": {
+      "put": {
+        "tags": ["Courses"],
+        "summary": "Update course",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Course" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Course" } }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      },
+      "delete": {
+        "tags": ["Courses"],
+        "summary": "Delete course",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "204": { "description": "Deleted" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+
+    "/api/classes": {
+      "get": {
+        "tags": ["Classes"],
+        "summary": "List classes",
+        "responses": {
+          "200": {
+            "description": "Classes",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Class" } }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      },
+      "post": {
+        "tags": ["Classes"],
+        "summary": "Create class",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Class" } } }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Class" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+    "/api/classes/{id}": {
+      "get": {
+        "tags": ["Classes"],
+        "summary": "Get class by id",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Class",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Class" } }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      },
+      "put": {
+        "tags": ["Classes"],
+        "summary": "Update class",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Class" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Class" } }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      },
+      "delete": {
+        "tags": ["Classes"],
+        "summary": "Delete class",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "204": { "description": "Deleted" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+    "/api/classes/{id}/courses": {
+      "put": {
+        "tags": ["Classes"],
+        "summary": "Assign courses to class",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": { "courses": { "type": "array", "items": { "type": "integer" } } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated class",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Class" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+
+    "/api/course-mappings": {
+      "get": {
+        "tags": ["CourseMappings"],
+        "summary": "List course mappings",
+        "responses": {
+          "200": {
+            "description": "Mappings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/CourseMapping" }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      },
+      "post": {
+        "tags": ["CourseMappings"],
+        "summary": "Create mapping",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/CourseMapping" } }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/CourseMapping" } }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+    "/api/course-mappings/{id}": {
+      "put": {
+        "tags": ["CourseMappings"],
+        "summary": "Update mapping",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/CourseMapping" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/CourseMapping" } }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      },
+      "delete": {
+        "tags": ["CourseMappings"],
+        "summary": "Delete mapping",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "204": { "description": "Deleted" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+
+    "/api/users": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "List users",
+        "responses": {
+          "200": {
+            "description": "Users",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/User" } }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      },
+      "post": {
+        "tags": ["Users"],
+        "summary": "Create user",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+    "/api/users/{id}": {
+      "put": {
+        "tags": ["Users"],
+        "summary": "Update user",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      },
+      "delete": {
+        "tags": ["Users"],
+        "summary": "Delete user",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object", "properties": { "message": { "type": "string" } } },
+                "example": { "message": "User deleted" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+    "/api/users/{id}/status": {
+      "patch": {
+        "tags": ["Users"],
+        "summary": "Toggle user status",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Status updated",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+
+    "/api/dashboard/stats": {
+      "get": {
+        "tags": ["Dashboard"],
+        "summary": "Get dashboard statistics",
+        "responses": {
+          "200": {
+            "description": "Stats",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/DashboardStats" } }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+
+    "/api/profile/me": {
+      "get": {
+        "tags": ["Profile"],
+        "summary": "Get my user profile",
+        "responses": {
+          "200": {
+            "description": "Profile",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/User" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+    "/api/profile/activity": {
+      "get": {
+        "tags": ["Profile"],
+        "summary": "Get my recent activity",
+        "responses": {
+          "200": {
+            "description": "Activity list",
+            "content": {
+              "application/json": { "schema": { "type": "array", "items": { "type": "object" } } }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+    "/api/profile/change-password": {
+      "post": {
+        "tags": ["Profile"],
+        "summary": "Change my password",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["oldPassword", "newPassword"],
+                "properties": {
+                  "oldPassword": { "type": "string" },
+                  "newPassword": { "type": "string", "minLength": 6 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password changed",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object", "properties": { "message": { "type": "string" } } },
+                "example": { "message": "Password updated successfully" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    }
+  }
+}

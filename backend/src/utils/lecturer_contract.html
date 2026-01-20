@@ -1,0 +1,229 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>lecturer_contract</title>
+    <style>
+      @page {
+        size: A4;
+        margin: 40px;
+      }
+      /* Ensure Times New Roman is used when available */
+      @font-face {
+        font-family: 'Times New Roman';
+        src:
+          local('Times New Roman'), local('TimesNewRomanPSMT'), local('TimesNewRomanPS'),
+          local('TimesNewRoman');
+        font-weight: normal;
+        font-style: normal;
+      }
+      body {
+        font-family: 'Times New Roman', Times, serif;
+        font-size: 12pt;
+        line-height: 1.5;
+        margin: 0;
+        padding: 0;
+      }
+      h1 {
+        margin-bottom: 0;
+        margin-top: 0;
+        font-size: 12pt;
+        font-weight: bold;
+      }
+      .logo-flex {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 5px;
+      }
+      .logo-flex img {
+        max-width: 150px;
+        height: auto;
+        display: block;
+      }
+      .title-flex {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 20px;
+      }
+      p {
+        margin: 12px 0;
+        text-align: justify;
+      }
+      .bold {
+        font-weight: bold;
+      }
+      .first-indent {
+        text-indent: 2em;
+      }
+      .hanging-indent {
+        padding-left: 2em;
+        text-indent: -2em;
+        margin-bottom: 12px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin-top: 15px;
+        font-size: 10.5pt;
+      }
+      table,
+      th,
+      td {
+        border: 1px solid #000;
+      }
+      th,
+      td {
+        padding: 8px;
+        text-align: left;
+      }
+      .no-col {
+        width: 40px;
+        text-align: center;
+        position: sticky;
+        left: 0;
+        z-index: 1;
+      }
+      .blue-row {
+        background: #e6f0ff;
+        color: #003366;
+        font-weight: bold;
+      }
+      .total-fee-row {
+        background: #b3d1ff !important;
+        color: #003366;
+        font-size: 11pt !important;
+        font-weight: bold;
+        text-align: right;
+      }
+      .signature {
+        margin-top: 20px;
+        display: flex;
+        justify-content: space-between;
+      }
+      .signature div {
+        text-align: center;
+        width: 45%;
+      }
+      /* Signature alignment helpers */
+      .sig-wrap {
+        width: 260px;
+        margin: 0 auto;
+        text-align: center;
+      }
+      .sig-box {
+        height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .sig-row {
+        display: block;
+        white-space: nowrap;
+      }
+      .nowrap {
+        white-space: nowrap;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="logo-flex">
+      <img src="cadt_logo.png" alt="School Logo" />
+    </div>
+    <div class="title-flex">
+      <h1>EMPLOYMENT AGREEMENT</h1>
+    </div>
+
+    <p class="first-indent">
+      Employment Agreement, between
+      <span class="bold">Cambodia Academy of Digital Technology (The “CADT”)</span> and
+      <span class="bold">{lecturer_name}</span> (The “{positionEn}”).
+    </p>
+
+    <p>The CADT employs the Lecturer on the following terms and conditions:</p>
+
+    <p class="hanging-indent">
+      <span class="bold">1.&nbsp;&nbsp;Terms of Employment:</span>
+      Subject to the provisions for termination set forth below, this agreement will begin on
+      <span class="bold">{start_date}</span> and the agreement is subject to a 3
+      <span class="bold"><i>months</i></span> period.
+    </p>
+
+    <p class="hanging-indent">
+      <span class="bold">2.&nbsp;&nbsp;Salary:</span> The <span class="bold">CADT</span> shall pay
+      the Lecturer a salary of <span class="bold">{salary} KHR</span> per month for
+      <span class="bold">3 months.</span>
+    </p>
+
+    <p class="hanging-indent">
+      <span class="bold">3.&nbsp;&nbsp;Duties and Position:</span> The
+      <span class="bold">CADT</span> hires the Lecturer to teach
+      <span class="bold">{subject}</span> in Term <span class="bold">{term}</span>, Generation
+      <span class="bold">{gen}</span>, <span class="bold">Department</span> of
+      <span class="bold">{dept_name}</span>
+    </p>
+
+    <p class="first-indent">The Lecturer accepts the following duties:</p>
+
+    <table>
+      <tr style="background: #b3d1ff; color: #003366; font-weight: bold">
+        <th
+          style="
+            width: 40px;
+            text-align: center;
+            background: #b3d1ff;
+            color: #003366;
+            font-weight: bold;
+          "
+        >
+          No.
+        </th>
+        <th style="background: #b3d1ff; color: #003366; font-weight: bold">Duties</th>
+      </tr>
+      {items_rows}
+      <tr>
+        <td
+          colspan="2"
+          style="
+            background: #b3d1ff;
+            color: #003366;
+            font-size: 11pt;
+            font-weight: bold;
+            text-align: right;
+          "
+        >
+          TOTAL FEE: {total_salary} KHR
+        </td>
+      </tr>
+    </table>
+
+    <p class="first-indent">
+      The Lecturer's duties may be reasonably modified at the
+      <span class="bold">CADT's</span> discretion from time to time.
+    </p>
+
+    <h3>IN WITNESS WHEREOF</h3>
+
+    <div class="signature">
+      <div>
+        <div class="sig-wrap">
+          <div class="sig-box">{management_signature}</div>
+          <div>_________________</div>
+          <!-- <div class="sig-row"><span>On behalf of CADT</span><br><span>Date: {sign_date}</span></div> -->
+          <div class="nowrap">On behalf of CADT</div>
+          <div class="nowrap">Date: {sign_date}</div>
+        </div>
+      </div>
+      <div>
+        <div class="sig-wrap">
+          <div class="sig-box">{lecturer_signature}</div>
+          <div>_________________</div>
+          <!-- <div class="sig-row"><span>{lecturer_name}</span><br><span>Date: {sign_date}</span></div> -->
+          <div class="nowrap">{lecturer_name}</div>
+          <div class="nowrap">Date: {sign_date}</div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

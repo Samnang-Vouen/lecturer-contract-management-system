@@ -1,0 +1,41 @@
+{
+  "name": "server-side",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "build": "echo no-build",
+    "start": "node src/server.js",
+    "start:prod": "node src/server.js",
+    "validate": "node -e \"require('fs').existsSync('src/server.js')||process.exit(1)\"",
+    "seed:courses": "node src/scripts/seedCourses.js",
+    "lint": "eslint \"src/**/*.js\"",
+    "format": "prettier --write ."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "exceljs": "^4.4.0",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.2",
+    "mysql2": "^3.14.4",
+    "puppeteer": "^22.15.0",
+    "sequelize": "^6.37.7",
+    "swagger-ui-express": "^5.0.1",
+    "zod": "^3.23.8",
+    "yargs": "^18.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10",
+    "eslint": "^9.13.0",
+    "prettier": "^3.2.5"
+  }
+}
