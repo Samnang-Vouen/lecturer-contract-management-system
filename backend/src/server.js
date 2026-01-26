@@ -18,6 +18,14 @@ import { runSeeds } from './bootstrap/seeds.js';
 process.env.DOTENV_CONFIG_SILENT = 'true';
 dotenv.config({ debug: false });
 
+// Prevent Node from crashing on EPIPE when parent process closes stdout/stderr pipes
+process.stdout.on('error', (err) => {
+  if (err && err.code === 'EPIPE') return;
+});
+process.stderr.on('error', (err) => {
+  if (err && err.code === 'EPIPE') return;
+});
+
 const app = express();
 const PORT = process.env.PORT || 4000;
 const ORIGIN = CORS_ALLOWED_ORIGIN;
@@ -34,36 +42,12 @@ const corsOptions = {
     if (process.env.NODE_ENV !== 'production' && /^http:\/\/localhost:\d+$/i.test(origin)) {
       return callback(null, true);
     }
-    // Prevent Node from crashing on EPIPE when parent process closes stdout/stderr pipes
-    try {
-      process.stdout.on('error', (err) => {
-        if (err && err.code === 'EPIPE') return;
-      });
-      process.stderr.on('error', (err) => {
-        if (err && err.code === 'EPIPE') return;
-      });
-    } catch {}
-
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
 };
 app.use(cors(corsOptions));
 
-registerRoutes(app);
-// Serve uploaded lecturer files (CVs, syllabi)
-app.use('/uploads', express.static('uploads'));
-// Swagger/OpenAPI docs
-const openapiPath = path.join(process.cwd(), 'src', 'openapi.json');
-let openapiDoc = null;
-try {
-  openapiDoc = JSON.parse(fs.readFileSync(openapiPath, 'utf-8'));
-} catch (e) {
-  console.error('Failed to load openapi.json', e.message);
-  openapiDoc = { openapi: '3.0.0', info: { title: 'API Docs', version: '0.0.0' } };
-}
-app.get('/api/openapi.json', (_req, res) => res.json(openapiDoc));
-app.use('/api/doc', swaggerUi.serve, swaggerUi.setup(openapiDoc));
 // Liveness/health check endpoint used by uptime monitors or container orchestrators
 // to quickly verify the API process is running (does not perform deep dependency checks).
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
@@ -76,6 +60,23 @@ app.get('/api/ready', async (_req, res) => {
     return res.status(503).json({ status: 'degraded', error: e.message });
   }
 });
+
+// Swagger/OpenAPI docs
+const openapiPath = path.join(process.cwd(), 'src', 'openapi.json');
+let openapiDoc = null;
+try {
+  openapiDoc = JSON.parse(fs.readFileSync(openapiPath, 'utf-8'));
+} catch (e) {
+  console.error('Failed to load openapi.json', e.message);
+  openapiDoc = { openapi: '3.0.0', info: { title: 'API Docs', version: '0.0.0' } };
+}
+app.get('/api/openapi.json', (_req, res) => res.json(openapiDoc));
+app.use('/api/doc', swaggerUi.serve, swaggerUi.setup(openapiDoc));
+
+// Serve uploaded lecturer files (CVs, syllabi)
+app.use('/uploads', express.static('uploads'));
+
+registerRoutes(app);
 
 // 404 and error handlers for graceful failures
 app.use(notFound);
