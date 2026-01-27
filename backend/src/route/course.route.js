@@ -8,25 +8,37 @@ import {
   updateCourse,
   deleteCourse,
 } from '../controller/course.controller.js';
+import { validateId } from '../validators/validator.js';
 
 const router = Router();
 
 // Dynamic courses CRUD
-router.get('/', protect, authorizeRoles('admin', 'superadmin'), listCourses);
-router.post(
-  '/',
+router.get('/',
+  protect,
+  authorizeRoles('admin', 'superadmin'),
+  listCourses
+);
+
+router.post('/',
   protect,
   authorizeRoles('admin', 'superadmin'),
   validate(CourseCreateSchema, 'body'),
   createCourse
 );
-router.put(
-  '/:id',
+
+router.put('/:id',
   protect,
   authorizeRoles('admin', 'superadmin'),
+  validateId('id'),
   validate(CourseUpdateSchema, 'body'),
   updateCourse
 );
-router.delete('/:id', protect, authorizeRoles('admin', 'superadmin'), deleteCourse);
+
+router.delete('/:id',
+  protect,
+  authorizeRoles('admin', 'superadmin'),
+  validateId('id'),
+  deleteCourse
+);
 
 export default router;

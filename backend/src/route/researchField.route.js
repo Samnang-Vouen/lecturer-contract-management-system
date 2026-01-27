@@ -1,12 +1,16 @@
-import express from 'express';
+import { Router } from 'express';
 import { getResearchFields, createResearchField } from '../controller/researchField.controller.js';
+import { validateString } from '../validators/validator.js';
 
-const router = express.Router();
+const router = Router();
 
 // GET /api/research-fields - Get all research fields
 router.get('/', getResearchFields);
 
 // POST /api/research-fields - Create a new research field
-router.post('/', createResearchField);
+router.post('/',
+  validateString('field_name', 1, 100),
+  createResearchField
+);
 
 export default router;

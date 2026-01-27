@@ -1,4 +1,5 @@
-import express from 'express';
+import { Router } from 'express';
+import multer from 'multer';
 import { protect, authorizeRoles } from '../middleware/auth.middleware.js';
 import {
   onboardingUploadMiddleware,
@@ -6,7 +7,7 @@ import {
   checkOnboarding,
 } from '../controller/onboarding.controller.js';
 
-const router = express.Router();
+const router = Router();
 
 router.use(protect, authorizeRoles(['lecturer']));
 

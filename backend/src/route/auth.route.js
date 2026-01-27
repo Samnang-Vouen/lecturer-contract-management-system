@@ -1,15 +1,20 @@
-import express from 'express';
+import { Router } from 'express';
 import {
   login,
   logout,
   checkAuth /* , changeSuperadminPassword */,
 } from '../controller/auth.controller.js';
 import { protect, authorizeRoles } from '../middleware/auth.middleware.js';
+import { validateEmail, validatePassword } from '../validators/validator.js';
 
-const router = express.Router();
+const router = Router();
 
 // Login - open to all
-router.post('/login', login);
+router.post('/login',
+  validateEmail('email'),
+  validatePassword('password'),
+  login
+);
 
 // Logout - open to all
 router.post('/logout', logout);
@@ -18,10 +23,12 @@ router.post('/logout', logout);
 router.get('/check' /* , protect */, checkAuth);
 
 // Change superadmin password - protected superadmin-only
-router.post(
-  '/change-password',
+router.post('/change-password',
   protect,
-  authorizeRoles('superadmin') /* , changeSuperadminPassword */
+  authorizeRoles('superadmin'),
+  validatePassword('oldPassword'),
+  validatePassword('newPassword')
+  /* , changeSuperadminPassword */
 );
 
 export default router;

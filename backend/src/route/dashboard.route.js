@@ -1,4 +1,4 @@
-import express from 'express';
+import { Router } from 'express';
 import {
   getDashboardStats,
   getDashboardRealtime,
@@ -10,7 +10,7 @@ import { superAdminDashboardDataHandler } from '../dashboarddata/superadmindashb
 import { adminDashboardDataHandler } from '../dashboarddata/admindashboarddata.js';
 import { protect, authorizeRoles } from '../middleware/auth.middleware.js';
 
-const router = express.Router();
+const router = Router();
 
 // Protect all dashboard routes - require authentication
 router.use(protect);

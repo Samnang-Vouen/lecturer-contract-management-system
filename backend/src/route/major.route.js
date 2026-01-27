@@ -1,12 +1,16 @@
-import express from 'express';
+import { Router } from 'express';
 import { getMajors, createMajor } from '../controller/major.controller.js';
+import { validateString } from '../validators/validator.js';
 
-const router = express.Router();
+const router = Router();
 
 // GET /api/majors - Get all majors
 router.get('/', getMajors);
 
 // POST /api/majors - Create a new major
-router.post('/', createMajor);
+router.post('/',
+  validateString('major_name', 1, 100),
+  createMajor
+);
 
 export default router;

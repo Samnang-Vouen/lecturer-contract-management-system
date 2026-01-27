@@ -1,8 +1,8 @@
-import express from 'express';
+import { Router } from 'express';
 import { protect, authorizeRoles } from '../middleware/auth.middleware.js';
 import { getMyCourses, getMyCourseMappings } from '../controller/lecturerSelf.controller.js';
 
-const router = express.Router();
+const router = Router();
 
 // Only lecturers can access these endpoints
 router.use(protect, authorizeRoles(['lecturer']));
