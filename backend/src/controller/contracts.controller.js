@@ -5,10 +5,6 @@ export async function createContract(req, res) {
   const t = await sequelize.transaction();
   try {
     const { lecturerId, items, start_date, end_date, salary } = req.body || {};
-    if (!lecturerId || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ message: 'lecturerId and at least one item are required' });
-    }
-
     // Management/Admin scoping: ensure the target lecturer is within the same department
     const actorRole = String(req.user?.role || '').toLowerCase();
     if (['admin', 'management'].includes(actorRole)) {

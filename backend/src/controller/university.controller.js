@@ -16,11 +16,6 @@ export const getUniversities = async (req, res) => {
 export const createUniversity = async (req, res) => {
   try {
     const { name } = req.body;
-
-    if (!name || !name.trim()) {
-      return res.status(400).json({ error: 'University name is required' });
-    }
-
     const trimmedName = name.trim();
 
     // Check if university already exists (case-insensitive)

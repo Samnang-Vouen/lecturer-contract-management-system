@@ -17,11 +17,6 @@ export const getResearchFields = async (req, res) => {
 export const createResearchField = async (req, res) => {
   try {
     const { name } = req.body;
-
-    if (!name || !name.trim()) {
-      return res.status(400).json({ error: 'Research field name is required' });
-    }
-
     const trimmedName = name.trim();
 
     // Check if field already exists (case-insensitive)

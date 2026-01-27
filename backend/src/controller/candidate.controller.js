@@ -56,9 +56,6 @@ export const getCandidates = async (req, res) => {
 export const createCandidate = async (req, res) => {
   try {
     const { fullName, email, phone, positionAppliedFor, interviewDate } = req.body;
-    if (!fullName || !email) {
-      return res.status(400).json({ message: 'fullName and email are required' });
-    }
     // Determine department from recruiting admin
     let dept_id = null;
     if (req.user?.role === 'admin' && req.user.department_name) {

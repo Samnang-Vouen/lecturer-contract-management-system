@@ -561,7 +561,6 @@ export const resetUserPassword = async (req, res) => {
     email = String(email || '')
       .trim()
       .toLowerCase();
-    if (!email) return res.status(400).json({ message: 'Email is required' });
     const user = await User.findOne({ where: { email } });
     if (!user) return res.status(404).json({ message: 'User not found' });
 
@@ -579,9 +578,7 @@ export const resetUserPassword = async (req, res) => {
       while (tmp.length < TEMP_LEN) tmp += Math.random().toString(36).slice(2);
       newPassword = tmp.slice(0, TEMP_LEN);
     }
-    if (newPassword.length < 6) {
-      return res.status(400).json({ message: 'New password must be at least 6 characters' });
-    }
+
 
     const hashed = await bcrypt.hash(newPassword, 10);
     await user.update({ password_hash: hashed });

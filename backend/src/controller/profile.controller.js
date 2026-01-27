@@ -52,12 +52,6 @@ export const getMyActivity = async (req, res) => {
 export const changeMyPassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({ message: 'Current and new password required' });
-    }
-    if (newPassword.length < 6) {
-      return res.status(400).json({ message: 'New password must be at least 6 characters' });
-    }
     const user = await User.findByPk(req.user.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
     if (user.status !== 'active') return res.status(403).json({ message: 'Account inactive' });

@@ -37,8 +37,6 @@ export const getInterviewQuestions = async (req, res) => {
 export const addInterviewQuestion = async (req, res) => {
   try {
     const { question_text, category } = req.body;
-    if (!question_text || !category)
-      return res.status(400).json({ message: 'question_text and category required' });
     const canonical_text = normalize(question_text);
     // Check duplicate
     const dup = await InterviewQuestion.findOne({ where: { category, canonical_text } });

@@ -16,11 +16,6 @@ export const getMajors = async (req, res) => {
 export const createMajor = async (req, res) => {
   try {
     const { name } = req.body;
-
-    if (!name || !name.trim()) {
-      return res.status(400).json({ error: 'Major name is required' });
-    }
-
     const trimmedName = name.trim();
 
     // Check if major already exists (case-insensitive)
