@@ -116,7 +116,8 @@ export const getDashboardStats = async (req, res) => {
 
     // 3a) Active contracts
     // Teaching contracts: active if not ended and in a non-completed state
-    // Note: 'today' not used; relying on end_date comparisons elsewhere
+    // Note: ensure 'today' is defined for date comparisons below
+    const today = new Date();
     const tcWhere = {
       status: { [Op.in]: ['WAITING_LECTURER', 'WAITING_MANAGEMENT'] },
       [Op.or]: [{ end_date: null }, { end_date: { [Op.gte]: today } }],

@@ -1,0 +1,7 @@
+diff --git a/node_modules/@headlessui/react/dist/react-glue.js b/node_modules/@headlessui/react/dist/react-glue.js
+index 071fc12..a84108e 100644
+--- a/node_modules/@headlessui/react/dist/react-glue.js
++++ b/node_modules/@headlessui/react/dist/react-glue.js
+@@ -1 +1 @@
+-import{useSyncExternalStoreWithSelector as a}from"use-sync-external-store/with-selector";import{useEvent as t}from'./hooks/use-event.js';import{shallowEqual as o}from'./machine.js';function S(e,n,r=o){return a(t(i=>e.subscribe(s,i)),t(()=>e.state),t(()=>e.state),t(n),r)}function s(e){return e}export{S as useSlice};
++import*as useSyncExternalStoreExports from"use-sync-external-store/with-selector";const a=useSyncExternalStoreExports.useSyncExternalStoreWithSelector||useSyncExternalStoreExports.default?.useSyncExternalStoreWithSelector;import{useEvent as t}from'./hooks/use-event.js';import{shallowEqual as o}from'./machine.js';function S(e,n,r=o){return a(t(i=>e.subscribe(s,i)),t(()=>e.state),t(()=>e.state),t(n),r)}function s(e){return e}export{S as useSlice};

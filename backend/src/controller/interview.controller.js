@@ -22,7 +22,8 @@ export const getInterviewQuestions = async (req, res) => {
     // Group by category
     const categories = {};
     for (const q of rows) {
-      if (!activeInterviewCategories.includes(q.category)) continue; // skip inactive categories
+      // Don't skip custom questions that might be in new categories
+      if (defaultOnly && !activeInterviewCategories.includes(q.category)) continue; // skip inactive categories only when filtering defaults
       if (!categories[q.category]) categories[q.category] = [];
       categories[q.category].push({ id: q.id, question_text: q.question_text });
     }
@@ -83,6 +84,21 @@ export const updateInterviewQuestion = async (req, res) => {
   } catch (e) {
     console.error('updateInterviewQuestion error', e);
     res.status(500).json({ message: 'Failed to update question' });
+  }
+};
+
+// DELETE /api/interview-questions/:id
+export const deleteInterviewQuestion = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const row = await InterviewQuestion.findByPk(id);
+    if (!row) return res.status(404).json({ message: 'Question not found' });
+    
+    await row.destroy();
+    res.json({ message: 'Question deleted successfully' });
+  } catch (e) {
+    console.error('deleteInterviewQuestion error', e);
+    res.status(500).json({ message: 'Failed to delete question' });
   }
 };
 
@@ -192,6 +208,7 @@ export default {
   getInterviewQuestions,
   addInterviewQuestion,
   updateInterviewQuestion,
+  deleteInterviewQuestion,
   searchInterviewQuestions,
   addCandidateQuestion,
   getCandidateInterviewDetails,

@@ -1,0 +1,235 @@
+/* Tailwind directives (processed by PostCSS) */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body { 
+  @apply bg-gray-50 text-gray-800 min-h-screen font-sans; 
+  /* Smooth scrolling for better UX */
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar styling for webkit browsers */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100 rounded-full;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 rounded-full hover:bg-gray-400;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400;
+}
+
+/* Enhanced focus states for accessibility */
+*:focus-visible {
+  outline: 2px solid theme('colors.blue.500');
+  outline-offset: 2px;
+}
+
+/* Smooth transitions for interactive elements */
+button, a, input, textarea, select {
+  transition: all 0.2s ease-in-out;
+}
+
+
+/* Global interactive cursor styles */
+@layer base {
+	/* Show pointer for common interactive elements */
+	a[href],
+	button,
+	option,
+	optgroup,
+	a, 
+	[role="button"],
+	[role="link"],
+	input[type="button"],
+	input[type="submit"],
+	input[type="reset"],
+	summary,
+	select,
+	label[for],
+	/* Conventional utility hooks for clickable UI */
+	[data-clickable],
+	.clickable,
+	.btn,
+	.card-clickable,
+	/* Dropdown triggers (ARIA & common classnames) */
+	[aria-haspopup],
+	[role="combobox"],
+	.dropdown-toggle,
+	[data-dropdown-trigger],
+	/* Dropdown/Menu items (ARIA roles & common classnames) */
+	[role="menuitem"],
+	[role="option"],
+	[role="tab"],
+	[role="treeitem"],
+	li[role="menuitem"],
+	li[role="option"],
+	.dropdown-item,
+	.menu-item,
+	.menu li,
+	/* MUI components commonly used as interactive */
+	.MuiMenuItem-root,
+	.MuiListItemButton-root,
+	.MuiTab-root,
+	.MuiChip-clickable,
+	.MuiSelect-select {
+		cursor: pointer;
+	}
+
+		/* Focusable non-input elements are interactive */
+		[tabindex]:not([tabindex="-1"]):not(input):not(textarea):not(select) {
+			cursor: pointer;
+		}
+
+	/* Respect disabled states */
+	button:disabled,
+	input[type="button"]:disabled,
+	input[type="submit"]:disabled,
+	input[type="reset"]:disabled,
+	select:disabled,
+	[disabled],
+	[aria-disabled="true"],
+	.disabled,
+	.Mui-disabled {
+		cursor: not-allowed;
+	}
+
+	/* Native select options (best-effort; some browsers ignore) */
+	select option,
+	select optgroup,
+	datalist option {
+		cursor: pointer;
+	}
+
+	/* Disabled options/optgroups */
+	option:disabled,
+	optgroup:disabled {
+		cursor: not-allowed;
+	}
+}
+
+/* Ensure typed input text is solid black across browsers */
+input, textarea, select { 
+  color: #000; 
+  @apply border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500;
+}
+
+/* Lighter placeholder */
+input::placeholder, textarea::placeholder { 
+  color: #9ca3af; 
+  opacity: .6; 
+}
+
+/* Force white background for all inputs (including WebKit inner area & spin buttons) */
+input, textarea, select { 
+  background-color: #fff; 
+  @apply shadow-sm;
+}
+
+input[type=number] { background-color: #fff; }
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { background: #fff; }
+
+/* Firefox number input spinner removal fallback */
+input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+
+/* Force light UI for native number spinners (Chrome/Edge sometimes shows dark background) */
+input[type=number] { color-scheme: light; }
+
+/* Chrome autofill enhanced styling */
+
+/* Hide native date picker icon (we use a custom calendar button) */
+input[type="date"]::-webkit-calendar-picker-indicator { display: none; -webkit-appearance: none; }
+input[type="date"]::-webkit-inner-spin-button { display: none; }
+input[type="date"]::-webkit-clear-button { display: none; }
+/* Keep the popup white and avoid UA theming conflicts */
+input[type="date"] { appearance: textfield; color-scheme: light; background-color:#fff; }
+/* If you prefer to HIDE the spinner entirely (uncomment below) */
+/*
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin:0; }
+*/
+/* Chrome autofill */
+input:-webkit-autofill, textarea:-webkit-autofill, select:-webkit-autofill {
+	-webkit-text-fill-color: #000 !important;
+	transition: background-color 5000s ease-in-out 0s;
+	@apply border-blue-300;
+}
+
+/* Enhanced card styles */
+.card {
+  @apply bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden;
+  transition: box-shadow 0.2s ease-in-out, transform 0.2s ease-in-out;
+}
+
+.card:hover {
+  @apply shadow-md;
+  transform: translateY(-1px);
+}
+
+/* Enhanced button hover effects */
+.btn-primary {
+  @apply bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800;
+}
+
+.btn-secondary {
+  @apply bg-gradient-to-r from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300;
+}
+
+/* Loading animation */
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: .5;
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Defer rendering of offscreen content to speed up initial paint (LCP) */
+.defer-render {
+	content-visibility: auto;
+	/* Reserve intrinsic size to avoid layout shift; adjust as needed per view */
+	contain-intrinsic-size: 800px;
+}
+
+/* Notification styles */
+.notification {
+  @apply fixed top-4 right-4 z-50 max-w-sm bg-white border border-gray-200 rounded-lg shadow-lg p-4;
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Enhanced mobile responsiveness */
+@media (max-width: 640px) {
+  .container {
+    @apply px-4;
+  }
+}
+
+/* Text selection styling */
+::selection {
+  @apply bg-blue-100 text-blue-900;
+}

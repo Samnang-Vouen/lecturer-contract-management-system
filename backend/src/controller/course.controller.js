@@ -1,6 +1,7 @@
 import { Department } from '../model/index.js';
 import Course from '../model/course.model.js';
 import { Op, UniqueConstraintError } from 'sequelize';
+import sequelize from '../config/db.js';
 import { HTTP_STATUS, PAGINATION_DEFAULT_LIMIT, PAGINATION_MAX_LIMIT } from '../config/constants.js';
 
 function validateCourse(body) {
@@ -122,13 +123,33 @@ export const createCourse = async (req, res) => {
       deptId = dept.id;
     }
 
+    console.log('[createCourse] dept_id:', deptId, 'user role:', req.user.role, 'dept_name:', req.user.department_name);
+
     const code = req.body.course_code.trim();
     const name = req.body.course_name.trim();
+    console.log('[createCourse] Checking for duplicates - code:', code, 'name:', name);
     // Department-scoped duplicate checks (also enforced by DB composite unique indexes)
-    const existingCode = await Course.findOne({ where: { course_code: code, dept_id: deptId } });
+    // Use case-insensitive search for better UX
+    const existingCode = await Course.findOne({ 
+      where: { 
+        [Op.and]: [
+          { dept_id: deptId },
+          sequelize.where(sequelize.fn('LOWER', sequelize.col('course_code')), sequelize.fn('LOWER', code))
+        ]
+      } 
+    });
+    console.log('[createCourse] Existing code found:', !!existingCode, existingCode?.id, existingCode?.course_code);
     if (existingCode)
       return res.status(HTTP_STATUS.CONFLICT).json({ message: 'Course code already exists in your department' });
-    const existingName = await Course.findOne({ where: { course_name: name, dept_id: deptId } });
+    const existingName = await Course.findOne({ 
+      where: { 
+        [Op.and]: [
+          { dept_id: deptId },
+          sequelize.where(sequelize.fn('LOWER', sequelize.col('course_name')), sequelize.fn('LOWER', name))
+        ]
+      } 
+    });
+    console.log('[createCourse] Existing name found:', !!existingName, existingName?.id, existingName?.course_name);
     if (existingName)
       return res.status(HTTP_STATUS.CONFLICT).json({ message: 'Course name already exists in your department' });
 
@@ -173,14 +194,26 @@ export const updateCourse = async (req, res) => {
     // Duplicate checks for updates
     if (payload.course_code) {
       const existsCode = await Course.findOne({
-        where: { course_code: payload.course_code, dept_id: course.dept_id, id: { [Op.ne]: id } },
+        where: { 
+          [Op.and]: [
+            { dept_id: course.dept_id },
+            { id: { [Op.ne]: id } },
+            sequelize.where(sequelize.fn('LOWER', sequelize.col('course_code')), sequelize.fn('LOWER', payload.course_code))
+          ]
+        },
       });
       if (existsCode)
         return res.status(HTTP_STATUS.CONFLICT).json({ message: 'Course code already exists in your department' });
     }
     if (payload.course_name) {
       const existsName = await Course.findOne({
-        where: { course_name: payload.course_name, dept_id: course.dept_id, id: { [Op.ne]: id } },
+        where: { 
+          [Op.and]: [
+            { dept_id: course.dept_id },
+            { id: { [Op.ne]: id } },
+            sequelize.where(sequelize.fn('LOWER', sequelize.col('course_name')), sequelize.fn('LOWER', payload.course_name))
+          ]
+        },
       });
       if (existsName)
         return res.status(HTTP_STATUS.CONFLICT).json({ message: 'Course name already exists in your department' });

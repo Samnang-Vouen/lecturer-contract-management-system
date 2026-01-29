@@ -4,6 +4,7 @@ import {
   getInterviewQuestions,
   addInterviewQuestion,
   updateInterviewQuestion,
+  deleteInterviewQuestion,
   searchInterviewQuestions,
   addCandidateQuestion,
   getCandidateInterviewDetails,
@@ -15,6 +16,7 @@ const router = express.Router();
 router.get('/', protect, authorizeRoles(['admin']), getInterviewQuestions);
 router.post('/', protect, authorizeRoles(['admin']), addInterviewQuestion);
 router.put('/:id', protect, authorizeRoles(['admin']), updateInterviewQuestion);
+router.delete('/:id', protect, authorizeRoles(['admin']), deleteInterviewQuestion);
 router.get('/search', protect, authorizeRoles(['admin']), searchInterviewQuestions);
 router.post('/candidate-questions', protect, authorizeRoles(['admin']), addCandidateQuestion);
 router.get(

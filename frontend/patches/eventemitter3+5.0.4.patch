@@ -1,0 +1,12 @@
+diff --git a/node_modules/eventemitter3/index.mjs b/node_modules/eventemitter3/index.mjs
+index 89bb405..16c8535 100644
+--- a/node_modules/eventemitter3/index.mjs
++++ b/node_modules/eventemitter3/index.mjs
+@@ -1,4 +1,6 @@
+-import EventEmitter from './index.js'
++import * as EventEmitterModule from './index.js'
++
++const EventEmitter = EventEmitterModule.default || EventEmitterModule
+ 
+ export { EventEmitter }
+ export default EventEmitter

@@ -312,34 +312,65 @@ export const getLecturerDetail = async (req, res) => {
         ? req.user.department_name
         : profile.User?.department_name || 'General';
 
-    // Lookup candidate by cleaned full name, fallback to email
+    // Lookup candidate by email first (most reliable), fallback to name matching
     let candidateId = null;
     let hourlyRateThisYear = null;
     try {
-      const titleRegex = /^(mr\.?|ms\.?|mrs\.?|dr\.?|prof\.?|professor|miss)\s+/i;
-      const normalizeName = (s = '') =>
-        String(s).trim().replace(titleRegex, '').replace(/\s+/g, ' ').trim();
-      const rawName = profile.full_name_english || profile.User?.display_name || '';
-      const cleaned = normalizeName(rawName);
       let cand = null;
-      if (cleaned) {
-        const cleanedLower = cleaned.toLowerCase();
-        cand = await Candidate.findOne({
-          where: Sequelize.where(
-            Sequelize.fn('LOWER', Sequelize.fn('TRIM', Sequelize.col('fullName'))),
-            cleanedLower
-          ),
+      
+      // Primary: Try email match first (most reliable)
+      if (profile.User?.email) {
+        cand = await Candidate.findOne({ 
+          where: { email: profile.User.email },
+          attributes: ['id', 'fullName', 'email', 'hourlyRate']
         });
+        console.log(`[getLecturerDetail] Email lookup for ${profile.User.email}:`, cand ? `Found (id: ${cand.id}, hourlyRate: ${cand.hourlyRate})` : 'Not found');
       }
-      if (!cand && profile.User?.email) {
-        cand = await Candidate.findOne({ where: { email: profile.User.email } });
+      
+      // Fallback: Try name matching with title normalization
+      if (!cand && (profile.full_name_english || profile.User?.display_name)) {
+        const rawName = profile.full_name_english || profile.User?.display_name || '';
+        
+        if (rawName) {
+          // Try exact match first (case-insensitive)
+          cand = await Candidate.findOne({
+            where: Sequelize.where(
+              Sequelize.fn('LOWER', Sequelize.fn('TRIM', Sequelize.col('fullName'))),
+              Sequelize.fn('LOWER', rawName.trim())
+            ),
+            attributes: ['id', 'fullName', 'email', 'hourlyRate']
+          });
+          
+          // If no exact match, try fuzzy matching by removing titles from both sides
+          if (!cand) {
+            const allCandidates = await Candidate.findAll({
+              attributes: ['id', 'fullName', 'email', 'hourlyRate']
+            });
+            
+            const titleRegex = /^(mr\.?|ms\.?|mrs\.?|dr\.?|prof\.?|professor|miss)\s+/i;
+            const normalizeName = (s = '') =>
+              String(s).trim().replace(titleRegex, '').replace(/\s+/g, ' ').trim().toLowerCase();
+            
+            const targetNormalized = normalizeName(rawName);
+            cand = allCandidates.find(c => normalizeName(c.fullName) === targetNormalized);
+          }
+          
+          console.log(`[getLecturerDetail] Name lookup for "${rawName}":`, cand ? `Found (id: ${cand.id}, hourlyRate: ${cand.hourlyRate})` : 'Not found');
+        }
       }
+      
       if (cand) {
         candidateId = cand.id;
-        if (cand.hourlyRate != null) hourlyRateThisYear = String(cand.hourlyRate);
+        if (cand.hourlyRate != null) {
+          hourlyRateThisYear = String(cand.hourlyRate);
+        } else {
+          console.warn(`[getLecturerDetail] Candidate found but hourlyRate is null for user ${profile.User?.email}`);
+        }
+      } else {
+        console.warn(`[getLecturerDetail] No candidate record found for user ${profile.User?.email} / ${profile.full_name_english}`);
       }
     } catch (candErr) {
-      console.warn('[getLecturerDetail] candidate lookup failed:', candErr.message);
+      console.error('[getLecturerDetail] candidate lookup failed:', candErr.message);
     }
 
     return res.json({

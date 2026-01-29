@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import { fn, col, where } from 'sequelize';
+import { fn, col, where, Op } from 'sequelize';
+import sequelize from '../config/db.js';
 import { LecturerProfile, User, Department } from '../model/index.js';
 import Candidate from '../model/candidate.model.js';
 import Course from '../model/course.model.js';
@@ -85,30 +86,58 @@ export const getMyLecturerProfile = async (req, res) => {
       include: [{ model: Course }],
     });
     // Lookup hourly rate from Candidate:
-    // 1) Try matching by cleaned full name (strip titles), 2) fallback to email
+    // 1) Try matching by email first (most reliable), 2) fallback to cleaned full name
     let hourlyRateThisYear = null;
     try {
-      const titleRegex = /^(mr\.?|ms\.?|mrs\.?|dr\.?|prof\.?|professor|miss)\s+/i;
-      const normalizeName = (s = '') =>
-        String(s).trim().replace(titleRegex, '').replace(/\s+/g, ' ').trim();
-      const rawName = profile.full_name_english || user?.display_name || '';
-      const cleanedName = normalizeName(rawName);
-
       let cand = null;
-      if (cleanedName) {
-        const cleanedLower = cleanedName.toLowerCase();
-        cand = await Candidate.findOne({
-          where: where(fn('LOWER', fn('TRIM', col('fullName'))), cleanedLower),
+      
+      // Primary: Try email match first (most reliable)
+      if (user?.email) {
+        cand = await Candidate.findOne({ 
+          where: { email: user.email },
+          attributes: ['id', 'fullName', 'email', 'hourlyRate']
         });
+        console.log(`[getMyLecturerProfile] Email lookup for ${user.email}:`, cand ? `Found (hourlyRate: ${cand.hourlyRate})` : 'Not found');
       }
-      if (!cand && user?.email) {
-        cand = await Candidate.findOne({ where: { email: user.email } });
+      
+      // Fallback: Try name matching with title normalization
+      if (!cand && (profile.full_name_english || user?.display_name)) {
+        const rawName = profile.full_name_english || user?.display_name || '';
+        
+        if (rawName) {
+          // Try exact match first (case-insensitive)
+          cand = await Candidate.findOne({
+            where: where(fn('LOWER', fn('TRIM', col('fullName'))), fn('LOWER', rawName.trim())),
+            attributes: ['id', 'fullName', 'email', 'hourlyRate']
+          });
+          
+          // If no exact match, try fuzzy matching by removing titles from both sides
+          if (!cand) {
+            const allCandidates = await Candidate.findAll({
+              attributes: ['id', 'fullName', 'email', 'hourlyRate']
+            });
+            
+            const titleRegex = /^(mr\.?|ms\.?|mrs\.?|dr\.?|prof\.?|professor|miss)\s+/i;
+            const normalizeName = (s = '') =>
+              String(s).trim().replace(titleRegex, '').replace(/\s+/g, ' ').trim().toLowerCase();
+            
+            const targetNormalized = normalizeName(rawName);
+            cand = allCandidates.find(c => normalizeName(c.fullName) === targetNormalized);
+          }
+          
+          console.log(`[getMyLecturerProfile] Name lookup for "${rawName}":`, cand ? `Found (id: ${cand.id}, hourlyRate: ${cand.hourlyRate})` : 'Not found');
+        }
       }
+      
       if (cand && cand.hourlyRate != null) {
         hourlyRateThisYear = String(cand.hourlyRate);
+      } else if (cand) {
+        console.warn(`[getMyLecturerProfile] Candidate found but hourlyRate is null for user ${user?.email}`);
+      } else {
+        console.warn(`[getMyLecturerProfile] No candidate record found for user ${user?.email} / ${profile.full_name_english}`);
       }
     } catch (err) {
-      console.warn('[getMyLecturerProfile] candidate lookup failed:', err.message);
+      console.error('[getMyLecturerProfile] candidate lookup failed:', err.message);
     }
     if (String(req.query.debug || '') === '1') {
       return res.json({
@@ -133,37 +162,49 @@ export const getMyCandidateContact = async (req, res) => {
   try {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
-    const profile = await LecturerProfile.findOne({ where: { user_id: userId } });
+    
     const user = await User.findByPk(userId);
-    if (!profile || !user) return res.status(404).json({ message: 'Lecturer profile not found' });
-
-    // Try to find Candidate by normalized full name (without titles), fallback to user email
-    const titleRegex = /^(mr\.?|ms\.?|mrs\.?|dr\.?|prof\.?|professor|miss)\s+/i;
-    const normalizeName = (s = '') =>
-      String(s).trim().replace(titleRegex, '').replace(/\s+/g, ' ').trim();
-    const rawName = profile.full_name_english || user.display_name || '';
-    const cleanedLower = normalizeName(rawName).toLowerCase();
+    if (!user) return res.status(404).json({ message: 'User not found' });
 
     let cand = null;
     try {
-      if (cleanedLower) {
-        cand = await Candidate.findOne({
-          where: where(fn('LOWER', fn('TRIM', col('fullName'))), cleanedLower),
-        });
-      }
-      if (!cand && user.email) {
+      // First try matching by email (most reliable)
+      if (user.email) {
         cand = await Candidate.findOne({ where: { email: user.email } });
+      }
+      
+      // If not found by email, try matching by name using raw SQL to normalize both sides
+      if (!cand) {
+        const profile = await LecturerProfile.findOne({ where: { user_id: userId } });
+        const rawName = profile?.full_name_english || user.display_name || '';
+        
+        if (rawName) {
+          // Use raw SQL to strip titles from both the candidate name and search term
+          // MySQL 8.0 REGEXP_REPLACE syntax: REGEXP_REPLACE(str, pattern, replacement, position, occurrence, match_type)
+          const [results] = await sequelize.query(`
+            SELECT * FROM Candidates 
+            WHERE LOWER(TRIM(REGEXP_REPLACE(fullName, '^(mr\\.?|ms\\.?|mrs\\.?|dr\\.?|prof\\.?|professor|miss)\\\\s+', '', 1, 0, 'i')))
+            = LOWER(TRIM(REGEXP_REPLACE(?, '^(mr\\.?|ms\\.?|mrs\\.?|dr\\.?|prof\\.?|professor|miss)\\\\s+', '', 1, 0, 'i')))
+            LIMIT 1
+          `, {
+            replacements: [rawName],
+            type: sequelize.QueryTypes.SELECT
+          });
+          
+          if (results) {
+            cand = results;
+          }
+        }
       }
     } catch (e) {
       console.warn('[getMyCandidateContact] candidate lookup error:', e.message);
     }
 
-    if (!cand) return res.status(404).json({ message: 'Candidate not found for this lecturer' });
-
+    // Return null values if no candidate found (lecturer may not have been recruited through candidate system)
     return res.json({
-      phone: cand.phone || null,
-      personalEmail: cand.email || null,
-      candidateId: cand.id,
+      phone: cand?.phone || null,
+      personalEmail: cand?.email || null,
+      candidateId: cand?.id || null,
     });
   } catch (e) {
     console.error('getMyCandidateContact error', e);
@@ -327,5 +368,132 @@ export const uploadLecturerFiles = async (req, res) => {
   } catch (e) {
     console.error('uploadLecturerFiles error', e);
     return res.status(500).json({ message: 'Failed to upload files', error: e.message });
+  }
+};
+
+/**
+ * GET /api/lecturer-profile/candidates-done-since-login
+ * Query candidates whose status changed to 'done' since they last logged in.
+ * This finds candidates who:
+ * 1. Have status = 'done'
+ * 2. Have a matching user account (by email)
+ * 3. Their status was updated (updated_at) after their last login time
+ */
+export const getCandidatesDoneSinceLogin = async (req, res) => {
+  try {
+    // Find all candidates with status 'done'
+    const doneCandidates = await Candidate.findAll({
+      where: { status: 'done' },
+      raw: true,
+    });
+
+    if (!doneCandidates.length) {
+      return res.json({
+        message: 'No candidates with status "done" found',
+        count: 0,
+        candidates: [],
+      });
+    }
+
+    // For each candidate, find their user account and check if status changed after last login
+    const results = [];
+    
+    for (const candidate of doneCandidates) {
+      try {
+        // Find user by matching email
+        const user = await User.findOne({
+          where: { email: candidate.email },
+          raw: true,
+        });
+
+        if (!user) {
+          // Candidate doesn't have a user account yet, skip
+          continue;
+        }
+
+        // Check if status was updated after last login
+        const lastLogin = user.last_login ? new Date(user.last_login) : null;
+        const statusUpdated = new Date(candidate.updated_at);
+
+        // If user has never logged in, or status was updated after last login
+        if (!lastLogin || statusUpdated > lastLogin) {
+          results.push({
+            candidateId: candidate.id,
+            fullName: candidate.fullName,
+            email: candidate.email,
+            phone: candidate.phone,
+            positionAppliedFor: candidate.positionAppliedFor,
+            status: candidate.status,
+            hourlyRate: candidate.hourlyRate,
+            statusUpdatedAt: candidate.updated_at,
+            lastLogin: user.last_login,
+            userId: user.id,
+            displayName: user.display_name,
+            statusChangedSinceLogin: !lastLogin ? 'never_logged_in' : 'changed_after_login',
+          });
+        }
+      } catch (userErr) {
+        console.warn(`[getCandidatesDoneSinceLogin] Error processing candidate ${candidate.id}:`, userErr.message);
+      }
+    }
+
+    return res.json({
+      message: 'Candidates with status "done" since last login',
+      count: results.length,
+      totalDoneCandidates: doneCandidates.length,
+      candidates: results,
+    });
+  } catch (e) {
+    console.error('getCandidatesDoneSinceLogin error', e);
+    return res.status(500).json({ 
+      message: 'Server error', 
+      error: e.message 
+    });
+  }
+};
+
+/**
+ * GET /api/lecturer-profile/candidates-done-since-login-optimized
+ * Optimized version using a single database query with raw SQL.
+ * More efficient for large datasets.
+ */
+export const getCandidatesDoneSinceLoginOptimized = async (req, res) => {
+  try {
+    const [results] = await sequelize.query(`
+      SELECT 
+        c.id as candidateId,
+        c.fullName,
+        c.email,
+        c.phone,
+        c.positionAppliedFor,
+        c.status,
+        c.hourlyRate,
+        c.updated_at as statusUpdatedAt,
+        u.id as userId,
+        u.display_name as displayName,
+        u.last_login as lastLogin,
+        CASE 
+          WHEN u.last_login IS NULL THEN 'never_logged_in'
+          WHEN c.updated_at > u.last_login THEN 'changed_after_login'
+          ELSE 'no_change'
+        END as statusChangedSinceLogin
+      FROM Candidates c
+      INNER JOIN users u ON c.email = u.email
+      WHERE c.status = 'done'
+        AND (u.last_login IS NULL OR c.updated_at > u.last_login)
+      ORDER BY c.updated_at DESC
+    `);
+
+    return res.json({
+      message: 'Candidates with status "done" since last login (optimized)',
+      count: results.length,
+      candidates: results,
+    });
+  } catch (e) {
+    console.error('getCandidatesDoneSinceLoginOptimized error', e);
+    return res.status(500).json({ 
+      message: 'Server error', 
+      error: e.message 
+    });
   }
 };

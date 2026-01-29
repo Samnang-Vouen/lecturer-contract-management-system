@@ -1,0 +1,11 @@
+diff --git a/node_modules/zustand/esm/traditional.mjs b/node_modules/zustand/esm/traditional.mjs
+index 48fd788..6c7feb6 100644
+--- a/node_modules/zustand/esm/traditional.mjs
++++ b/node_modules/zustand/esm/traditional.mjs
+@@ -1,5 +1,5 @@
+ import React from 'react';
+-import useSyncExternalStoreExports from 'use-sync-external-store/shim/with-selector.js';
++import * as useSyncExternalStoreExports from 'use-sync-external-store/shim/with-selector.js';
+ import { createStore } from 'zustand/vanilla';
+ 
+ const { useSyncExternalStoreWithSelector } = useSyncExternalStoreExports;

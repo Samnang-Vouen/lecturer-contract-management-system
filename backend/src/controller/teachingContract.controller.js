@@ -271,12 +271,23 @@ export async function getContract(req, res) {
     const id = parseInt(req.params.id, 10);
     const contract = await TeachingContract.findByPk(id, {
       include: [
-        { model: TeachingContractCourse, as: 'courses' },
+        { 
+          model: TeachingContractCourse, 
+          as: 'courses',
+          include: [
+            {
+              model: Course,
+              required: false,
+              attributes: ['id', 'dept_id', 'course_code', 'course_name'],
+              include: [{ model: Department, required: false, attributes: ['id', 'dept_name'] }],
+            },
+          ],
+        },
         {
           model: User,
           as: 'lecturer',
           attributes: ['id', 'email', 'display_name', 'department_name'],
-          include: [{ model: LecturerProfile, attributes: ['title'], required: false }],
+          include: [{ model: LecturerProfile, attributes: ['title', 'full_name_english', 'full_name_khmer', 'position'], required: false }],
         },
       ],
     });
@@ -332,8 +343,8 @@ export async function listContracts(req, res) {
           {
             model: Course,
             required: false,
-            attributes: ['id', 'dept_id'],
-            include: [{ model: Department, required: false, attributes: ['dept_name'] }],
+            attributes: ['id', 'dept_id', 'course_code', 'course_name'],
+            include: [{ model: Department, required: false, attributes: ['id', 'dept_name'] }],
           },
         ],
       },
@@ -341,7 +352,7 @@ export async function listContracts(req, res) {
         model: User,
         as: 'lecturer',
         attributes: ['id', 'email', 'display_name', 'department_name'],
-        include: [{ model: LecturerProfile, attributes: ['title'], required: false }],
+        include: [{ model: LecturerProfile, attributes: ['title', 'full_name_english', 'full_name_khmer', 'position'], required: false }],
       },
     ];
 
@@ -360,8 +371,8 @@ export async function listContracts(req, res) {
             model: Course,
             required: true,
             where: { dept_id: deptId },
-            attributes: ['dept_id'],
-            include: [{ model: Department, required: false, attributes: ['dept_name'] }],
+            attributes: ['id', 'dept_id', 'course_code', 'course_name'],
+            include: [{ model: Department, required: false, attributes: ['id', 'dept_name'] }],
           },
         ],
       };
@@ -396,7 +407,7 @@ export async function listContracts(req, res) {
       order: [['created_at', 'DESC']],
     });
 
-    // For management/admin, attach hourlyRateThisYear (USD) from Candidate profile for each lecturer
+    // For management/admin, attach hourlyRateThisYear (USD) from contract or Candidate profile
     let data = rows;
     try {
       const role2 = req.user?.role;
@@ -405,37 +416,71 @@ export async function listContracts(req, res) {
         for (const row of rows) {
           const plain = row.toJSON();
           let hourlyRateUsd = null;
-          try {
-            // Normalize lecturer name similar to generatePdf
-            const titleRegex = /^(mr\.?|ms\.?|mrs\.?|dr\.?|prof\.?|professor|miss)\s+/i;
-            const normalizeName = (s = '') =>
-              String(s).trim().replace(titleRegex, '').replace(/\s+/g, ' ').trim();
-            const displayName = plain?.lecturer?.display_name || '';
-            const cleanedName = normalizeName(displayName);
-            let cand = null;
-            if (cleanedName) {
-              const Sequelize2 = (await import('sequelize')).default;
-              cand = await Candidate.findOne({
-                where: Sequelize2.where(
-                  Sequelize2.fn('LOWER', Sequelize2.fn('TRIM', Sequelize2.col('fullName'))),
-                  cleanedName.toLowerCase()
-                ),
-              });
+          
+          // First, check if the contract itself has an hourly_rate
+          if (plain.hourly_rate != null && plain.hourly_rate !== '') {
+            const contractRate = parseFloat(String(plain.hourly_rate));
+            if (Number.isFinite(contractRate)) {
+              hourlyRateUsd = contractRate;
+              console.log(`[listContracts enrichment] Using contract hourly_rate: ${hourlyRateUsd}`);
             }
-            if (!cand && plain?.lecturer?.email) {
-              cand = await Candidate.findOne({ where: { email: plain.lecturer.email } });
-            }
-            if (cand && cand.hourlyRate != null) {
-              const parsed = parseFloat(String(cand.hourlyRate).replace(/[^0-9.]/g, ''));
-              hourlyRateUsd = Number.isFinite(parsed) ? parsed : null;
-            }
-          } catch (rateErr) {
-            // Non-fatal; leave as null
           }
+          
+          // If no rate in contract, try to find from Candidate profile
+          if (hourlyRateUsd === null) {
+            try {
+              const displayName = plain?.lecturer?.display_name || '';
+              let cand = null;
+              console.log(`[listContracts enrichment] Looking up rate for: "${displayName}"`);
+              
+              if (displayName) {
+                const Sequelize2 = (await import('sequelize')).default;
+                // Try first with the full display name (including title)
+                cand = await Candidate.findOne({
+                  where: Sequelize2.where(
+                    Sequelize2.fn('LOWER', Sequelize2.fn('TRIM', Sequelize2.col('fullName'))),
+                    displayName.toLowerCase().trim()
+                  ),
+                });
+                
+                // If not found, try without title
+                if (!cand) {
+                  const titleRegex = /^(mr\.?|ms\.?|mrs\.?|dr\.?|prof\.?|professor|miss)\s+/i;
+                  const cleanedName = displayName.replace(titleRegex, '').replace(/\s+/g, ' ').trim();
+                  if (cleanedName !== displayName) {
+                    console.log(`[listContracts enrichment] Trying without title: "${cleanedName}"`);
+                    cand = await Candidate.findOne({
+                      where: Sequelize2.where(
+                        Sequelize2.fn('LOWER', Sequelize2.fn('TRIM', Sequelize2.col('fullName'))),
+                        cleanedName.toLowerCase()
+                      ),
+                    });
+                  }
+                }
+              }
+              
+              if (!cand && plain?.lecturer?.email) {
+                console.log(`[listContracts enrichment] Name lookup failed, trying email: ${plain.lecturer.email}`);
+                cand = await Candidate.findOne({ where: { email: plain.lecturer.email } });
+              }
+              if (cand && cand.hourlyRate != null) {
+                const parsed = parseFloat(String(cand.hourlyRate).replace(/[^0-9.]/g, ''));
+                hourlyRateUsd = Number.isFinite(parsed) ? parsed : null;
+                console.log(`[listContracts enrichment] Found candidate (id: ${cand.id}), hourlyRate: ${cand.hourlyRate} -> parsed: ${hourlyRateUsd}`);
+              } else {
+                console.log(`[listContracts enrichment] No candidate found or hourlyRate is null`);
+              }
+            } catch (rateErr) {
+              console.error(`[listContracts enrichment] Error:`, rateErr.message);
+            }
+          }
+          
           plain.hourlyRateThisYear = hourlyRateUsd;
           enriched.push(plain);
         }
         data = enriched;
+      } else {
+        console.log(`[listContracts] Skipping enrichment for role: ${role2}`);
       }
     } catch (enrichErr) {
       // If enrichment fails, fall back to raw rows
