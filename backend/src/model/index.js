@@ -226,31 +226,6 @@ TeachingContract.hasMany(AdvisorResponsibility, {
   as: 'advisorResponsibilities',
 });
 
-// Schedule relationships
-Schedule.belongsTo(LecturerProfile, {
-  foreignKey: 'lecturer_profile_id',
-  as: 'lecturer',
-  onDelete: 'CASCADE',
-  onUpdate: 'CASCADE',
-});
-LecturerProfile.hasMany(Schedule, { foreignKey: 'lecturer_profile_id', as: 'schedules' });
-
-Schedule.belongsTo(Course, {
-  foreignKey: 'course_id',
-  as: 'course',
-  onDelete: 'CASCADE',
-  onUpdate: 'CASCADE',
-});
-Course.hasMany(Schedule, { foreignKey: 'course_id', as: 'schedules' });
-
-Schedule.belongsTo(ClassModel, {
-  foreignKey: 'class_id',
-  as: 'class',
-  onDelete: 'SET NULL',
-  onUpdate: 'CASCADE',
-});
-ClassModel.hasMany(Schedule, { foreignKey: 'class_id', as: 'schedules' });
-
 // Evaluation relationships
 Evaluation.belongsTo(LecturerProfile, {
   foreignKey: 'lecturer_profile_id',

@@ -21,7 +21,7 @@ const Schedule = sequelize.define(
 
     day_of_week: {
       type: DataTypes.ENUM('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'),
-      allowNull: true,
+      allowNull: false,
     },
 
     time_slot_id: {
@@ -35,12 +35,12 @@ const Schedule = sequelize.define(
 
     room: {
       type: DataTypes.STRING(100),
-      allowNull: true,
+      allowNull: false,
     },
 
     session_type: {
       type: DataTypes.ENUM('Theory', 'Lab', 'Lab + Theory'),
-      allowNull: true,
+      allowNull: false,
     },
 
     notes: {

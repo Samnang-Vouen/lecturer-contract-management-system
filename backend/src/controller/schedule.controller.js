@@ -71,11 +71,11 @@ function embedIdtLogo(html) {
 
 // GET /schedule/pdf
 export const generateSchedulePDF = async (req, res) => {
-  const htmlPath = path.join(process.cwd(), 'src', 'utils', 'schedule.html');
-  let scheduleHTML = fs.readFileSync(htmlPath, 'utf8');
-  scheduleHTML = embedIdtLogo(scheduleHTML);
-
   try {
+    const htmlPath = path.join(process.cwd(), 'src', 'utils', 'schedule.html');
+    let scheduleHTML = fs.readFileSync(htmlPath, 'utf8');
+    scheduleHTML = embedIdtLogo(scheduleHTML);
+
     const allTimeSlots = await TimeSlot.findAll({
       order: [['order_index', 'ASC']],
     });
@@ -290,11 +290,12 @@ export const generateSchedulePDF = async (req, res) => {
       printBackground: true,
       margin: { top: '40px', bottom: '40px', left: '20px', right: '20px' },
     });
-    await browser.close();
     res.setHeader('Content-Type', 'application/pdf');
     res.send(pdfBuffer);
   } catch (err) {
     console.error('PDF generation failed: ', err);
     return res.status(500).json({ message: 'Failed to generate PDF', error: err.message });
+  } finally {
+    await browser.close();
   }
 };
