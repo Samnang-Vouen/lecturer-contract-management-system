@@ -25,6 +25,7 @@ import Schedule from './schedule.model.js';
 import Evaluation from './evaluation.model.js';
 import HourRating from './hourRating.model.js';
 import RateHistory from './rateHistory.model.js';
+import { TimeSlot } from './timeSlot.model.js';
 
 // Set up associations
 
@@ -158,6 +159,22 @@ CourseMapping.belongsTo(Department, {
 });
 Department.hasMany(CourseMapping, {
   foreignKey: 'dept_id',
+});
+
+CourseMapping.hasMany(Schedule, {
+  foreignKey: 'course_mapping_id',
+});
+
+Schedule.belongsTo(CourseMapping, {
+  foreignKey: 'course_mapping_id',
+});
+
+TimeSlot.hasMany(Schedule, {
+  foreignKey: 'time_slot_id',
+});
+
+Schedule.belongsTo(TimeSlot, {
+  foreignKey: 'time_slot_id',
 });
 
 // Teaching contract relationships
