@@ -20,7 +20,7 @@ const LecturerProfile = sequelize.define(
     },
     employee_id: {
       type: DataTypes.STRING(255),
-      allowNull: false,
+      allowNull: true,
     },
     // New fields for title and gender
     title: {
@@ -77,27 +77,27 @@ const LecturerProfile = sequelize.define(
     },
     position: {
       type: DataTypes.STRING(255),
-      allowNull: false,
+      allowNull: true,
     },
     join_date: {
       type: DataTypes.DATE,
-      allowNull: false,
+      allowNull: true,
     },
     status: {
       type: DataTypes.ENUM('active', 'inactive'),
-      allowNull: false,
+      allowNull: true,
     },
     cv_uploaded: {
       type: DataTypes.BOOLEAN,
-      allowNull: false,
+      allowNull: true,
     },
     cv_file_path: {
       type: DataTypes.STRING(255),
-      allowNull: false,
+      allowNull: true,
     },
     qualifications: {
       type: DataTypes.STRING(255),
-      allowNull: false,
+      allowNull: true,
     },
     research_fields: {
       type: DataTypes.STRING(255),

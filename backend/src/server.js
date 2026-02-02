@@ -98,7 +98,7 @@ app.use(errorHandler);
     if (MIGRATE_ON_START) await runSchemaBootstrapping(sequelize);
     if (SEED_ON_START) await runSeeds();
 
-    app.listen(PORT, () => console.log(`Server listening on ${PORT}`));
+    app.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
   } catch (e) {
     console.error('Startup failure:', e.message);
     process.exit(1);

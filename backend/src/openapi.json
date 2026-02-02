@@ -21,6 +21,7 @@
     { "name": "Courses", "description": "Course definitions" },
     { "name": "Classes", "description": "Class management" },
     { "name": "CourseMappings", "description": "Class-course mapping records" },
+    { "name": "Schedule", "description": "Class schedule management" },
     { "name": "Users", "description": "Administrative user management" },
     { "name": "Dashboard", "description": "Dashboard stats" },
     { "name": "Profile", "description": "Authenticated user profile & password" }
@@ -95,6 +96,65 @@
           "course_name": { "type": "string" },
           "credit_hours": { "type": "integer" },
           "dept_id": { "type": "integer", "nullable": true }
+        }
+      },
+      "Schedule": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "day_of_week": {
+            "type": "string",
+            "enum": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+          },
+          "room": { "type": "string", "nullable": true },
+          "session_type": {
+            "type": "string",
+            "enum": ["Theory", "Lab", "Lab + Theory"],
+            "nullable": true
+          },
+          "notes": { "type": "string", "nullable": true },
+          "start_date": { "type": "string", "format": "date", "nullable": true },
+          "created_at": { "type": "string", "format": "date-time" },
+          "TimeSlot": {
+            "type": "object",
+            "properties": {
+              "label": { "type": "string" }
+            }
+          },
+          "CourseMapping": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "integer" },
+              "Department": {
+                "type": "object",
+                "properties": {
+                  "dept_name": { "type": "string" }
+                }
+              },
+              "Class": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "academic_year": { "type": "string" },
+                  "year_level": { "type": "integer" },
+                  "term": { "type": "string" }
+                }
+              },
+              "Course": {
+                "type": "object",
+                "properties": {
+                  "course_name": { "type": "string" }
+                }
+              },
+              "LecturerProfile": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string" },
+                  "full_name_english": { "type": "string" }
+                }
+              }
+            }
+          }
         }
       },
       "Class": {
@@ -1534,6 +1594,121 @@
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "403": { "$ref": "#/components/responses/Forbidden" },
           "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+    "/api/schedule": {
+      "get": {
+        "tags": ["Schedule"],
+        "summary": "Get all schedules (optionally filtered by department)",
+        "parameters": [
+          {
+            "name": "dept_name",
+            "in": "query",
+            "description": "Filter schedules by department name",
+            "required": false,
+            "schema": { "type": "string" },
+            "example": "Computer Science"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Schedule list retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schedule": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Schedule" }
+                    },
+                    "message": { "type": "string" }
+                  }
+                },
+                "example": {
+                  "schedule": [
+                    {
+                      "id": 1,
+                      "day_of_week": "Monday",
+                      "room": "A101",
+                      "session_type": "Theory",
+                      "notes": "Regular class",
+                      "start_date": "2026-01-15",
+                      "created_at": "2026-01-10T08:00:00Z",
+                      "TimeSlot": { "label": "08h:00-09h:30" },
+                      "CourseMapping": {
+                        "id": 1,
+                        "Department": { "dept_name": "Computer Science" },
+                        "Class": {
+                          "name": "CS-Y4-A",
+                          "academic_year": "2025-2026",
+                          "year_level": 4,
+                          "term": "1"
+                        },
+                        "Course": { "course_name": "Web Development" },
+                        "LecturerProfile": {
+                          "title": "Dr",
+                          "full_name_english": "John Smith"
+                        }
+                      }
+                    }
+                  ],
+                  "message": "Schedule retrieved successfully"
+                }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+    "/api/schedule/pdf": {
+      "get": {
+        "tags": ["Schedule"],
+        "summary": "Generate schedule PDF",
+        "description": "Generates a PDF document of the class schedule with all time slots and sessions",
+        "responses": {
+          "200": {
+            "description": "PDF generated successfully",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No schedule data found",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object", "properties": { "message": { "type": "string" } } },
+                "example": { "message": "No schedule data found in database" }
+              }
+            }
+          },
+          "500": {
+            "description": "PDF generation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "error": { "type": "string" }
+                  }
+                },
+                "example": {
+                  "message": "Failed to generate PDF",
+                  "error": "Internal error details"
+                }
+              }
+            }
+          }
         },
         "security": [{ "cookieAuth": [], "bearerAuth": [] }]
       }
