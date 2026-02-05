@@ -124,8 +124,11 @@ export async function availabilityToScheduleEntries(availabilityString, TimeSlot
   const parsedAvailability = parseAvailability(availabilityString);
   const scheduleEntries = [];
 
+  const allTimeSlots = await TimeSlotModel.findAll();
+  const timeSlotMap = new Map(allTimeSlots.map((ts) => [ts.label, ts.id]));
+
   for (const { day, timeSlot } of parsedAvailability) {
-    const timeSlotId = await getTimeSlotId(timeSlot, TimeSlotModel);
+    const timeSlotId = timeSlotMap.get(timeSlot);
 
     if (timeSlotId) {
       scheduleEntries.push({

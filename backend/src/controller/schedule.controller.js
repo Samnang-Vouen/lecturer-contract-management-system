@@ -411,7 +411,7 @@ export const generateSchedulePDF = async (req, res) => {
         <body>${combinedBodyContent}</body>
       </html>`;
 
-    const browser = await puppeteer.launch();
+    browser = await puppeteer.launch();
     const page = await browser.newPage();
     await page.setContent(finalHTML, { waitUntil: 'networkidle0' });
     const pdfBuffer = await page.pdf({

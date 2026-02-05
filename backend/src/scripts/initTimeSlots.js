@@ -26,55 +26,55 @@ const TIME_SLOTS = [
 
 async function initializeTimeSlots() {
   try {
-    console.log('🕐 Initializing time slots...\n');
+    console.log('Initializing time slots...\n');
 
     // Connect to database
     await sequelize.authenticate();
-    console.log('✓ Database connection established');
+    console.log('Database connection established');
 
     // Sync TimeSlot model
     await TimeSlot.sync();
-    console.log('✓ TimeSlot table ready\n');
+    console.log('TimeSlot table ready\n');
 
     let created = 0;
     let existing = 0;
 
     for (const slot of TIME_SLOTS) {
-      const [timeSlot, isCreated] = await TimeSlot.findOrCreate({
+      const [isCreated] = await TimeSlot.findOrCreate({
         where: { label: slot.label },
         defaults: slot,
       });
 
       if (isCreated) {
-        console.log(`  ✓ Created: ${slot.label} (order: ${slot.order_index})`);
+        console.log(`Created: ${slot.label} (order: ${slot.order_index})`);
         created++;
       } else {
-        console.log(`  • Exists: ${slot.label}`);
+        console.log(`Exists: ${slot.label}`);
         existing++;
       }
     }
 
-    console.log(`\n📊 Summary:`);
+    console.log(`\nSummary:`);
     console.log(`   Created: ${created}`);
     console.log(`   Existing: ${existing}`);
     console.log(`   Total: ${TIME_SLOTS.length}`);
 
-    console.log('\n✓ Time slots initialization completed successfully!');
+    console.log('\nTime slots initialization completed successfully!');
 
     // Display session mapping
-    console.log('\n📋 Session Mapping:');
+    console.log('\nSession Mapping:');
     console.log('   S1 → 08h:00-09h:30 (1.5 hours)');
     console.log('   S2 → 09h:50-11h:30 (1.5 hours)');
     console.log('   S3 → 12h:10-13h:40 (1.5 hours)');
     console.log('   S4 → 13h:50-15h:20 (1.5 hours)');
     console.log('   S5 → 15h:30-17h:00 (1.5 hours)');
   } catch (error) {
-    console.error('\n❌ Error initializing time slots:', error.message);
+    console.error('\nError initializing time slots:', error.message);
     console.error(error);
     process.exit(1);
   } finally {
     await sequelize.close();
-    console.log('\n👋 Database connection closed');
+    console.log('\nDatabase connection closed');
   }
 }
 

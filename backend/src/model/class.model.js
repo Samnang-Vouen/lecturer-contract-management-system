@@ -16,7 +16,7 @@ const ClassModel = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: true,
       defaultValue: null,
-      references: { model: 'Specialization', key: 'id' },
+      references: { model: 'specialization', key: 'id' },
     },
     name: { type: DataTypes.STRING(255), allowNull: false },
     term: { type: DataTypes.STRING(50), allowNull: true }, // e.g. "Term 1"

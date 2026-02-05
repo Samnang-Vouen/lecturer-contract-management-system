@@ -3,6 +3,7 @@
 import CourseMapping from '../model/courseMapping.model.js';
 import Group from '../model/group.model.js';
 import Schedule from '../model/schedule.model.js';
+import { Op } from 'sequelize';
 
 // Allows combined sessions (same course, lecturer, room, time but different groups)
 export const checkScheduleConflict = async (
@@ -21,7 +22,6 @@ export const checkScheduleConflict = async (
   }
 
   // Build where clause for finding conflicts
-  const { Op } = await import('sequelize');
   const whereClause = {
     day_of_week,
     time_slot_id,
