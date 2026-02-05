@@ -1604,12 +1604,28 @@
         "summary": "Get all schedules (optionally filtered by department)",
         "parameters": [
           {
+            "name": "class_name",
+            "in": "query",
+            "description": "Filter schedules by class name",
+            "required": false,
+            "schema": { "type": "string" },
+            "example": "CS-Y4-A"
+          },
+          {
             "name": "dept_name",
             "in": "query",
             "description": "Filter schedules by department name",
             "required": false,
             "schema": { "type": "string" },
             "example": "Computer Science"
+          },
+          {
+            "name": "specialization",
+            "in": "query",
+            "description": "Filter schedules by specialization",
+            "required": false,
+            "schema": { "type": "string" },
+            "example": "Software Engineering"
           }
         ],
         "responses": {
@@ -1640,17 +1656,20 @@
                       "TimeSlot": { "label": "08h:00-09h:30" },
                       "CourseMapping": {
                         "id": 1,
-                        "Department": { "dept_name": "Computer Science" },
-                        "Class": {
-                          "name": "CS-Y4-A",
-                          "academic_year": "2025-2026",
-                          "year_level": 4,
-                          "term": "1"
-                        },
                         "Course": { "course_name": "Web Development" },
                         "LecturerProfile": {
                           "title": "Dr",
                           "full_name_english": "John Smith"
+                        },
+                        "Group": {
+                          "name": "G1",
+                          "num_of_student": 30,
+                          "Class": {
+                            "name": "CS-Y4-A",
+                            "academic_year": "2025-2026",
+                            "year_level": "4",
+                            "term": "1"
+                          }
                         }
                       }
                     }
@@ -1663,52 +1682,374 @@
           "500": { "$ref": "#/components/responses/ServerError" }
         },
         "security": [{ "cookieAuth": [], "bearerAuth": [] }]
-      }
-    },
-    "/api/schedule/pdf": {
-      "get": {
+      },
+      "post": {
         "tags": ["Schedule"],
-        "summary": "Generate schedule PDF",
-        "description": "Generates a PDF document of the class schedule with all time slots and sessions",
+        "summary": "Create a new schedule",
+        "description": "Creates a new schedule entry. The day and time slot must match the course mapping's availability. Automatically checks for conflicts and allows combined sessions (same course, lecturer, room, time but different groups).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "course_mapping_id",
+                  "time_slot_id",
+                  "day_of_week",
+                  "room",
+                  "session_type",
+                  "start_date"
+                ],
+                "properties": {
+                  "course_mapping_id": {
+                    "type": "integer",
+                    "description": "ID of the course mapping"
+                  },
+                  "time_slot_id": {
+                    "type": "integer",
+                    "description": "ID of the time slot (must match an available session in the course mapping)"
+                  },
+                  "day_of_week": {
+                    "type": "string",
+                    "enum": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+                    "description": "Day of the week (must match an available day in the course mapping)"
+                  },
+                  "room": {
+                    "type": "string",
+                    "description": "Room number or name"
+                  },
+                  "session_type": {
+                    "type": "string",
+                    "enum": ["Theory", "Lab", "Lab + Theory"],
+                    "description": "Type of session"
+                  },
+                  "start_date": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "Start date of the schedule"
+                  },
+                  "notes": {
+                    "type": "string",
+                    "description": "Additional notes (optional)"
+                  }
+                }
+              },
+              "example": {
+                "course_mapping_id": 1,
+                "time_slot_id": 2,
+                "day_of_week": "Monday",
+                "room": "A101",
+                "session_type": "Theory",
+                "start_date": "2026-02-01",
+                "notes": "Combined session for G1 and G2"
+              }
+            }
+          }
+        },
         "responses": {
-          "200": {
-            "description": "PDF generated successfully",
+          "201": {
+            "description": "Schedule created successfully",
             "content": {
-              "application/pdf": {
+              "application/json": {
                 "schema": {
-                  "type": "string",
-                  "format": "binary"
+                  "type": "object",
+                  "properties": {
+                    "schedule": { "$ref": "#/components/schemas/Schedule" },
+                    "message": { "type": "string" }
+                  }
+                },
+                "example": {
+                  "schedule": {
+                    "id": 5,
+                    "course_mapping_id": 1,
+                    "time_slot_id": 2,
+                    "day_of_week": "Monday",
+                    "room": "A101",
+                    "session_type": "Theory",
+                    "start_date": "2026-02-01",
+                    "notes": "Combined session for G1 and G2"
+                  },
+                  "message": "Schedule created successfully"
                 }
               }
             }
           },
-          "404": {
-            "description": "No schedule data found",
-            "content": {
-              "application/json": {
-                "schema": { "type": "object", "properties": { "message": { "type": "string" } } },
-                "example": { "message": "No schedule data found in database" }
-              }
-            }
-          },
-          "500": {
-            "description": "PDF generation failed",
+          "400": {
+            "description": "Validation error - missing required fields or schedule not in availability",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
                     "message": { "type": "string" },
-                    "error": { "type": "string" }
+                    "availability": { "type": "string" },
+                    "requested": {
+                      "type": "object",
+                      "properties": {
+                        "day": { "type": "string" },
+                        "time_slot": { "type": "string" }
+                      }
+                    },
+                    "hint": { "type": "string" }
                   }
                 },
-                "example": {
-                  "message": "Failed to generate PDF",
-                  "error": "Internal error details"
+                "examples": {
+                  "missing_field": {
+                    "summary": "Missing required field",
+                    "value": { "message": "Required day_of_week" }
+                  },
+                  "not_in_availability": {
+                    "summary": "Schedule not in availability",
+                    "value": {
+                      "message": "Invalid schedule: Friday at 08h:00-09h:30 is not in the course availability.",
+                      "availability": "Monday: S1, S2; Wednesday: S3, S4, S5",
+                      "requested": {
+                        "day": "Friday",
+                        "time_slot": "08h:00-09h:30"
+                      },
+                      "hint": "The schedule must match one of the sessions defined in the course mapping availability."
+                    }
+                  }
                 }
               }
             }
+          },
+          "404": {
+            "description": "Course mapping not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" } }
+                },
+                "example": { "message": "Course mapping not found" }
+              }
+            }
+          },
+          "409": {
+            "description": "Schedule conflict detected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "conflict": {
+                      "type": "object",
+                      "properties": {
+                        "day": { "type": "string" },
+                        "time_slot_id": { "type": "integer" },
+                        "room": { "type": "string" }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "message": "Schedule conflict detected (class / lecturer / room)",
+                  "conflict": {
+                    "day": "Monday",
+                    "time_slot_id": 2,
+                    "room": "A101"
+                  }
+                }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+    "/api/schedule/{id}": {
+      "put": {
+        "tags": ["Schedule"],
+        "summary": "Update an existing schedule",
+        "description": "Updates schedule details. If updating day or time slot, they must match the course mapping's availability. Checks for conflicts when time/location changes, allowing combined sessions for different groups.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "Schedule ID"
           }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["day_of_week", "room", "session_type", "start_date"],
+                "properties": {
+                  "course_mapping_id": {
+                    "type": "integer",
+                    "description": "ID of the course mapping (optional)"
+                  },
+                  "time_slot_id": {
+                    "type": "integer",
+                    "description": "ID of the time slot (must match an available session if provided)"
+                  },
+                  "day_of_week": {
+                    "type": "string",
+                    "enum": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+                    "description": "Day of the week (must match an available day in the course mapping)"
+                  },
+                  "room": { "type": "string" },
+                  "session_type": {
+                    "type": "string",
+                    "enum": ["Theory", "Lab", "Lab + Theory"]
+                  },
+                  "start_date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "notes": { "type": "string" }
+                }
+              },
+              "example": {
+                "day_of_week": "Tuesday",
+                "room": "B202",
+                "session_type": "Lab",
+                "start_date": "2026-02-01",
+                "notes": "Updated to new room"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Schedule updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schedule": { "$ref": "#/components/schemas/Schedule" },
+                    "message": { "type": "string" }
+                  }
+                },
+                "example": {
+                  "schedule": {
+                    "id": 5,
+                    "day_of_week": "Tuesday",
+                    "room": "B202",
+                    "session_type": "Lab"
+                  },
+                  "message": "Schedule updated successfully"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error - schedule not in availability",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "availability": { "type": "string" },
+                    "requested": {
+                      "type": "object",
+                      "properties": {
+                        "day": { "type": "string" },
+                        "time_slot": { "type": "string" }
+                      }
+                    },
+                    "hint": { "type": "string" }
+                  }
+                },
+                "example": {
+                  "message": "Invalid schedule: Friday at 15h:30-17h:00 is not in the course availability.",
+                  "availability": "Monday: S1, S2; Wednesday: S3, S4, S5",
+                  "requested": {
+                    "day": "Friday",
+                    "time_slot": "15h:30-17h:00"
+                  },
+                  "hint": "The schedule must match one of the sessions defined in the course mapping availability."
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Schedule or course mapping not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" } }
+                },
+                "example": { "message": "Schedule not found" }
+              }
+            }
+          },
+          "409": {
+            "description": "Schedule conflict detected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "conflict": { "type": "object" }
+                  }
+                },
+                "example": {
+                  "message": "Schedule conflict detected (class / lecturer / room)",
+                  "conflict": {
+                    "day": "Tuesday",
+                    "time_slot_id": 2,
+                    "room": "B202"
+                  }
+                }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      },
+      "delete": {
+        "tags": ["Schedule"],
+        "summary": "Delete a schedule",
+        "description": "Deletes an existing schedule entry",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "Schedule ID to delete"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Schedule deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" } }
+                },
+                "example": { "message": "Schedule deleted successfully" }
+              }
+            }
+          },
+          "404": {
+            "description": "Schedule not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" } }
+                },
+                "example": { "message": "Schedule not found" }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/ServerError" }
         },
         "security": [{ "cookieAuth": [], "bearerAuth": [] }]
       }

@@ -104,15 +104,6 @@ const Evaluation = sequelize.define(
     timestamps: true,
     createdAt: 'created_at',
     updatedAt: 'updated_at',
-    indexes: [
-      // Index for lecturer performance queries
-      {
-        fields: ['lecturer_profile_id', 'academic_year', 'semester'],
-        name: 'idx_lecturer_evaluation',
-      },
-      // Index for course evaluations
-      { fields: ['course_id', 'academic_year', 'semester'], name: 'idx_course_evaluation' },
-    ],
   }
 );
 

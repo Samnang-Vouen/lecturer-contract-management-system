@@ -12,6 +12,12 @@ const ClassModel = sequelize.define(
       defaultValue: null,
       references: { model: 'Departments', key: 'id' },
     },
+    specialization_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      defaultValue: null,
+      references: { model: 'specialization', key: 'id' },
+    },
     name: { type: DataTypes.STRING(255), allowNull: false },
     term: { type: DataTypes.STRING(50), allowNull: true }, // e.g. "Term 1"
     year_level: { type: DataTypes.STRING(50), allowNull: true }, // e.g. "Year 2"

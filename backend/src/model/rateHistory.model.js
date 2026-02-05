@@ -60,10 +60,6 @@ const RateHistory = sequelize.define(
     timestamps: true,
     createdAt: 'created_at',
     updatedAt: 'updated_at',
-    indexes: [
-      // Index for lecturer rate history queries
-      { fields: ['lecturer_profile_id', 'effective_from'], name: 'idx_lecturer_rate_history' },
-    ],
   }
 );
 
