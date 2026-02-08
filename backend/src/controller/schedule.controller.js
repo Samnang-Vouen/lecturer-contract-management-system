@@ -33,7 +33,7 @@ export const getSchedule = async (req, res) => {
         },
         {
           model: CourseMapping,
-          attributes: ['id'],
+          attributes: ['id', 'academic_year', 'year_level', 'term'],
           required: true,
           include: [
             { model: Course, attributes: ['course_name'] },
@@ -45,21 +45,21 @@ export const getSchedule = async (req, res) => {
               include: [
                 {
                   model: ClassModel,
-                  attributes: ['name', 'academic_year', 'year_level', 'term'],
+                  attributes: ['name'],
+                  required: !!class_name || !!specialization || !!dept_name,
                   where: class_name ? { name: class_name } : undefined,
-                  required: class_name ? true : false,
                   include: [
                     {
                       model: Specialization,
                       attributes: ['name'],
+                      required: !!specialization || !!dept_name,
                       where: specialization ? { name: specialization } : undefined,
-                      required: specialization ? true : false,
                       include: [
                         {
                           model: Department,
                           attributes: ['dept_name'],
+                          required: !!dept_name,
                           where: dept_name ? { dept_name } : undefined,
-                          required: dept_name ? true : false,
                         },
                       ],
                     },
@@ -124,7 +124,15 @@ export const generateSchedulePDF = async (req, res) => {
         },
         {
           model: CourseMapping,
-          attributes: ['id', 'group_id', 'course_id', 'lecturer_profile_id'],
+          attributes: [
+            'id',
+            'group_id',
+            'course_id',
+            'lecturer_profile_id',
+            'academic_year',
+            'year_level',
+            'term',
+          ],
           required: false,
           include: [
             { model: Course, attributes: ['course_name'], required: false },
@@ -142,9 +150,6 @@ export const generateSchedulePDF = async (req, res) => {
                   model: ClassModel,
                   attributes: [
                     'name',
-                    'academic_year',
-                    'year_level',
-                    'term',
                     'specialization_id',
                     'dept_id',
                   ],
@@ -222,9 +227,9 @@ export const generateSchedulePDF = async (req, res) => {
       const firstSchedule = groupSchedules[0];
       const cm = firstSchedule.CourseMapping;
 
-      const academic_year = cm?.Group?.Class?.academic_year || 'N/A';
-      const term = cm?.Group?.Class?.term || 'N/A';
-      const year_level = cm?.Group?.Class?.year_level || 'N/A';
+      const academic_year = cm?.academic_year || 'N/A';
+      const term = cm?.term || 'N/A';
+      const year_level = cm?.year_level || 'N/A';
       const dept_name = cm?.Group?.Class?.Specialization?.Department?.dept_name || 'N/A';
       const class_name = cm?.Group?.Class?.name || 'N/A';
       const group_name = cm?.Group?.name || 'N/A';
@@ -567,13 +572,7 @@ export const editSchedule = async (req, res) => {
 
     if (checkingConflict) {
       // Check for conflicts (excluding current schedule)
-      const conflictCheck = await checkScheduleConflict(
-        mappingId,
-        slotId,
-        day_of_week,
-        room,
-        id
-      );
+      const conflictCheck = await checkScheduleConflict(mappingId, slotId, day_of_week, room, id);
 
       if (conflictCheck.hasError) {
         return res
