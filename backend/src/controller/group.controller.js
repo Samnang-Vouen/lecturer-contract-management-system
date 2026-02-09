@@ -3,7 +3,7 @@ import Department from '../model/department.model.js';
 import Group from '../model/group.model.js';
 import Specialization from '../model/specialization.model.js';
 
-// GET /group
+// GET /api/groups
 export const getGroup = async (req, res) => {
   try {
     const { class_name, dept_name, specialization } = req.query;
@@ -41,7 +41,7 @@ export const getGroup = async (req, res) => {
   }
 };
 
-// POST /group
+// POST /api/groups
 export const createGroup = async (req, res) => {
   try {
     const { class_id, name, num_of_student } = req.body;
@@ -65,7 +65,7 @@ export const createGroup = async (req, res) => {
   }
 };
 
-// PUT /group
+// PUT /api/groups/:id
 export const editGroup = async (req, res) => {
   try {
     const { id } = req.params;
@@ -93,7 +93,7 @@ export const editGroup = async (req, res) => {
   }
 };
 
-// DELETE /group
+// DELETE /api/groups/:id
 export const deleteGroup = async (req, res) => {
   try {
     const { id } = req.params;
