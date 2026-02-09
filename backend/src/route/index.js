@@ -19,6 +19,7 @@ import teachingContractRoutes from './teachingContract.route.js';
 import contractsRoutes from './contracts.route.js';
 import lecturerDashboardRoutes from './lecturerDashboard.route.js';
 import schedule from './schedule.route.js';
+import group from './group.route.js';
 
 export function registerRoutes(app) {
   // IMPORTANT: Mount the more specific lecturer onboarding route BEFORE the generic /api/lecturers route.
@@ -43,4 +44,5 @@ export function registerRoutes(app) {
   app.use('/api/contracts', contractsRoutes);
   app.use('/api/lecturer-dashboard', lecturerDashboardRoutes);
   app.use('/api/schedule', schedule);
+  app.use('/api/group', group);
 }
