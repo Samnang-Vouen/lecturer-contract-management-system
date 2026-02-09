@@ -129,12 +129,12 @@
         <p style="font-size: 20px; font-weight: bold; margin-bottom: 4px">
           Department of {dept_name}
         </p>
-        <p style="font-size: 20px; font-weight: bold">Specialized in Software Engineering</p>
+        <p style="font-size: 20px; font-weight: bold">Specialized in {specialization}</p>
       </div>
     </div>
 
     <div class="info">
-      <p><strong>Generation 10, {year_level}, {term}, Group {class_name}</strong></p>
+      <p><strong>Generation {class_name}, {year_level}, {term}, Group {group_name}</strong></p>
       <p><strong>Start Date: {start_date}</strong></p>
     </div>
 
@@ -149,13 +149,13 @@
       </tr>
       {schedule_rows}
     </table>
-    
+
     <div class="footer">
       <p><strong>Note: {note}.</strong></p>
       <p><strong>Phnom Penh, {created_at}</strong></p>
     </div>
     <div class="footer">
-      <p><strong>Group1: 30 Students</strong></p>
+      <p><strong>Group {group_name}: {num_of_student} Students</strong></p>
       <p><strong>Department of {dept_name}</strong></p>
     </div>
   </body>
