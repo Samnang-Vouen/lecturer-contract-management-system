@@ -15,8 +15,8 @@ import { runSchemaBootstrapping } from './bootstrap/schema.js';
 import { runSeeds } from './bootstrap/seeds.js';
 
 // Load env without noisy debug to avoid EPIPE when stdout is closed by parent
+dotenv.config();
 process.env.DOTENV_CONFIG_SILENT = 'true';
-dotenv.config({ debug: false });
 
 const app = express();
 const PORT = process.env.PORT || 4000;

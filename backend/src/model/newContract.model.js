@@ -21,3 +21,4 @@ const NewContract = sequelize.define(
 );
 
 export default NewContract;
+ 

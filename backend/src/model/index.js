@@ -28,7 +28,7 @@ import RateHistory from './rateHistory.model.js';
 import { TimeSlot } from './timeSlot.model.js';
 import Group from './group.model.js';
 import Specialization from './specialization.model.js';
-
+import Notification from './notification.js';
 // Set up associations
 
 // User - Role (Many-to-Many)
@@ -366,6 +366,20 @@ CandidateQuestion.belongsTo(InterviewQuestion, {
   onUpdate: 'CASCADE',
 });
 
+Notification.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "user",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE",
+});
+
+User.hasMany(Notification, {
+  foreignKey: "user_id", 
+  
+})
+
+
+
 // Export all models
 export {
   User,
@@ -394,6 +408,7 @@ export {
   Evaluation,
   HourRating,
   RateHistory,
+  Notification,
 };
 
 // Default export (User for backward compatibility)
