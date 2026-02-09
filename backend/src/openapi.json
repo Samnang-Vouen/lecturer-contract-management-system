@@ -170,6 +170,17 @@
           }
         }
       },
+      "Group": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "class_id": { "type": "integer" },
+          "name": { "type": "string", "description": "Group name (e.g., G1, G2)" },
+          "num_of_student": { "type": "integer", "description": "Number of students in the group" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
       "CourseMapping": {
         "type": "object",
         "properties": {
@@ -1312,6 +1323,333 @@
       }
     },
 
+    "/api/groups": {
+      "get": {
+        "tags": ["Groups"],
+        "summary": "List all groups",
+        "description": "Retrieves all groups with optional filtering by class name, department, or specialization",
+        "parameters": [
+          {
+            "name": "class_name",
+            "in": "query",
+            "schema": { "type": "string" },
+            "description": "Filter by class name"
+          },
+          {
+            "name": "dept_name",
+            "in": "query",
+            "schema": { "type": "string" },
+            "description": "Filter by department name"
+          },
+          {
+            "name": "specialization",
+            "in": "query",
+            "schema": { "type": "string" },
+            "description": "Filter by specialization name"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of groups",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "group": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Group" }
+                    },
+                    "message": { "type": "string" }
+                  }
+                },
+                "example": {
+                  "group": [
+                    {
+                      "id": 1,
+                      "class_id": 5,
+                      "name": "G1",
+                      "num_of_student": 30,
+                      "Class": {
+                        "name": "CS-Y4-A",
+                        "Specialization": {
+                          "name": "Computer Science",
+                          "Department": { "dept_name": "Engineering" }
+                        }
+                      }
+                    }
+                  ],
+                  "message": "Group retrieved successfully."
+                }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      },
+      "post": {
+        "tags": ["Groups"],
+        "summary": "Create a new group",
+        "description": "Creates a new group for a specific class",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["class_id", "name", "num_of_student"],
+                "properties": {
+                  "class_id": {
+                    "type": "integer",
+                    "description": "ID of the class this group belongs to"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Group name (e.g., G1, G2, G3)"
+                  },
+                  "num_of_student": {
+                    "type": "integer",
+                    "description": "Number of students in the group"
+                  }
+                }
+              },
+              "example": {
+                "class_id": 5,
+                "name": "G1",
+                "num_of_student": 30
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Group created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "group": { "$ref": "#/components/schemas/Group" },
+                    "message": { "type": "string" }
+                  }
+                },
+                "example": {
+                  "group": {
+                    "id": 1,
+                    "class_id": 5,
+                    "name": "G1",
+                    "num_of_student": 30
+                  },
+                  "message": "Group created successfully."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error - missing required field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" } }
+                },
+                "examples": {
+                  "missing_class_id": {
+                    "summary": "Missing class_id",
+                    "value": { "message": "Required class_id" }
+                  },
+                  "missing_name": {
+                    "summary": "Missing name",
+                    "value": { "message": "Required name" }
+                  },
+                  "missing_num_of_student": {
+                    "summary": "Missing num_of_student",
+                    "value": { "message": "Required num_of_student" }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Class not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" } }
+                },
+                "example": { "message": "Class Model not found" }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+    "/api/groups/{id}": {
+      "put": {
+        "tags": ["Groups"],
+        "summary": "Update a group",
+        "description": "Updates an existing group's details",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "Group ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["class_id", "name", "num_of_student"],
+                "properties": {
+                  "class_id": {
+                    "type": "integer",
+                    "description": "ID of the class this group belongs to"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Group name (e.g., G1, G2, G3)"
+                  },
+                  "num_of_student": {
+                    "type": "integer",
+                    "description": "Number of students in the group"
+                  }
+                }
+              },
+              "example": {
+                "class_id": 5,
+                "name": "G2",
+                "num_of_student": 35
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Group updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "existingGroup": { "$ref": "#/components/schemas/Group" },
+                    "message": { "type": "string" }
+                  }
+                },
+                "example": {
+                  "existingGroup": {
+                    "id": 1,
+                    "class_id": 5,
+                    "name": "G2",
+                    "num_of_student": 35
+                  },
+                  "message": "Group updated successfully."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error - missing required field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" } }
+                },
+                "examples": {
+                  "missing_class_id": {
+                    "summary": "Missing class_id",
+                    "value": { "message": "Required class_id" }
+                  },
+                  "missing_name": {
+                    "summary": "Missing name",
+                    "value": { "message": "Required name" }
+                  },
+                  "missing_num_of_student": {
+                    "summary": "Missing num_of_student",
+                    "value": { "message": "Required num_of_student" }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Group or class not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" } }
+                },
+                "examples": {
+                  "group_not_found": {
+                    "summary": "Group not found",
+                    "value": { "message": "Group not found" }
+                  },
+                  "class_not_found": {
+                    "summary": "Class not found",
+                    "value": { "message": "Class Model not found" }
+                  }
+                }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      },
+      "delete": {
+        "tags": ["Groups"],
+        "summary": "Delete a group",
+        "description": "Deletes an existing group",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "Group ID to delete"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Group deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" } }
+                },
+                "example": { "message": "Group deleted successfully." }
+              }
+            }
+          },
+          "404": {
+            "description": "Group not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" } }
+                },
+                "example": { "message": "Group not found" }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+
     "/api/course-mappings": {
       "get": {
         "tags": ["CourseMappings"],
@@ -1598,7 +1936,7 @@
         "security": [{ "cookieAuth": [], "bearerAuth": [] }]
       }
     },
-    "/api/schedule": {
+    "/api/schedules": {
       "get": {
         "tags": ["Schedule"],
         "summary": "Get all schedules (optionally filtered by department)",
@@ -1861,7 +2199,7 @@
         "security": [{ "cookieAuth": [], "bearerAuth": [] }]
       }
     },
-    "/api/schedule/{id}": {
+    "/api/schedules/{id}": {
       "put": {
         "tags": ["Schedule"],
         "summary": "Update an existing schedule",
