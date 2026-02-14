@@ -10,7 +10,7 @@ import Group from '../model/group.model.js';
 import { availabilityToScheduleEntries } from '../utils/availabilityParser.js';
 import { checkScheduleConflict } from '../utils/scheduleHelper.js';
 
-// GET /schedule
+// GET /api/schedules
 export const getSchedule = async (req, res) => {
   try {
     const { class_name, dept_name, specialization } = req.query;
@@ -91,7 +91,7 @@ function embedIdtLogo(html) {
   return html.replace('src="idt.png"', `src="data:image/png;base64,${base64}"`);
 }
 
-// GET /schedule/pdf
+// GET /api/schedules/pdf
 export const generateSchedulePDF = async (req, res) => {
   let browser;
   try {
@@ -435,7 +435,7 @@ export const generateSchedulePDF = async (req, res) => {
   }
 };
 
-// POST /schedule
+// POST /api/schedules
 export const createSchedule = async (req, res) => {
   try {
     const { course_mapping_id, time_slot_id, start_date, day_of_week, room, session_type, notes } =
@@ -513,7 +513,7 @@ export const createSchedule = async (req, res) => {
   }
 };
 
-// PUT /schedule:id
+// PUT /api/schedules/:id
 export const editSchedule = async (req, res) => {
   try {
     const { id } = req.params;
@@ -605,7 +605,7 @@ export const editSchedule = async (req, res) => {
   }
 };
 
-// DELETE /schedule:id
+// DELETE /api/schedules/:id
 export const deleteSchedule = async (req, res) => {
   try {
     const { id } = req.params;

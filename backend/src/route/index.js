@@ -43,6 +43,6 @@ export function registerRoutes(app) {
   app.use('/api/teaching-contracts', teachingContractRoutes);
   app.use('/api/contracts', contractsRoutes);
   app.use('/api/lecturer-dashboard', lecturerDashboardRoutes);
-  app.use('/api/schedule', schedule);
-  app.use('/api/group', group);
+  app.use('/api/schedules', schedule);
+  app.use('/api/groups', group);
 }
