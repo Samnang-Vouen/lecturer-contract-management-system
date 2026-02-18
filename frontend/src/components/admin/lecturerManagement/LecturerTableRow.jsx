@@ -1,7 +1,10 @@
-import React from 'react';
-import { MoreVertical, Eye, BookOpen } from 'lucide-react';
+import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
+import { MoreVertical, MoreHorizontal } from 'lucide-react';
 
 export default function LecturerTableRow({ lecturer, onOpenMenu, onOpenCoursesPopover }) {
+  const [courseTooltip, setCourseTooltip] = useState(null);
+
   const handleMenuClick = (e) => {
     e.stopPropagation();
     onOpenMenu(lecturer.id, e);
@@ -15,6 +18,79 @@ export default function LecturerTableRow({ lecturer, onOpenMenu, onOpenCoursesPo
   const statusColor = lecturer.status === 'active' 
     ? 'bg-green-100 text-green-800' 
     : 'bg-gray-100 text-gray-800';
+
+  const courses = Array.isArray(lecturer.courses) ? lecturer.courses : [];
+  const visibleCourses = courses.slice(0, 3);
+  const remainingCourses = Math.max(courses.length - visibleCourses.length, 0);
+
+  const getCourseLabel = (course) => {
+    if (!course) return '';
+    if (typeof course === 'string') return course;
+    return (
+      course.course_code ||
+      course.courseCode ||
+      course.code ||
+      course.Course?.course_code ||
+      course.Course?.courseCode ||
+      course.Course?.code ||
+      course.course_name ||
+      course.courseName ||
+      course.name ||
+      course.Course?.course_name ||
+      course.Course?.courseName ||
+      course.Course?.name ||
+      ''
+    );
+  };
+
+  const getCourseTitle = (course) => {
+    if (!course) return '';
+    if (typeof course === 'string') return course;
+    const code =
+      course.course_code ||
+      course.courseCode ||
+      course.code ||
+      course.Course?.course_code ||
+      course.Course?.courseCode ||
+      course.Course?.code ||
+      '';
+    const name =
+      course.course_name ||
+      course.courseName ||
+      course.name ||
+      course.Course?.course_name ||
+      course.Course?.courseName ||
+      course.Course?.name ||
+      '';
+
+    // Requirement: hovering the course id should show the course name.
+    if (name && code) return `${name} (${code})`;
+    return name || code || '';
+  };
+
+  const getCourseNameOnly = (course) => {
+    if (!course) return '';
+    if (typeof course === 'string') return '';
+    return (
+      course.course_name ||
+      course.courseName ||
+      course.name ||
+      course.Course?.course_name ||
+      course.Course?.courseName ||
+      course.Course?.name ||
+      ''
+    );
+  };
+
+  const openCourseTooltip = (e, text) => {
+    if (!text) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.bottom + 8;
+    setCourseTooltip({ text, x, y });
+  };
+
+  const closeCourseTooltip = () => setCourseTooltip(null);
 
   return (
     <tr className='border-b border-gray-100 hover:bg-gray-50'>
@@ -55,18 +131,57 @@ export default function LecturerTableRow({ lecturer, onOpenMenu, onOpenCoursesPo
         </div>
       </td>
       <td className='px-6 py-4'>
-        {lecturer.courses?.length > 0 ? (
-          <button
-            onClick={handleCoursesClick}
-            className='inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-sm font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors'
-          >
-            <BookOpen className='w-3.5 h-3.5' />
-            {lecturer.courses.length}
-          </button>
+        {courses.length > 0 ? (
+          <div className='flex flex-wrap items-center gap-1.5'>
+            {visibleCourses.map((course, idx) => {
+              const label = getCourseLabel(course);
+              if (!label) return null;
+              const title = getCourseTitle(course);
+              const nameOnly = getCourseNameOnly(course);
+              return (
+                <span
+                  key={`${label}-${idx}`}
+                  role='button'
+                  tabIndex={0}
+                  onMouseEnter={(e) => openCourseTooltip(e, nameOnly)}
+                  onMouseLeave={closeCourseTooltip}
+                  onFocus={(e) => openCourseTooltip(e, nameOnly)}
+                  onBlur={closeCourseTooltip}
+                  aria-label={title}
+                  className='inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 max-w-[11rem] truncate cursor-pointer'
+                >
+                  {label}
+                </span>
+              );
+            })}
+
+            {remainingCourses > 0 && (
+              <button
+                type='button'
+                onClick={handleCoursesClick}
+                className='courses-plus-chip inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors'
+                aria-label={`View ${remainingCourses} more course${remainingCourses === 1 ? '' : 's'}`}
+                title={`View ${remainingCourses} more`}
+              >
+                <MoreHorizontal className='w-3.5 h-3.5' />
+                +{remainingCourses}
+              </button>
+            )}
+          </div>
         ) : (
           <span className='text-sm text-gray-400'>—</span>
         )}
       </td>
+
+      {courseTooltip && createPortal(
+        <div
+          className='fixed z-[60] pointer-events-none -translate-x-1/2 rounded bg-gray-900 px-2 py-1 text-[11px] text-white shadow'
+          style={{ left: `${courseTooltip.x}px`, top: `${courseTooltip.y}px` }}
+        >
+          {courseTooltip.text}
+        </div>,
+        document.body
+      )}
       <td className='px-6 py-4'>
         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColor}`}>
           {lecturer.status || 'inactive'}
