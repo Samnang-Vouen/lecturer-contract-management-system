@@ -9,14 +9,19 @@ const CourseMapping = sequelize.define(
     dept_id: { type: DataTypes.INTEGER, allowNull: true }, // denormalized for quick filters
     // Match Classes.id which is defined as INTEGER.UNSIGNED to avoid FK incompatibility
     class_id: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+    group_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: { model: 'group', key: 'id' },
+    },
     course_id: { type: DataTypes.INTEGER, allowNull: false },
     lecturer_profile_id: { type: DataTypes.INTEGER, allowNull: true },
-    academic_year: { type: DataTypes.STRING(20), allowNull: false },
-    term: { type: DataTypes.STRING(50), allowNull: false },
+    academic_year: { type: DataTypes.STRING(20), allowNull: true },
+    term: { type: DataTypes.STRING(50), allowNull: true },
     year_level: { type: DataTypes.STRING(50), allowNull: true },
     group_count: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
     type_hours: {
-      type: DataTypes.ENUM('Theory (15h)', 'Lab (30h)', 'Only 15h', 'Only 30h'),
+      type: DataTypes.ENUM('Theory (15h)', 'Lab (30h)', 'Only 30h'),
       allowNull: false,
       defaultValue: 'Theory (15h)',
     },

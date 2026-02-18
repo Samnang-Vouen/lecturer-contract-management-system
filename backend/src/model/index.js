@@ -25,6 +25,9 @@ import Schedule from './schedule.model.js';
 import Evaluation from './evaluation.model.js';
 import HourRating from './hourRating.model.js';
 import RateHistory from './rateHistory.model.js';
+import { TimeSlot } from './timeSlot.model.js';
+import Group from './group.model.js';
+import Specialization from './specialization.model.js';
 
 // Set up associations
 
@@ -67,6 +70,14 @@ LecturerProfile.belongsToMany(Department, {
   foreignKey: 'profile_id',
   otherKey: 'dept_id',
 });
+
+Department.hasMany(Specialization, {
+  foreignKey: 'dept_id',
+});
+Specialization.belongsTo(Department, {
+  foreignKey: 'dept_id',
+});
+
 // Course - Department relationships
 Course.belongsTo(Department, {
   foreignKey: 'dept_id',
@@ -85,6 +96,20 @@ ClassModel.belongsTo(Department, {
 });
 Department.hasMany(ClassModel, {
   foreignKey: 'dept_id',
+});
+
+Specialization.hasMany(ClassModel, {
+  foreignKey: 'specialization_id',
+});
+ClassModel.belongsTo(Specialization, {
+  foreignKey: 'specialization_id',
+});
+
+ClassModel.hasMany(Group, {
+  foreignKey: 'class_id',
+});
+Group.belongsTo(ClassModel, {
+  foreignKey: 'class_id',
 });
 
 // LecturerCourse relationships
@@ -133,6 +158,13 @@ ClassModel.hasMany(CourseMapping, {
   foreignKey: 'class_id',
 });
 
+CourseMapping.belongsTo(Group, {
+  foreignKey: 'group_id',
+});
+Group.hasMany(CourseMapping, {
+  foreignKey: 'group_id',
+});
+
 CourseMapping.belongsTo(Course, {
   foreignKey: 'course_id',
   onDelete: 'CASCADE',
@@ -158,6 +190,22 @@ CourseMapping.belongsTo(Department, {
 });
 Department.hasMany(CourseMapping, {
   foreignKey: 'dept_id',
+});
+
+CourseMapping.hasMany(Schedule, {
+  foreignKey: 'course_mapping_id',
+});
+
+Schedule.belongsTo(CourseMapping, {
+  foreignKey: 'course_mapping_id',
+});
+
+TimeSlot.hasMany(Schedule, {
+  foreignKey: 'time_slot_id',
+});
+
+Schedule.belongsTo(TimeSlot, {
+  foreignKey: 'time_slot_id',
 });
 
 // Teaching contract relationships
@@ -208,31 +256,6 @@ TeachingContract.hasMany(AdvisorResponsibility, {
   foreignKey: 'contract_id',
   as: 'advisorResponsibilities',
 });
-
-// Schedule relationships
-Schedule.belongsTo(LecturerProfile, {
-  foreignKey: 'lecturer_profile_id',
-  as: 'lecturer',
-  onDelete: 'CASCADE',
-  onUpdate: 'CASCADE',
-});
-LecturerProfile.hasMany(Schedule, { foreignKey: 'lecturer_profile_id', as: 'schedules' });
-
-Schedule.belongsTo(Course, {
-  foreignKey: 'course_id',
-  as: 'course',
-  onDelete: 'CASCADE',
-  onUpdate: 'CASCADE',
-});
-Course.hasMany(Schedule, { foreignKey: 'course_id', as: 'schedules' });
-
-Schedule.belongsTo(ClassModel, {
-  foreignKey: 'class_id',
-  as: 'class',
-  onDelete: 'SET NULL',
-  onUpdate: 'CASCADE',
-});
-ClassModel.hasMany(Schedule, { foreignKey: 'class_id', as: 'schedules' });
 
 // Evaluation relationships
 Evaluation.belongsTo(LecturerProfile, {

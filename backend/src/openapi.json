@@ -21,6 +21,7 @@
     { "name": "Courses", "description": "Course definitions" },
     { "name": "Classes", "description": "Class management" },
     { "name": "CourseMappings", "description": "Class-course mapping records" },
+    { "name": "Schedule", "description": "Class schedule management" },
     { "name": "Users", "description": "Administrative user management" },
     { "name": "Dashboard", "description": "Dashboard stats" },
     { "name": "Profile", "description": "Authenticated user profile & password" }
@@ -97,6 +98,65 @@
           "dept_id": { "type": "integer", "nullable": true }
         }
       },
+      "Schedule": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "day_of_week": {
+            "type": "string",
+            "enum": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+          },
+          "room": { "type": "string", "nullable": true },
+          "session_type": {
+            "type": "string",
+            "enum": ["Theory", "Lab", "Lab + Theory"],
+            "nullable": true
+          },
+          "notes": { "type": "string", "nullable": true },
+          "start_date": { "type": "string", "format": "date", "nullable": true },
+          "created_at": { "type": "string", "format": "date-time" },
+          "TimeSlot": {
+            "type": "object",
+            "properties": {
+              "label": { "type": "string" }
+            }
+          },
+          "CourseMapping": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "integer" },
+              "Department": {
+                "type": "object",
+                "properties": {
+                  "dept_name": { "type": "string" }
+                }
+              },
+              "Class": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "academic_year": { "type": "string" },
+                  "year_level": { "type": "integer" },
+                  "term": { "type": "string" }
+                }
+              },
+              "Course": {
+                "type": "object",
+                "properties": {
+                  "course_name": { "type": "string" }
+                }
+              },
+              "LecturerProfile": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string" },
+                  "full_name_english": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      },
       "Class": {
         "type": "object",
         "properties": {
@@ -108,6 +168,17 @@
             "items": { "type": "integer" },
             "description": "Array of course IDs assigned (serialized)"
           }
+        }
+      },
+      "Group": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "class_id": { "type": "integer" },
+          "name": { "type": "string", "description": "Group name (e.g., G1, G2)" },
+          "num_of_student": { "type": "integer", "description": "Number of students in the group" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
         }
       },
       "CourseMapping": {
@@ -1252,6 +1323,333 @@
       }
     },
 
+    "/api/groups": {
+      "get": {
+        "tags": ["Groups"],
+        "summary": "List all groups",
+        "description": "Retrieves all groups with optional filtering by class name, department, or specialization",
+        "parameters": [
+          {
+            "name": "class_name",
+            "in": "query",
+            "schema": { "type": "string" },
+            "description": "Filter by class name"
+          },
+          {
+            "name": "dept_name",
+            "in": "query",
+            "schema": { "type": "string" },
+            "description": "Filter by department name"
+          },
+          {
+            "name": "specialization",
+            "in": "query",
+            "schema": { "type": "string" },
+            "description": "Filter by specialization name"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of groups",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "group": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Group" }
+                    },
+                    "message": { "type": "string" }
+                  }
+                },
+                "example": {
+                  "group": [
+                    {
+                      "id": 1,
+                      "class_id": 5,
+                      "name": "G1",
+                      "num_of_student": 30,
+                      "Class": {
+                        "name": "CS-Y4-A",
+                        "Specialization": {
+                          "name": "Computer Science",
+                          "Department": { "dept_name": "Engineering" }
+                        }
+                      }
+                    }
+                  ],
+                  "message": "Group retrieved successfully."
+                }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      },
+      "post": {
+        "tags": ["Groups"],
+        "summary": "Create a new group",
+        "description": "Creates a new group for a specific class",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["class_id", "name", "num_of_student"],
+                "properties": {
+                  "class_id": {
+                    "type": "integer",
+                    "description": "ID of the class this group belongs to"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Group name (e.g., G1, G2, G3)"
+                  },
+                  "num_of_student": {
+                    "type": "integer",
+                    "description": "Number of students in the group"
+                  }
+                }
+              },
+              "example": {
+                "class_id": 5,
+                "name": "G1",
+                "num_of_student": 30
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Group created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "group": { "$ref": "#/components/schemas/Group" },
+                    "message": { "type": "string" }
+                  }
+                },
+                "example": {
+                  "group": {
+                    "id": 1,
+                    "class_id": 5,
+                    "name": "G1",
+                    "num_of_student": 30
+                  },
+                  "message": "Group created successfully."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error - missing required field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" } }
+                },
+                "examples": {
+                  "missing_class_id": {
+                    "summary": "Missing class_id",
+                    "value": { "message": "Required class_id" }
+                  },
+                  "missing_name": {
+                    "summary": "Missing name",
+                    "value": { "message": "Required name" }
+                  },
+                  "missing_num_of_student": {
+                    "summary": "Missing num_of_student",
+                    "value": { "message": "Required num_of_student" }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Class not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" } }
+                },
+                "example": { "message": "Class Model not found" }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+    "/api/groups/{id}": {
+      "put": {
+        "tags": ["Groups"],
+        "summary": "Update a group",
+        "description": "Updates an existing group's details",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "Group ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["class_id", "name", "num_of_student"],
+                "properties": {
+                  "class_id": {
+                    "type": "integer",
+                    "description": "ID of the class this group belongs to"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Group name (e.g., G1, G2, G3)"
+                  },
+                  "num_of_student": {
+                    "type": "integer",
+                    "description": "Number of students in the group"
+                  }
+                }
+              },
+              "example": {
+                "class_id": 5,
+                "name": "G2",
+                "num_of_student": 35
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Group updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "existingGroup": { "$ref": "#/components/schemas/Group" },
+                    "message": { "type": "string" }
+                  }
+                },
+                "example": {
+                  "existingGroup": {
+                    "id": 1,
+                    "class_id": 5,
+                    "name": "G2",
+                    "num_of_student": 35
+                  },
+                  "message": "Group updated successfully."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error - missing required field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" } }
+                },
+                "examples": {
+                  "missing_class_id": {
+                    "summary": "Missing class_id",
+                    "value": { "message": "Required class_id" }
+                  },
+                  "missing_name": {
+                    "summary": "Missing name",
+                    "value": { "message": "Required name" }
+                  },
+                  "missing_num_of_student": {
+                    "summary": "Missing num_of_student",
+                    "value": { "message": "Required num_of_student" }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Group or class not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" } }
+                },
+                "examples": {
+                  "group_not_found": {
+                    "summary": "Group not found",
+                    "value": { "message": "Group not found" }
+                  },
+                  "class_not_found": {
+                    "summary": "Class not found",
+                    "value": { "message": "Class Model not found" }
+                  }
+                }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      },
+      "delete": {
+        "tags": ["Groups"],
+        "summary": "Delete a group",
+        "description": "Deletes an existing group",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "Group ID to delete"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Group deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" } }
+                },
+                "example": { "message": "Group deleted successfully." }
+              }
+            }
+          },
+          "404": {
+            "description": "Group not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" } }
+                },
+                "example": { "message": "Group not found" }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+
     "/api/course-mappings": {
       "get": {
         "tags": ["CourseMappings"],
@@ -1533,6 +1931,462 @@
           "400": { "$ref": "#/components/responses/ValidationError" },
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "403": { "$ref": "#/components/responses/Forbidden" },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+    "/api/schedules": {
+      "get": {
+        "tags": ["Schedule"],
+        "summary": "Get all schedules (optionally filtered by department)",
+        "parameters": [
+          {
+            "name": "class_name",
+            "in": "query",
+            "description": "Filter schedules by class name",
+            "required": false,
+            "schema": { "type": "string" },
+            "example": "CS-Y4-A"
+          },
+          {
+            "name": "dept_name",
+            "in": "query",
+            "description": "Filter schedules by department name",
+            "required": false,
+            "schema": { "type": "string" },
+            "example": "Computer Science"
+          },
+          {
+            "name": "specialization",
+            "in": "query",
+            "description": "Filter schedules by specialization",
+            "required": false,
+            "schema": { "type": "string" },
+            "example": "Software Engineering"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Schedule list retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schedule": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Schedule" }
+                    },
+                    "message": { "type": "string" }
+                  }
+                },
+                "example": {
+                  "schedule": [
+                    {
+                      "id": 1,
+                      "day_of_week": "Monday",
+                      "room": "A101",
+                      "session_type": "Theory",
+                      "notes": "Regular class",
+                      "start_date": "2026-01-15",
+                      "created_at": "2026-01-10T08:00:00Z",
+                      "TimeSlot": { "label": "08h:00-09h:30" },
+                      "CourseMapping": {
+                        "id": 1,
+                        "Course": { "course_name": "Web Development" },
+                        "LecturerProfile": {
+                          "title": "Dr",
+                          "full_name_english": "John Smith"
+                        },
+                        "Group": {
+                          "name": "G1",
+                          "num_of_student": 30,
+                          "Class": {
+                            "name": "CS-Y4-A",
+                            "academic_year": "2025-2026",
+                            "year_level": "4",
+                            "term": "1"
+                          }
+                        }
+                      }
+                    }
+                  ],
+                  "message": "Schedule retrieved successfully"
+                }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      },
+      "post": {
+        "tags": ["Schedule"],
+        "summary": "Create a new schedule",
+        "description": "Creates a new schedule entry. The day and time slot must match the course mapping's availability. Automatically checks for conflicts and allows combined sessions (same course, lecturer, room, time but different groups).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "course_mapping_id",
+                  "time_slot_id",
+                  "day_of_week",
+                  "room",
+                  "session_type",
+                  "start_date"
+                ],
+                "properties": {
+                  "course_mapping_id": {
+                    "type": "integer",
+                    "description": "ID of the course mapping"
+                  },
+                  "time_slot_id": {
+                    "type": "integer",
+                    "description": "ID of the time slot (must match an available session in the course mapping)"
+                  },
+                  "day_of_week": {
+                    "type": "string",
+                    "enum": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+                    "description": "Day of the week (must match an available day in the course mapping)"
+                  },
+                  "room": {
+                    "type": "string",
+                    "description": "Room number or name"
+                  },
+                  "session_type": {
+                    "type": "string",
+                    "enum": ["Theory", "Lab", "Lab + Theory"],
+                    "description": "Type of session"
+                  },
+                  "start_date": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "Start date of the schedule"
+                  },
+                  "notes": {
+                    "type": "string",
+                    "description": "Additional notes (optional)"
+                  }
+                }
+              },
+              "example": {
+                "course_mapping_id": 1,
+                "time_slot_id": 2,
+                "day_of_week": "Monday",
+                "room": "A101",
+                "session_type": "Theory",
+                "start_date": "2026-02-01",
+                "notes": "Combined session for G1 and G2"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Schedule created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schedule": { "$ref": "#/components/schemas/Schedule" },
+                    "message": { "type": "string" }
+                  }
+                },
+                "example": {
+                  "schedule": {
+                    "id": 5,
+                    "course_mapping_id": 1,
+                    "time_slot_id": 2,
+                    "day_of_week": "Monday",
+                    "room": "A101",
+                    "session_type": "Theory",
+                    "start_date": "2026-02-01",
+                    "notes": "Combined session for G1 and G2"
+                  },
+                  "message": "Schedule created successfully"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error - missing required fields or schedule not in availability",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "availability": { "type": "string" },
+                    "requested": {
+                      "type": "object",
+                      "properties": {
+                        "day": { "type": "string" },
+                        "time_slot": { "type": "string" }
+                      }
+                    },
+                    "hint": { "type": "string" }
+                  }
+                },
+                "examples": {
+                  "missing_field": {
+                    "summary": "Missing required field",
+                    "value": { "message": "Required day_of_week" }
+                  },
+                  "not_in_availability": {
+                    "summary": "Schedule not in availability",
+                    "value": {
+                      "message": "Invalid schedule: Friday at 08h:00-09h:30 is not in the course availability.",
+                      "availability": "Monday: S1, S2; Wednesday: S3, S4, S5",
+                      "requested": {
+                        "day": "Friday",
+                        "time_slot": "08h:00-09h:30"
+                      },
+                      "hint": "The schedule must match one of the sessions defined in the course mapping availability."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Course mapping not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" } }
+                },
+                "example": { "message": "Course mapping not found" }
+              }
+            }
+          },
+          "409": {
+            "description": "Schedule conflict detected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "conflict": {
+                      "type": "object",
+                      "properties": {
+                        "day": { "type": "string" },
+                        "time_slot_id": { "type": "integer" },
+                        "room": { "type": "string" }
+                      }
+                    }
+                  }
+                },
+                "example": {
+                  "message": "Schedule conflict detected (class / lecturer / room)",
+                  "conflict": {
+                    "day": "Monday",
+                    "time_slot_id": 2,
+                    "room": "A101"
+                  }
+                }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      }
+    },
+    "/api/schedules/{id}": {
+      "put": {
+        "tags": ["Schedule"],
+        "summary": "Update an existing schedule",
+        "description": "Updates schedule details. If updating day or time slot, they must match the course mapping's availability. Checks for conflicts when time/location changes, allowing combined sessions for different groups.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "Schedule ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["day_of_week", "room", "session_type", "start_date"],
+                "properties": {
+                  "course_mapping_id": {
+                    "type": "integer",
+                    "description": "ID of the course mapping (optional)"
+                  },
+                  "time_slot_id": {
+                    "type": "integer",
+                    "description": "ID of the time slot (must match an available session if provided)"
+                  },
+                  "day_of_week": {
+                    "type": "string",
+                    "enum": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+                    "description": "Day of the week (must match an available day in the course mapping)"
+                  },
+                  "room": { "type": "string" },
+                  "session_type": {
+                    "type": "string",
+                    "enum": ["Theory", "Lab", "Lab + Theory"]
+                  },
+                  "start_date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "notes": { "type": "string" }
+                }
+              },
+              "example": {
+                "day_of_week": "Tuesday",
+                "room": "B202",
+                "session_type": "Lab",
+                "start_date": "2026-02-01",
+                "notes": "Updated to new room"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Schedule updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schedule": { "$ref": "#/components/schemas/Schedule" },
+                    "message": { "type": "string" }
+                  }
+                },
+                "example": {
+                  "schedule": {
+                    "id": 5,
+                    "day_of_week": "Tuesday",
+                    "room": "B202",
+                    "session_type": "Lab"
+                  },
+                  "message": "Schedule updated successfully"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error - schedule not in availability",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "availability": { "type": "string" },
+                    "requested": {
+                      "type": "object",
+                      "properties": {
+                        "day": { "type": "string" },
+                        "time_slot": { "type": "string" }
+                      }
+                    },
+                    "hint": { "type": "string" }
+                  }
+                },
+                "example": {
+                  "message": "Invalid schedule: Friday at 15h:30-17h:00 is not in the course availability.",
+                  "availability": "Monday: S1, S2; Wednesday: S3, S4, S5",
+                  "requested": {
+                    "day": "Friday",
+                    "time_slot": "15h:30-17h:00"
+                  },
+                  "hint": "The schedule must match one of the sessions defined in the course mapping availability."
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Schedule or course mapping not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" } }
+                },
+                "example": { "message": "Schedule not found" }
+              }
+            }
+          },
+          "409": {
+            "description": "Schedule conflict detected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "conflict": { "type": "object" }
+                  }
+                },
+                "example": {
+                  "message": "Schedule conflict detected (class / lecturer / room)",
+                  "conflict": {
+                    "day": "Tuesday",
+                    "time_slot_id": 2,
+                    "room": "B202"
+                  }
+                }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/ServerError" }
+        },
+        "security": [{ "cookieAuth": [], "bearerAuth": [] }]
+      },
+      "delete": {
+        "tags": ["Schedule"],
+        "summary": "Delete a schedule",
+        "description": "Deletes an existing schedule entry",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "Schedule ID to delete"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Schedule deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" } }
+                },
+                "example": { "message": "Schedule deleted successfully" }
+              }
+            }
+          },
+          "404": {
+            "description": "Schedule not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "message": { "type": "string" } }
+                },
+                "example": { "message": "Schedule not found" }
+              }
+            }
+          },
           "500": { "$ref": "#/components/responses/ServerError" }
         },
         "security": [{ "cookieAuth": [], "bearerAuth": [] }]
