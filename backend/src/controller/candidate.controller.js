@@ -59,6 +59,9 @@ export const createCandidate = async (req, res) => {
     if (!fullName || !email) {
       return res.status(400).json({ message: 'fullName and email are required' });
     }
+    if (!String(email).includes('@')) {
+      return res.status(400).json({ message: 'Email must contain @' });
+    }
     // Determine department from recruiting admin
     let dept_id = null;
     if (req.user?.role === 'admin' && req.user.department_name) {
@@ -108,6 +111,10 @@ export const updateCandidate = async (req, res) => {
     const updates = {};
     for (const key of allowed) {
       if (key in req.body) updates[key] = req.body[key];
+    }
+
+    if ('email' in updates && updates.email != null && !String(updates.email).includes('@')) {
+      return res.status(400).json({ message: 'Email must contain @' });
     }
 
     if ('interviewDate' in updates && updates.interviewDate) {
