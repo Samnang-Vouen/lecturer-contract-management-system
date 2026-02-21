@@ -10,6 +10,7 @@ router.use(protect, authorizeRoles('admin'));
 router.get('/', ClassController.getAllClasses);
 router.get('/:id', ClassController.getClassById);
 router.post('/', ClassController.createClass);
+router.post('/:id/upgrade', ClassController.upgradeClass);
 router.put('/:id', ClassController.updateClass);
 router.delete('/:id', ClassController.deleteClass);
 router.put('/:id/courses', ClassController.assignCourses);
