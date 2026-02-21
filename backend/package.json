@@ -10,6 +10,8 @@
     "start:prod": "node src/server.js",
     "validate": "node -e \"require('fs').existsSync('src/server.js')||process.exit(1)\"",
     "seed:courses": "node src/scripts/seedCourses.js",
+    "seed:departments-courses": "node src/scripts/seedDepartmentsCourses.js",
+    "seed:specializations": "node src/scripts/seedSpecializations.js",
     "lint": "eslint \"src/**/*.js\"",
     "format": "prettier --write ."
   },
