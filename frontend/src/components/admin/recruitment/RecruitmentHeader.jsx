@@ -15,7 +15,7 @@ export default function RecruitmentHeader({
             <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
               Recruitment Management
             </h1>
-            <p className="text-slate-600 mt-2 font-medium">Streamlined lecturer hiring process</p>
+            <p className="text-slate-600 mt-2">Streamlined lecturer hiring process</p>
           </div>
           <div className="hidden sm:flex items-center gap-4">
             <button
