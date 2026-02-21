@@ -326,7 +326,7 @@ export function Sidebar({ user: userProp, onLogout, mobileOpen = false, onClose 
                     location.pathname.includes('/admin/classes') ? "bg-blue-50 text-blue-600" : "text-gray-600 hover:text-blue-600"
                   )} style={sidebarFont}>
                     <School className="h-4 w-4" />
-                    <span>Class Scheduling</span>
+                    <span>Class Management</span>
                   </div>
                 </Link>
                 <Link to="/admin/course-mapping" onClick={isMobile ? onClose : undefined}>
