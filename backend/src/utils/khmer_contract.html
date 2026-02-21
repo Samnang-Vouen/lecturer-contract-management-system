@@ -4,12 +4,25 @@
     <meta charset="UTF-8" />
     <title>khmer_contract</title>
     <style>
+      @import url('https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@400;700&display=swap');
+
       @page {
         size: A4;
         margin: 40px;
       }
+
+      @media print {
+        html,
+        body {
+          width: 210mm;
+          height: 297mm;
+          margin: 0;
+          padding: 0;
+        }
+      }
+
       body {
-        font-family: 'Khmer OS Siemreap';
+        font-family: 'Kantumruy Pro', 'Khmer OS Siemreap', sans-serif;
         font-size: 11pt;
         line-height: 1.5;
         margin: 0;
