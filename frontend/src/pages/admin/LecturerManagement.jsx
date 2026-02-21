@@ -229,12 +229,13 @@ export default function LecturerManagement() {
         fileUrl={fileUrl}
       />
 
-      {coursesPopover && (
+      {coursesPopover && createPortal(
         <CoursesPopover
           courses={coursesPopover.items}
           coords={{ x: coursesPopover.x, y: coursesPopover.y }}
           onClose={closeCoursesPopover}
-        />
+        />,
+        document.body
       )}
 
       <DeleteLecturerModal
