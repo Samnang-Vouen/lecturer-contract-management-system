@@ -15,10 +15,8 @@ import { useMenusAndPopovers, useOnboardingListener } from '../../hooks/admin/le
 
 // Components
 import LecturerHeader from '../../components/admin/lecturerManagement/LecturerHeader';
-import LecturerTabs from '../../components/admin/lecturerManagement/LecturerTabs';
 import LecturerSearch from '../../components/admin/lecturerManagement/LecturerSearch';
 import LecturerTable from '../../components/admin/lecturerManagement/LecturerTable';
-import SessionCreatedList from '../../components/admin/lecturerManagement/SessionCreatedList';
 import LecturerActionMenu from '../../components/admin/lecturerManagement/LecturerActionMenu';
 import CoursesPopover from '../../components/admin/lecturerManagement/CoursesPopover';
 import DeleteLecturerModal from '../../components/admin/lecturerManagement/DeleteLecturerModal';
@@ -27,8 +25,6 @@ import LecturerProfileDialog from '../../components/admin/lecturerManagement/Lec
 
 export default function LecturerManagement() {
   // View state
-  const [activeView, setActiveView] = useState('list');
-  const [createdLecturers, setCreatedLecturers] = useState([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   // Custom hooks
@@ -120,7 +116,6 @@ export default function LecturerManagement() {
       tempPassword: lec.tempPassword
     };
     setLecturers(prev => [normalized, ...prev]);
-    setCreatedLecturers(prev => [normalized, ...prev]);
   };
 
   // Handle menu actions
@@ -183,32 +178,24 @@ export default function LecturerManagement() {
 
   return (
     <div className='p-4 md:p-6 lg:p-8 space-y-6 bg-gray-50 min-h-screen'>
-      <div className='flex flex-col gap-4'>
-        <LecturerHeader />
-        <LecturerTabs activeView={activeView} setActiveView={setActiveView} />
+      <div className='bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden'>
+        <div className='p-6 sm:p-8'>
+          <LecturerHeader onOpenCreateModal={() => setIsCreateModalOpen(true)} />
+        </div>
       </div>
 
-      {activeView === 'list' && <LecturerSearch searchQuery={searchQuery} setSearchQuery={setSearchQuery} />}
+      <LecturerSearch searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
 
-      {activeView === 'add' && (
-        <SessionCreatedList 
-          createdLecturers={createdLecturers} 
-          onOpenCreateModal={() => setIsCreateModalOpen(true)} 
-        />
-      )}
-
-      {activeView === 'list' && (
-        <LecturerTable
-          lecturers={lecturers}
-          isLoading={isLoading}
-          totalLecturers={totalLecturers}
-          page={page}
-          setPage={setPage}
-          totalPages={totalPages}
-          onOpenMenu={openMenu}
-          onOpenCoursesPopover={openCoursesPopover}
-        />
-      )}
+      <LecturerTable
+        lecturers={lecturers}
+        isLoading={isLoading}
+        totalLecturers={totalLecturers}
+        page={page}
+        setPage={setPage}
+        totalPages={totalPages}
+        onOpenMenu={openMenu}
+        onOpenCoursesPopover={openCoursesPopover}
+      />
 
       <CreateLecturerModal
         isOpen={isCreateModalOpen}
