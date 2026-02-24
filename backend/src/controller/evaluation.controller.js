@@ -147,19 +147,31 @@ export const getEvaluationResults = async (req, res) => {
     }, {});
 
     if (courseMapping?.Class) {
-      for (const [key, groupData] of Object.entries(groupedData)) {
-        if (groupData.group_name) {
-          const group = await Group.findOne({
-            where: {
-              name: groupData.group_name,
-              class_id: courseMapping.Class.id,
-            },
-          });
+      // Collect all unique group names
+      const groupNames = Object.values(groupedData)
+        .map((g) => g.group_name)
+        .filter(Boolean);
 
-          if (group) {
-            groupData.total_students = group.num_of_student;
+      if (groupNames.length > 0) {
+        const groups = await Group.findAll({
+          where: {
+            name: groupNames,
+            class_id: courseMapping.Class.id,
+          },
+          attributes: ['name', 'num_of_student'],
+        });
+
+        const groupMap = groups.reduce((acc, group) => {
+          acc[group.name] = group.num_of_student;
+          return acc;
+        }, {});
+
+        // Populate total_students from the map
+        Object.values(groupedData).forEach((groupData) => {
+          if (groupData.group_name && groupMap[groupData.group_name] !== undefined) {
+            groupData.total_students = groupMap[groupData.group_name];
           }
-        }
+        });
       }
     }
 
@@ -217,8 +229,6 @@ export const getEvaluationResults = async (req, res) => {
 
 // POST /api/evaluations/upload
 export const uploadEvaluation = async (req, res) => {
-  const transaction = await sequelize.transaction();
-
   try {
     // Validate file upload
     if (!req.file) {
@@ -227,6 +237,8 @@ export const uploadEvaluation = async (req, res) => {
         error: 'Please upload an Excel file',
       });
     }
+
+    const transaction = await sequelize.transaction();
 
     const { lecturer_ids, lecturer_names } = req.body;
 

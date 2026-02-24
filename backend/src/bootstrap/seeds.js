@@ -5,7 +5,7 @@ import { seedMajors } from '../utils/seedMajors.js';
 import { seedDepartments } from '../scripts/seedDepartments.js';
 import { seedSpecializations } from '../scripts/seedSpecializations.js';
 import { seedTimeSlots } from '../scripts/seedTimeSlots.js';
-/* import { seedEvaluationQuestions } from '../scripts/seedEvaluationQuestions.js'; */
+import { seedEvaluationQuestions } from '../scripts/seedEvaluationQuestions.js';
 
 export async function runSeeds() {
   await seedInterviewQuestions();
@@ -15,5 +15,5 @@ export async function runSeeds() {
   await seedDepartments();
   await seedSpecializations();
   await seedTimeSlots();
-  /* await seedEvaluationQuestions(); */
+  await seedEvaluationQuestions();
 }
