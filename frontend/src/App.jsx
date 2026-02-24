@@ -20,6 +20,7 @@ const LecturerDashboardLayout = lazy(() => import('./pages/LecturerDashboardLayo
 const LecturerDashboard = lazy(() => import('./pages/lecturer/LecturerDashboard.jsx'));
 const LecturerProfile = lazy(() => import('./pages/lecturer/LecturerProfile.jsx'));
 const LecturerContracts = lazy(() => import('./pages/lecturer/LecturerContracts.jsx'));
+const LecturerSchedule = lazy(() => import('./pages/lecturer/LecturerSchedule.jsx'));
 const Onboarding = lazy(() => import('./pages/lecturer/Onboarding.jsx'));
 
 const ManagementDashboardLayout = lazy(() => import('./pages/ManagementDashboard.jsx'));
@@ -43,91 +44,104 @@ function App() {
 
   return (
     <>
-      <Suspense fallback={<div className="flex justify-center items-center h-screen"><Loader className="size-8 animate-spin" /></div>}>
-      <Routes>
-        {/* Default to login */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
+      <Suspense
+        fallback={
+          <div className="flex justify-center items-center h-screen">
+            <Loader className="size-8 animate-spin" />
+          </div>
+        }
+      >
+        <Routes>
+          {/* Default to login */}
+          <Route path="/" element={<Navigate to="/login" replace />} />
 
-        {/* Public login */}
-        <Route path="/login" element={<LoginForm />} />
+          {/* Public login */}
+          <Route path="/login" element={<LoginForm />} />
 
-        {/* Superadmin */}
-        <Route
-          path="/superadmin"
-          element={
-            <RequireRole allowed={["superadmin"]}>
-              <SuperAdminDashboard />
-            </RequireRole>
-          }
-        />
-        <Route
-          path="/superadmin/users"
-          element={
-            <RequireRole allowed={["superadmin"]}>
-              <UserManagement />
-            </RequireRole>
-          }
-        />
+          {/* Superadmin */}
+          <Route
+            path="/superadmin"
+            element={
+              <RequireRole allowed={["superadmin"]}>
+                <SuperAdminDashboard />
+              </RequireRole>
+            }
+          />
+          <Route
+            path="/superadmin/users"
+            element={
+              <RequireRole allowed={["superadmin"]}>
+                <UserManagement />
+              </RequireRole>
+            }
+          />
 
-        {/* Admin + Nested routes */}
-        <Route
-          path="/admin"
-          element={
-            <RequireRole allowed={["admin"]}>
-              <AdminDashboardLayout />
-            </RequireRole>
-          }
-        >
-          <Route index element={<AdminHome />} />
-          <Route path="recruitment" element={<Recruitment />} />
-          <Route path="profile" element={<AdminProfile />} />
-          <Route path="lecturers" element={<LecturerManagement />} />
-          <Route path="classes" element={<ClassesManagement />} />
-          <Route path="courses" element={<CoursesPage />} />
-          <Route path="course-mapping" element={<CourseMappingPage />} />
-          <Route path="contracts" element={<ContractGeneration />} />
-        </Route>
+          {/* Admin + Nested routes */}
+          <Route
+            path="/admin"
+            element={
+              <RequireRole allowed={["admin"]}>
+                <AdminDashboardLayout />
+              </RequireRole>
+            }
+          >
+            <Route index element={<AdminHome />} />
+            <Route path="recruitment" element={<Recruitment />} />
+            <Route path="profile" element={<AdminProfile />} />
+            <Route path="lecturers" element={<LecturerManagement />} />
+            <Route path="classes" element={<ClassesManagement />} />
+            <Route path="courses" element={<CoursesPage />} />
+            <Route path="course-mapping" element={<CourseMappingPage />} />
+            <Route path="contracts" element={<ContractGeneration />} />
+          </Route>
 
-        {/* Lecturer + Nested routes */}
-        <Route
-          path="/lecturer"
-          element={
-            <RequireRole allowed={["lecturer"]}>
-              <LecturerDashboardLayout />
-            </RequireRole>
-          }
-        >
-          <Route index element={<LecturerDashboard />} />
-          <Route path="profile" element={<LecturerProfile />} />
-          <Route path="my-contracts" element={<LecturerContracts />} />
-        </Route>
-        <Route path="/onboarding" element={<Onboarding />} />
+          {/* Lecturer + Nested routes */}
+          <Route
+            path="/lecturer"
+            element={
+              <RequireRole allowed={["lecturer"]}>
+                <LecturerDashboardLayout />
+              </RequireRole>
+            }
+          >
+            <Route index element={<LecturerDashboard />} />
+            <Route path="profile" element={<LecturerProfile />} />
+            <Route path="my-contracts" element={<LecturerContracts />} />
+            <Route path="schedule" element={<LecturerSchedule />} />
+          </Route>
+          <Route path="/onboarding" element={<Onboarding />} />
 
-        {/* Management + Nested routes */}
-        <Route
-          path="/management"
-          element={
-            <RequireRole allowed={["management"]}>
-              <ManagementDashboardLayout />
-            </RequireRole>
-          }
-        >
-          <Route index element={<ManagementHome />} />
-          <Route path="profile" element={<ManagementProfile />} />
-          <Route path="contracts" element={<ManagementContracts />} />
-        </Route>
+          {/* Management + Nested routes */}
+          <Route
+            path="/management"
+            element={
+              <RequireRole allowed={["management"]}>
+                <ManagementDashboardLayout />
+              </RequireRole>
+            }
+          >
+            <Route index element={<ManagementHome />} />
+            <Route path="profile" element={<ManagementProfile />} />
+            <Route path="contracts" element={<ManagementContracts />} />
+          </Route>
 
-        {/* Fallback: if authenticated, send to role home; else login */}
-        <Route
-          path="*"
-          element={authUser ? <Navigate to={`/${authUser.role}`} replace /> : <Navigate to="/login" replace />}
-        />
-      </Routes>
+          {/* Fallback: if authenticated, send to role home; else login */}
+          <Route
+            path="*"
+            element={
+              authUser ? (
+                <Navigate to={`/${authUser.role}`} replace />
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            }
+          />
+        </Routes>
       </Suspense>
 
       <Toaster position="top-center" toastOptions={{ duration: 3000 }} />
     </>
-  )
+  );
 }
 
 export default App
