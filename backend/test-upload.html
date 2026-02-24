@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Evaluation Upload Tester</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 600px;
+        margin: 50px auto;
+        padding: 20px;
+      }
+      .form-group {
+        margin-bottom: 15px;
+      }
+      label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+      }
+      input,
+      button {
+        width: 100%;
+        padding: 8px;
+        font-size: 14px;
+      }
+      button {
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        cursor: pointer;
+        margin-top: 10px;
+      }
+      button:hover {
+        background-color: #45a049;
+      }
+      #result {
+        margin-top: 20px;
+        padding: 10px;
+        border-radius: 4px;
+      }
+      .success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+      .error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>📊 Evaluation Upload Tester</h1>
+
+    <form id="uploadForm">
+      <div class="form-group">
+        <label for="token">Authorization Token:</label>
+        <input
+          type="text"
+          id="token"
+          placeholder="Paste your JWT token here (optional for testing)"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="lecturerIds">Lecturer IDs (JSON array):</label>
+        <input type="text" id="lecturerIds" placeholder="[1, 2, 3]" value="[1, 2, 3]" required />
+        <small style="color: #666">Format: [1, 2, 3] - must match order in Excel columns</small>
+      </div>
+
+      <div class="form-group">
+        <label for="file">Excel File (.xlsx or .xls):</label>
+        <input type="file" id="file" accept=".xlsx,.xls" required />
+      </div>
+
+      <button type="submit">Upload Evaluation</button>
+    </form>
+
+    <div id="result"></div>
+
+    <script>
+      document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const token = document.getElementById('token').value;
+        const lecturerIds = document.getElementById('lecturerIds').value;
+        const fileInput = document.getElementById('file');
+        const file = fileInput.files[0];
+        const resultDiv = document.getElementById('result');
+
+        if (!file) {
+          resultDiv.className = 'error';
+          resultDiv.textContent = 'Please select a file';
+          return;
+        }
+
+        // Validate JSON format for lecturer_ids
+        try {
+          JSON.parse(lecturerIds);
+        } catch (e) {
+          resultDiv.className = 'error';
+          resultDiv.textContent = 'Invalid lecturer IDs format. Must be JSON array like [1, 2, 3]';
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('lecturer_ids', lecturerIds);
+
+        try {
+          resultDiv.textContent = 'Uploading and creating evaluation...';
+          resultDiv.className = '';
+
+          const headers = {};
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
+
+          const response = await fetch(`http://localhost:4000/api/evaluations/upload`, {
+            method: 'POST',
+            headers: headers,
+            body: formData,
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+            resultDiv.className = 'success';
+            resultDiv.innerHTML = `✅ ${data.message}<br>
+                        Evaluation ID: ${data.evaluation.id}<br>
+                        Course: ${data.course_info?.course_name || 'N/A'} (${data.course_info?.academic_year || 'N/A'})<br>
+                        Specialization: ${data.course_info?.specialization || 'N/A'}<br>
+                        Submissions: ${data.stats.submissions}<br>
+                        Lecturers: ${data.stats.lecturers}`;
+          } else {
+            resultDiv.className = 'error';
+            resultDiv.textContent = '❌ Error: ' + (data.message || 'Upload failed');
+            if (data.error) {
+              resultDiv.textContent += '\n' + data.error;
+            }
+          }
+        } catch (error) {
+          resultDiv.className = 'error';
+          resultDiv.textContent = '❌ Error: ' + error.message;
+        }
+      });
+    </script>
+  </body>
+</html>

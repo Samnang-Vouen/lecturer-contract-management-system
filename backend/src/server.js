@@ -27,11 +27,15 @@ app.use(cookieParser());
 // Allow flexible localhost origins in development (Vite may pick a random port)
 const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true); // mobile apps / curl
+    if (!origin) return callback(null, true); // mobile apps / curl / local HTML files
     // Allow exact configured origin
     if (origin === ORIGIN) return callback(null, true);
     // Allow any localhost:* during development
     if (process.env.NODE_ENV !== 'production' && /^http:\/\/localhost:\d+$/i.test(origin)) {
+      return callback(null, true);
+    }
+    // Allow file:// protocol (local HTML files) in development
+    if (process.env.NODE_ENV !== 'production' && origin === 'null') {
       return callback(null, true);
     }
     // Prevent Node from crashing on EPIPE when parent process closes stdout/stderr pipes
@@ -53,6 +57,10 @@ app.use(cors(corsOptions));
 registerRoutes(app);
 // Serve uploaded lecturer files (CVs, syllabi)
 app.use('/uploads', express.static('uploads'));
+// Serve test HTML file for evaluation upload
+app.get('/test-upload', (_req, res) => {
+  res.sendFile(path.join(process.cwd(), 'test-upload.html'));
+});
 // Swagger/OpenAPI docs
 const openapiPath = path.join(process.cwd(), 'src', 'openapi.json');
 let openapiDoc = null;

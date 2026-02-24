@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Instructor Faculty Evaluation - {lecturer_title} {lecturer_name}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: 'Times New Roman', sans-serif;
+        font-optical-sizing: auto;
+        background: white;
+        padding: 0;
+        margin: 0;
+      }
+
+      /* ── FIRST PAGE BREAK ── */
+      .page-break {
+        page-break-after: always;
+        break-after: page;
+      }
+
+      /* ── KINGDOM HEADER ── */
+      .kingdom-header {
+        text-align: center;
+        margin-bottom: 18px;
+      }
+
+      .kingdom-header .kh-title {
+        font-family: 'Moul', sans-serif;
+        font-size: 18px;
+        font-weight: 500;
+        line-height: 1.8;
+        color: #000;
+      }
+
+      /* ── DOC TITLE ── */
+      .doc-title {
+        text-align: center;
+        margin: 28px 0 28px;
+      }
+
+      .doc-title h1 {
+        font-size: 18px;
+        font-weight: 700;
+        font-family: 'Times New Roman', sans-serif;
+        color: #000;
+      }
+
+      /* ── INFO BLOCK ── */
+      .info-block {
+        margin-bottom: 20px;
+      }
+
+      .info-row {
+        display: flex;
+        align-items: baseline;
+        margin-bottom: 8px;
+        font-size: 15px;
+        font-family: 'Times New Roman', sans-serif;
+      }
+
+      .info-label {
+        font-weight: 700;
+        min-width: 110px;
+        font-size: 15px;
+      }
+
+      .info-colon {
+        margin-right: 8px;
+        font-weight: 400;
+      }
+
+      .info-value {
+        font-size: 15px;
+        font-weight: 400;
+      }
+
+      .info-value.bold {
+        font-weight: 700;
+      }
+
+      /* ── EVALUATION TABLE ── */
+      .eval-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 26px;
+        font-size: 14px;
+        font-family: 'Calibri', sans-serif;
+      }
+
+      .eval-table td {
+        border: 1px solid #999;
+        padding: 9px 12px;
+        vertical-align: middle;
+        line-height: 1.6;
+      }
+
+      .eval-table td.score {
+        width: 52px;
+        text-align: center;
+        font-weight: 400;
+        white-space: nowrap;
+      }
+
+      .eval-table tr.avg-row td {
+        font-weight: 700;
+      }
+
+      .eval-table tr.avg-row td.avg-label {
+        text-align: right;
+        padding-right: 16px;
+      }
+
+      .eval-table tr.avg-row td.avg-score {
+        text-align: center;
+        font-weight: 700;
+        font-size: 16px;
+      }
+
+      .avg-row {
+        font-family: 'Times New Roman', sans-serif;
+      }
+
+      /* ── LIKERT SCALE ── */
+      .likert-section {
+        margin-top: 6px;
+        font-size: 15px;
+        font-family: 'Times New Roman', sans-serif;
+      }
+
+      .likert-row {
+        display: flex;
+        align-items: baseline;
+        margin-bottom: 8px;
+      }
+
+      .likert-label-col {
+        min-width: 90px;
+        font-weight: 700;
+        font-size: 15px;
+        line-height: 1.5;
+      }
+
+      .likert-scale-col {
+        flex: 1;
+      }
+
+      .likert-item {
+        display: flex;
+        margin-bottom: 15px;
+        font-size: 15px;
+      }
+
+      .likert-num {
+        min-width: 180px;
+        font-size: 15px;
+      }
+
+      .likert-desc {
+        color: #333;
+        font-size: 15px;
+      }
+
+      /* ── STUDENT COMMENTS TABLE ── */
+      .comments-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 6px;
+        font-size: 12.5px;
+      }
+
+      .comments-table th {
+        background: #d5e8d4;
+        border: 1px solid #999;
+        padding: 10px 14px;
+        text-align: center;
+        font-weight: 700;
+        font-size: 13px;
+        font-family: 'Times New Roman', sans-serif;
+      }
+
+      .comments-table td {
+        border: 1px solid #999;
+        padding: 9px 14px;
+        vertical-align: top;
+        line-height: 1.6;
+        font-size: 12.5px;
+        font-family: 'Calibri', sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ══════════ PAGE 1 ══════════ -->
+    <!-- Kingdom Header -->
+    <div class="kingdom-header">
+      <div class="kh-title">
+        ព្រះរាជាណាចក្រកម្ពុជា<br />
+        ជាតិ សាសនា ព្រះមហាក្សត្រ
+      </div>
+    </div>
+
+    <img src="idt-logo-blue.png" alt="idt-logo" width="160" />
+
+    <!-- Doc Title -->
+    <div class="doc-title">
+      <h1>Instructor Faculty Evaluation</h1>
+    </div>
+
+    <!-- Info Block -->
+    <div class="info-block">
+        <div class="info-row">
+          <span class="info-label">Instructor</span>
+          <span class="info-colon">:</span>
+          <span class="info-value">{lecturer_title} {lecturer_name}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Subject</span>
+          <span class="info-colon">:</span>
+          <span class="info-value">{course_name}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Student</span>
+          <span class="info-colon">:</span>
+          <span class="info-value">Generation {class_name} Year {year_level} Term {term}</span>
+        </div>
+        <div class="info-row" style="position: relative">
+          <span class="info-label">Responses</span>
+          <span class="info-colon">:</span>
+          <span class="info-value bold"
+            >{responses_received}/{total_students} ({response_percentage}%)</span
+          >
+          <!-- Faculty label on the right -->
+          <span
+            style="
+              position: absolute;
+              right: 0;
+              font-family: 'Khmer OS Siemreap', sans-serif;
+              font-size: 16px;
+              font-weight: 700;
+            "
+            >មហាវិទ្យាល័យ វិទ្យាសាស្ត្រកុំព្យូទ័រ</span
+          >
+        </div>
+      </div>
+
+      <!-- Evaluation Table -->
+      <table class="eval-table">
+        <tbody>
+          {evaluationTableRows}
+        </tbody>
+      </table>
+
+      <!-- Likert Scale -->
+      <div class="likert-section">
+        <div class="likert-row">
+          <div class="likert-label-col">Likert<br />Scale:</div>
+          <div class="likert-scale-col">
+            <div class="likert-item">
+              <span class="likert-num">1 = Highly Dissatisfied</span>
+              <span class="likert-desc">(Fails to meet the expectation)</span>
+            </div>
+            <div class="likert-item">
+              <span class="likert-num">2 = Dissatisfied</span>
+              <span class="likert-desc"
+                >(Need significant development & sometimes meet the expectation)</span
+              >
+            </div>
+            <div class="likert-item">
+              <span class="likert-num">3 = Neutral</span>
+              <span class="likert-desc">(Meet the expectation)</span>
+            </div>
+            <div class="likert-item">
+              <span class="likert-num">4 = Satisfied</span>
+              <span class="likert-desc">(Meet and sometimes exceed the expectation)</span>
+            </div>
+            <div class="likert-item">
+              <span class="likert-num">5 = Highly Satisfied</span>
+              <span class="likert-desc">(Often and almost always exceed the expectation)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Page Break -->
+    <div class="page-break"></div>
+
+    <!-- ══════════ PAGE 2 ══════════ -->
+    <img src="idt-logo-blue.png" alt="idt-logo" width="160" />
+
+    <!-- Student Comments Table -->
+    <table class="comments-table">
+        <thead>
+          <tr>
+            <th>Student Comments</th>
+          </tr>
+        </thead>
+        <tbody>
+          {commentTableRows}
+        </tbody>
+      </table>
+  </body>
+</html>
