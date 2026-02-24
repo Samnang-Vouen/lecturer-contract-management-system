@@ -13,12 +13,19 @@ import { notFound, errorHandler } from './middleware/error.middleware.js';
 import { CORS_ALLOWED_ORIGIN } from './config/constants.js';
 import { runSchemaBootstrapping } from './bootstrap/schema.js';
 import { runSeeds } from './bootstrap/seeds.js';
+import { initSocket } from './bootstrap/socket.js';
 
 // Load env without noisy debug to avoid EPIPE when stdout is closed by parent
+dotenv.config();
 process.env.DOTENV_CONFIG_SILENT = 'true';
-dotenv.config({ debug: false });
+
+
 
 const app = express();
+
+const server = http.createServer(app);
+init(server);
+
 const PORT = process.env.PORT || 4000;
 const ORIGIN = CORS_ALLOWED_ORIGIN;
 
