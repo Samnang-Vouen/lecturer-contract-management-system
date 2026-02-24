@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CADT Employment Agreement</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:ital,wght@0,100..700;1,100..700&display=swap" rel="stylesheet">
+<style>
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  @media print {
+    html, body {
+      width: 210mm;
+      height: 297mm;
+      margin: 0;
+      padding: 0;
+      background: #fff;
+    }
+
+    body {
+      display: block;
+      gap: 0;
+      padding: 0;
+    }
+
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      padding: 15mm 18mm;
+      box-shadow: none;
+      margin: 0;
+      background: #fff;
+      break-after: page;
+      page-break-after: always;
+    }
+
+    .page:last-of-type {
+      break-after: auto;
+      page-break-after: auto;
+    }
+
+    .page-break {
+      display: none;
+    }
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: "Times New Roman", Times, serif;
+    font-size: 13px;
+    background: #e8e8e8;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px 20px;
+    gap: 20px;
+  }
+
+  /* Khmer pages use Kantumruy Pro */
+  .khmer, .khmer * {
+    font-family: "Kantumruy Pro", sans-serif !important;
+    font-optical-sizing: auto;
+  }
+
+  /* ===== PAGE ===== */
+  .page {
+    background: white;
+    width: 750px;
+    padding: 60px 70px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+  }
+
+  /* ===== CADT LOGO ===== */
+  .logo-section {
+    text-align: center;
+    margin-bottom: 6px;
+  }
+
+  .cadt-logo {
+    display: inline-block;
+    max-width: 150px;
+    height: auto;
+  }
+
+  .doc-title {
+    text-align: center;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin-top: 10px;
+    margin-bottom: 20px;
+  }
+
+  /* ===== BODY TEXT ===== */
+  .body-text {
+    font-size: 13px;
+    line-height: 1.9;
+    text-align: justify;
+    margin-bottom: 16px;
+    text-indent: 40px;
+  }
+
+  /* ===== NUMBERED SECTIONS ===== */
+  .section {
+    margin-bottom: 14px;
+  }
+
+  .section-item {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+    line-height: 1.9;
+    text-align: justify;
+  }
+
+  .section-num {
+    font-size: 13px;
+    min-width: 22px;
+    font-weight: 400;
+  }
+
+  .section-content {
+    flex: 1;
+  }
+
+  .sub-section {
+    margin: 10px 0 10px 32px;
+    font-size: 13px;
+    line-height: 1.9;
+  }
+
+  /* ===== TABLES ===== */
+  .contract-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0 16px;
+    font-size: 13px;
+  }
+
+  .contract-table th,
+  .contract-table td {
+    border: 1px solid #555;
+    padding: 10px 14px;
+    text-align: center;
+    vertical-align: middle;
+    line-height: 1.7;
+  }
+
+  .contract-table th {
+    font-weight: 700;
+  }
+
+  .contract-table td:first-child {
+    width: 60px;
+  }
+
+  /* duties table */
+  .duties-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0 10px;
+    font-size: 13px;
+  }
+
+  .duties-table th,
+  .duties-table td {
+    border: 1px solid #555;
+    padding: 8px 12px;
+    vertical-align: middle;
+    line-height: 1.7;
+  }
+
+  .duties-table th {
+    font-weight: 700;
+    text-align: center;
+  }
+
+  .duties-table td:nth-child(1) { width: 40px; text-align: center; }
+  .duties-table td:nth-child(3),
+  .duties-table td:nth-child(4),
+  .duties-table td:nth-child(5) { text-align: center; font-weight: 700; }
+
+  .duties-table .bullet-list {
+    padding-left: 16px;
+    margin: 0;
+  }
+
+  .duties-table .bullet-list li {
+    list-style: disc;
+    line-height: 1.7;
+  }
+
+  /* total table */
+  .total-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0 0 16px;
+    font-size: 13px;
+  }
+
+  .total-table td {
+    border: 1px solid #555;
+    padding: 10px 14px;
+    line-height: 1.7;
+  }
+
+  .total-table td:first-child {
+    font-weight: 700;
+    text-align: center;
+    width: 50%;
+  }
+
+  .total-table td:last-child {
+    font-weight: 700;
+    text-align: center;
+  }
+
+  /* ===== SIGNATURE ===== */
+  .signature-section {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 60px;
+    gap: 40px;
+  }
+
+  .sig-block {
+    flex: 1;
+  }
+
+  .sig-block .sig-name {
+    font-weight: 700;
+    font-size: 13px;
+    border-top: 1.5px solid #000;
+    padding-top: 6px;
+    display: inline-block;
+    min-width: 180px;
+  }
+
+  .sig-block .sig-date {
+    font-size: 13px;
+    margin-top: 6px;
+    line-height: 1.9;
+  }
+
+  /* ===== PAGE BREAK ===== */
+  .page-break {
+    width: 750px;
+    text-align: center;
+    font-size: 11px;
+    color: #999;
+    padding: 4px 0;
+  }
+
+  /* Khmer numeral helper */
+  .kh { font-family: "Kantumruy Pro", sans-serif; }
+</style>
+</head>
+<body>
+
+<!-- ========== PAGE 1 (English) ========== -->
+<div class="page">
+
+  <!-- LOGO -->
+  <div class="logo-section">
+    <img class="cadt-logo" src="cadt_logo.png" alt="CADT Logo" />
+  </div>
+  <div class="doc-title">EMPLOYMENT AGREEMENT</div>
+
+  <!-- Intro paragraph -->
+  <p class="body-text">
+    Employment Agreement, between <strong>Cambodia Academy of Digital Technology</strong> (The "<strong>CADT</strong>") and <strong>Mr. Chan Ya</strong> (The "Advisor"). This agreement may be executed by hand or electronically. By signing or typing her/his name on the signature line, each party indicates their agreement. This contract is subject to the employee rules of The CADT, attached hereto.&nbsp; The CADT employs the Advisor on the following terms and conditions:
+  </p>
+
+  <!-- Section 1 -->
+  <div class="section">
+    <div class="section-item">
+      <span class="section-num">1.</span>
+      <div class="section-content">
+        <strong>Terms of Employment:</strong> Subject to the provisions for termination set forth below this agreement will begin on <strong>01<sup>st</sup> February 2025</strong> until the student successfully completes the internship program.
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 2 -->
+  <div class="section">
+    <div class="section-item">
+      <span class="section-num">2.</span>
+      <div class="section-content">
+        <strong>Salary:</strong> The <strong>CADT</strong> shall pay the Advisor a one-time payment of <strong>4,920,000 KHR</strong> after the completion of the student's internship program upon obtaining a successful result.
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 3 -->
+  <div class="section">
+    <div class="section-item">
+      <span class="section-num">3.</span>
+      <div class="section-content">
+        <strong>Duties and Position:</strong> The <strong>CADT</strong> hires the Advisor to advise students in Year <strong>4,</strong> Term <strong>2 (Internship II),</strong> Generation <strong>8</strong>, <strong>Department of Computer Science.</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3.1 -->
+  <div class="sub-section">3.1 The Advisor will advise the student(s) as the following list:</div>
+
+  <table class="contract-table">
+    <thead>
+      <tr>
+        <th>No.</th>
+        <th>Student's name</th>
+        <th>Project/Topic</th>
+        <th>Company's name</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td style="text-align:left;">Chan Dara</td>
+        <td>ABA App</td>
+        <td>BookMeBus</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td style="text-align:left;">Chan Dara</td>
+        <td>ABA App</td>
+        <td>BookMeBus</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td style="text-align:left;">Chan Dara</td>
+        <td>ABA App</td>
+        <td>BookMeBus</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td style="text-align:left;">Chan Dara</td>
+        <td>ABA App</td>
+        <td>BookMeBus</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- 3.2 -->
+  <div class="sub-section">3.2. The Advisor accepts the following duties:</div>
+
+  <table class="duties-table">
+    <thead>
+      <tr>
+        <th>No.</th>
+        <th style="text-align:left;">Main Tasks</th>
+        <th>Hours per<br>student</th>
+        <th>Number of<br>Students</th>
+        <th>Sub Total Hours</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td>
+          Advisory:<br>
+          <ul class="bullet-list">
+            <li>Validate student's pro….</li>
+          </ul>
+        </td>
+        <td><strong>8</strong></td>
+        <td><strong>4</strong></td>
+        <td><strong>32</strong></td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>Join judging ….</td>
+        <td><strong>2</strong></td>
+        <td><strong>4</strong></td>
+        <td><strong>8</strong></td>
+      </tr>
+    </tbody>
+  </table>
+
+</div>
+
+<!-- ========== PAGE 2 (English continued) ========== -->
+<div class="page">
+
+  <table class="total-table">
+    <tbody>
+      <tr>
+        <td>Total Hour</td>
+        <td>40</td>
+      </tr>
+      <tr>
+        <td>Total Payment</td>
+        <td>4,920,000 KHR</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="font-size:13px; line-height:1.9; margin-bottom:16px; text-indent:40px;">
+    The Advisor's duties may be reasonably modified at the <strong>CADT</strong>'s discretion from time to time.
+  </p>
+
+  <!-- Section 4 -->
+  <div class="section">
+    <div class="section-item">
+      <span class="section-num">4.</span>
+      <div class="section-content">
+        <strong>Confidentiality of Pro…..</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- Signatures -->
+  <div class="signature-section">
+    <div class="sig-block">
+      <div class="sig-name">On behalf of CADT</div>
+      <div class="sig-date">Date: …………………</div>
+    </div>
+    <div class="sig-block">
+      <div class="sig-name">Dr. KAK Soky</div>
+      <div class="sig-date">Date: …………………</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== PAGE 3 (Khmer) ========== -->
+<div class="page khmer">
+
+  <!-- LOGO -->
+  <div class="logo-section">
+    <img class="cadt-logo" src="cadt_logo.png" alt="CADT Logo" />
+  </div>
+  <div class="doc-title" style="font-family:'Kantumruy Pro',sans-serif; font-weight:700; font-size:16px; margin-top:10px;">
+    កិច្ចសន្យាការងារ
+  </div>
+
+  <!-- Intro paragraph Khmer -->
+  <p class="body-text" style="font-family:'Kantumruy Pro',sans-serif;">
+    កិច្ចសន្យាការងាររវាងបណ្ឌិតសភាបច្ចេកវិទ្យាឌីជីថលកម្ពុជា(<strong>ប.ប.ឌ</strong>) និង<strong>លោក ចាន់ យ៉ា</strong> (គ្រូដឹកនាំ)។ កិច្ចសន្យានេះ អាចអនុវត្តបានតាមរយៈដោយផ្ទាល់ឬតាមប្រព័ន្ធអេឡិចត្រូនិច។ កិច្ចសន្យានេះ នឹងមានសុពលភាពបន្ទាប់ពីការចុះហត្ថ-លេខ ឬសរសេរឈ្មោះគ្រូដឹកនាំនៅកន្លែងចុះហត្ថលេខ។ កិច្ចសន្យានេះត្រូវកំណត់ឲ្យត្រូវតាមច្បាប់ការងាររបស់ ប.ប.ឌ ដែលបានភ្ជាប់ខាងក្រោមនេះ។
+  </p>
+  <p style="font-size:13px; line-height:1.9; margin-bottom:16px; font-family:'Kantumruy Pro',sans-serif; text-indent:40px;">
+    <strong>ប.ប.ឌ</strong> តម្រូវឲ្យគ្រូដឹកនាំអនុវត្តទៅតាមខែចង និងលក្ខខណ្ឌដូចខាងក្រោមនេះ៖
+  </p>
+
+  <!-- Section 1 KH -->
+  <div class="section" style="font-family:'Kantumruy Pro',sans-serif;">
+    <div class="section-item">
+      <span class="section-num">១.</span>
+      <div class="section-content">
+        <strong>ខែចងនៃការងារ៖</strong> តម្រូវឲ្យផ្តល់នូវសេវាមួយចប់កម្មវិធីដែលមានចែងកនុងកិច្ចសន្យាខាងក្រោម ហើយកិច្ចសន្យា និងត្រូវចាប់ផ្តើមពីថ្ងៃទី <strong>០១ ខែកុម្ភៈ ឆ្នាំ២០២៥</strong> រហូតដល់និស្សិតការពារសម្ភារៈផលកម្មសិក្សាប្រកបដោយជោគជ័យ។
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 2 KH -->
+  <div class="section" style="font-family:'Kantumruy Pro',sans-serif;">
+    <div class="section-item">
+      <span class="section-num">២.</span>
+      <div class="section-content">
+        <strong>ប្រាក់លើកទឹកចិត្ត៖</strong> ប.ប.ឌ នឹងផ្តល់ជូនគ្រូដឹកនាំនូវប្រាក់ឧបត្ថម្ភ ចំនួន <strong>៤,៩២០,០០០ រៀល</strong> បន្ទាប់ពីលទ្ធផលកម្មសិក្សា របស់និស្សិត ត្រូវបានប្រកាស និងទទួលបានជោគជ័យ។
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 3 KH -->
+  <div class="section" style="font-family:'Kantumruy Pro',sans-serif;">
+    <div class="section-item">
+      <span class="section-num">៣.</span>
+      <div class="section-content">
+        <strong>ភារកិច្ច និងតួនាទី៖</strong> ប.ប.ឌ តម្រូវឲ្យដឹកនាំនិស្សិតកម្មសិក្សានៅកនុង <strong>ឆ្នាំទី៤ វគ្គសិក្សាទី២ (កម្មសិក្សាលើកទី២)</strong> ជំនាន់ទី<strong>៨</strong> នៃ<strong>ដេប៉ាតឺម៉ង់វិទ្យាសាស្ត្រកុំព្យូទ័រ</strong>។
+      </div>
+    </div>
+  </div>
+
+  <!-- 3.1 KH -->
+  <div class="sub-section" style="font-family:'Kantumruy Pro',sans-serif;">៣.១ បញ្ជីឈ្មោះបាយនាមនិស្សិត៖</div>
+
+  <table class="contract-table" style="font-family:'Kantumruy Pro',sans-serif;">
+    <thead>
+      <tr>
+        <th>ល<br>.រ</th>
+        <th>ឈ្មោះនិស្សិត</th>
+        <th>ប្រធានបទ</th>
+        <th>ឈ្មោះក្រុមហ៊ុន</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>១</td>
+        <td style="text-align:left;">ចាន់ ដារ៉ា</td>
+        <td>ABA App</td>
+        <td>BookMeBus</td>
+      </tr>
+      <tr>
+        <td>២</td>
+        <td style="text-align:left;">ចាន់ ដារ៉ា</td>
+        <td>ABA App</td>
+        <td>BookMeBus</td>
+      </tr>
+      <tr>
+        <td>៣</td>
+        <td style="text-align:left;">ចាន់ ដារ៉ា</td>
+        <td>ABA App</td>
+        <td>BookMeBus</td>
+      </tr>
+      <tr>
+        <td>៤</td>
+        <td style="text-align:left;">ចាន់ ដារ៉ា</td>
+        <td>ABA App</td>
+        <td>BookMeBus</td>
+      </tr>
+    </tbody>
+  </table>
+
+</div>
+
+<!-- ========== PAGE 4 (Khmer continued) ========== -->
+<div class="page khmer" style="font-family:'Kantumruy Pro',sans-serif;">
+
+  <!-- 3.2 KH -->
+  <div class="sub-section" style="font-family:'Kantumruy Pro',sans-serif; margin-left:0; margin-bottom:10px;">
+    ៣.២ គ្រូដឹកនាំត្រូវទទួលភារកិច្ចដូចខាងក្រោមនេះ៖
+  </div>
+
+  <table class="duties-table" style="font-family:'Kantumruy Pro',sans-serif;">
+    <thead>
+      <tr>
+        <th>ល.រ</th>
+        <th style="text-align:left;">ការងារគោល</th>
+        <th>ចំនួនម៉ោង<br>សម្រាប់<br>និស្សិតម្នាក់</th>
+        <th>ចំនួន<br>និស្សិត</th>
+        <th>ចំនួនម៉ោង<br>សរុប</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>១</td>
+        <td>
+          ការដឹកនាំ:<br>
+          <ul class="bullet-list">
+            <li>ធ្វើការវាយតម្លៃនិងកំណត់ទំហំគ្រោងការងាររបស់និស្សិត</li>
+            <li>តាមដានដំណើររបស់និស្សិត</li>
+            <li>ប្រឹក្សាយោបល់ ណែនាំនិងជួយនិស្សិតពេលជួបបញ្ហាផ្សេងៗ</li>
+            <li>ដឹកនាំនិស្សិតធ្វើរបាយការណ៍ និងបទបង្ហាញ</li>
+            <li>ណែនាំនិស្សិតត្រៀមសមត្ថភាពក្នុងការធ្វើបទបង្ហាញ</li>
+            <li>អនុញ្ញាតនិស្សិតដែលមានសមត្ថភាពពេញ[ច គ្រប់គ្រាន់ ឱ្យឡើងការពារ</li>
+            <li>ផ្តល់ការវាយតម្លៃដល់និស្សិត</li>
+            <li>រាយការណ៍ពីបញ្ហា និងវឌ្ឍនភាពរបស់និស្សិតទៅដល់អ្នកសម្របសម្រួលកម្មវិធី</li>
+          </ul>
+        </td>
+        <td><strong>៨</strong></td>
+        <td><strong>៤</strong></td>
+        <td><strong>៣២</strong></td>
+      </tr>
+      <tr>
+        <td>២</td>
+        <td>ចូលរួមជាគណៈកម្មការក្នុងការវាយតម្លៃការការពារបញ្ចប់របស់និស្សិត</td>
+        <td><strong>២</strong></td>
+        <td><strong>៤</strong></td>
+        <td><strong>៨</strong></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table class="total-table" style="margin-top:10px; font-family:'Kantumruy Pro',sans-serif;">
+    <tbody>
+      <tr>
+        <td>ចំនួនម៉ោងសរុប</td>
+        <td>៤០</td>
+      </tr>
+      <tr>
+        <td>ប្រាក់លើកទឹកចិត្តសរុប</td>
+        <td>៤,៩២០,០០០ រៀល</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="font-size:13px; line-height:1.9; margin: 14px 0; font-family:'Kantumruy Pro',sans-serif; text-indent:40px;">
+    ប.ប.ឌ រក្សាសិទ្ធិក្នុងការកែប្រែភារកិច្ចរបស់គ្រូដឹកនាំគ្រប់ពេលវេលា។
+  </p>
+
+  <!-- Section 4 KH -->
+  <div class="section" style="font-family:'Kantumruy Pro',sans-serif;">
+    <div class="section-item">
+      <span class="section-num">៤.</span>
+      <div class="section-content">
+        ការសម្ងាត់....
+      </div>
+    </div>
+  </div>
+
+  <p style="font-size:13px; line-height:1.9; margin: 10px 0 16px; font-family:'Kantumruy Pro',sans-serif; text-indent:40px;">
+    ដើម្បីជាភស្តុតាងភាគីទាំងពីរចាប់ផ្តើមប្រតិបត្តិនូវកិច្ចសន្យានេះចាប់ថ្ងៃដំបូងដែលបានចុះខាងលើ ហើយ កិច្ចសន្យានេះ នឹងធ្វើចំនួន ០២ ចប់ ដើមជាភាសាអង់គ្លេស និងភាសាខ្មែរ ចំនួន ០២ ចប់ ដើម ដោយភាគីនីមួយៗរក្សទុក ០១ ចប់ ឯងៗ ខ្លួន។
+  </p>
+
+  <!-- Signatures KH -->
+  <div class="signature-section" style="font-family:'Kantumruy Pro',sans-serif;">
+    <div class="sig-block">
+      <div style="font-size:13px; line-height:1.9; margin-bottom:8px;">ធ្វើនៅរាជធានីភ្នំពេញ</div>
+      <div style="font-size:13px; line-height:1.9; margin-bottom:30px;">ថ្ងៃទី &nbsp;&nbsp;&nbsp; ខែ &nbsp;&nbsp;&nbsp; ឆ្នាំ</div>
+      <div class="sig-name">ភាគីតំណាងបណ្ឌិតសភា</div>
+      <div class="sig-date">&nbsp;</div>
+    </div>
+    <div class="sig-block">
+      <div style="font-size:13px; line-height:1.9; margin-bottom:8px;">ធ្វើនៅរាជធានីភ្នំពេញ</div>
+      <div style="font-size:13px; line-height:1.9; margin-bottom:30px;">ថ្ងៃទី &nbsp;&nbsp;&nbsp; ខែ &nbsp;&nbsp;&nbsp; ឆ្នាំ</div>
+      <div class="sig-name">បណ្ឌិត កក់ សុខគី</div>
+      <div class="sig-date">&nbsp;</div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

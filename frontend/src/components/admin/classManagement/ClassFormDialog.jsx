@@ -7,13 +7,45 @@ import Button from "../../ui/Button";
 import Badge from "../../ui/Badge";
 import { BookOpen } from "lucide-react";
 
-export default function ClassFormDialog({ open, onOpenChange, onSubmit, classData, setClassData, isEdit, onAssignCourses, selectedCourses = [], courseCatalog = [] }) {
+export default function ClassFormDialog({ open, onOpenChange, onSubmit, classData, setClassData, isEdit, mode, onAssignCourses, selectedCourses = [], courseCatalog = [], specializationOptions = [] }) {
+  const effectiveMode = mode || (isEdit ? 'edit' : 'add');
+  const isEditMode = effectiveMode === 'edit';
   // Academic years: start from current year, next 4 (total 5), formatted YYYY-YYYY
   const academicYearOptions = React.useMemo(() => {
     const start = new Date().getFullYear();
     const count = 5; // current year + next 4 years
     return Array.from({ length: count }, (_, i) => `${start + i}-${start + i + 1}`);
   }, []);
+
+  const specializationNames = React.useMemo(() => {
+    const list = Array.isArray(specializationOptions) ? specializationOptions : [];
+    const names = list
+      .map((s) => String(s?.name || '').trim())
+      .filter(Boolean);
+    return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b));
+  }, [specializationOptions]);
+
+  const currentSpecialization = String(
+    classData?.specialization ?? classData?.Specialization?.name ?? ''
+  ).trimStart();
+
+  const [isCustomSpec, setIsCustomSpec] = React.useState(false);
+
+  // When dialog opens (or specialization list changes), infer whether this is a custom specialization
+  React.useEffect(() => {
+    if (!open) return;
+    if (!currentSpecialization) {
+      setIsCustomSpec(false);
+      return;
+    }
+    setIsCustomSpec(!specializationNames.includes(currentSpecialization));
+  }, [open, currentSpecialization, specializationNames]);
+
+  const specializationSelectValue = React.useMemo(() => {
+    if (isCustomSpec) return '__custom__';
+    if (!currentSpecialization) return '';
+    return specializationNames.includes(currentSpecialization) ? currentSpecialization : '';
+  }, [currentSpecialization, specializationNames, isCustomSpec]);
   // Build maps to resolve course entries to human names (code/id/object -> name)
   const { codeToName, idToName } = React.useMemo(() => {
     const codeMap = new Map();
@@ -53,27 +85,103 @@ export default function ClassFormDialog({ open, onOpenChange, onSubmit, classDat
     if (!/^\d+$/.test(s)) return false;
     return parseInt(s, 10) > 0;
   };
+
+  const getSpecializationAbbrev = React.useCallback((name) => {
+    const s = String(name || '').trim();
+    if (!s) return '';
+    const parts = s
+      .split(/[^A-Za-z0-9]+/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+    if (!parts.length) return '';
+    if (parts.length === 1) {
+      const one = parts[0];
+      // If it's already short/uppercase (e.g., AI), keep as-is
+      if (one.length <= 4 && /^[A-Z0-9]+$/.test(one)) return one;
+      return one.slice(0, 2).toUpperCase();
+    }
+    return parts
+      .map((p) => p[0])
+      .join('')
+      .toUpperCase();
+  }, []);
+
+  const totalGroups = React.useMemo(() => {
+    const v = classData?.total_class;
+    const parsed = Number.parseInt(String(v ?? ''), 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+  }, [classData?.total_class]);
+
+  const specializationName = currentSpecialization;
+  const specializationAbbrev = React.useMemo(
+    () => getSpecializationAbbrev(specializationName),
+    [getSpecializationAbbrev, specializationName]
+  );
+
+  // Auto-generate groups (labels) when specialization/total groups change
+  React.useEffect(() => {
+    setClassData((prev) => {
+      const nextTotal = (() => {
+        const parsed = Number.parseInt(String(prev?.total_class ?? ''), 10);
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+      })();
+
+      const spec = String(prev?.specialization ?? prev?.Specialization?.name ?? '').trimStart();
+      const abbr = getSpecializationAbbrev(spec);
+
+      const prevGroups = Array.isArray(prev?.groups) ? prev.groups : [];
+      const nextGroups = (!nextTotal || !abbr)
+        ? (isEdit ? prevGroups : [])
+        : Array.from({ length: nextTotal }, (_, i) => {
+          const existing = prevGroups[i];
+          return {
+            ...(existing && typeof existing === 'object' ? existing : {}),
+            name: `${abbr}-G${i + 1}`,
+            num_of_student: existing?.num_of_student ?? '',
+          };
+        });
+
+      const same =
+        prevGroups.length === nextGroups.length &&
+        prevGroups.every((g, i) =>
+          g?.name === nextGroups[i]?.name &&
+          String(g?.num_of_student ?? '') === String(nextGroups[i]?.num_of_student ?? '')
+        );
+
+      return same ? prev : { ...prev, groups: nextGroups };
+    });
+  }, [isEdit, setClassData, getSpecializationAbbrev, classData?.total_class, classData?.specialization, classData?.Specialization?.name]);
+
+  const groups = React.useMemo(() => (Array.isArray(classData?.groups) ? classData.groups : []), [classData?.groups]);
+
   const allFilled = React.useMemo(() => {
     const baseOk = (
       String(classData?.name || '').trim() !== '' &&
+      // specialization is required for group generation
+      String(currentSpecialization || '').trim() !== '' &&
       String(classData?.term || '').trim() !== '' &&
       String(classData?.year_level || '').trim() !== '' &&
       String(classData?.academic_year || '').trim() !== '' &&
       isPositiveInt(classData?.total_class)
     );
+
+    const groupsOk = (totalGroups > 0 && groups.length === totalGroups && groups.every((g) => isPositiveInt(g?.num_of_student)));
+
     // In Add mode (when onAssignCourses is provided and not editing), require at least one assigned course
-    const coursesOk = isEdit || !onAssignCourses ? true : (Array.isArray(selectedCourses) && selectedCourses.length > 0);
-    return baseOk && coursesOk;
-  }, [classData, isEdit, onAssignCourses, selectedCourses]);
+    const coursesOk = isEditMode || !onAssignCourses ? true : (Array.isArray(selectedCourses) && selectedCourses.length > 0);
+    return baseOk && coursesOk && groupsOk;
+  }, [classData, currentSpecialization, isEditMode, onAssignCourses, selectedCourses, totalGroups, groups]);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold text-gray-800 tracking-tight">
-            {isEdit ? "Edit Class" : "Add New Class"}
+            {effectiveMode === 'upgrade' ? 'Upgrade Class' : (isEditMode ? 'Edit Class' : 'Add New Class')}
           </DialogTitle>
           <DialogDescription className="text-gray-500">
-            {isEdit ? "Update class information and settings." : "Create a new academic class with term and year information."}
+            {effectiveMode === 'upgrade'
+              ? 'Create a new version of this class by updating its information.'
+              : (isEditMode ? 'Update class information and settings.' : 'Create a new academic class with term and year information.')}
           </DialogDescription>
         </DialogHeader>
         <form
@@ -110,6 +218,47 @@ export default function ClassFormDialog({ open, onOpenChange, onSubmit, classDat
                 autoComplete="off"
                 inputMode="text"
               />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="specialization" className="text-sm font-medium text-gray-700">Specialization <span className="text-red-500" aria-hidden="true">*</span></Label>
+              <Select
+                id="specialization"
+                value={specializationSelectValue}
+                onValueChange={(value) => {
+                  if (value === '__custom__') {
+                    setIsCustomSpec(true);
+                    setClassData({ ...classData, specialization: currentSpecialization || '' });
+                    return;
+                  }
+                  setIsCustomSpec(false);
+                  setClassData({ ...classData, specialization: value });
+                }}
+                placeholder="Select specialization"
+                oneLine
+                buttonClassName="h-10 sm:h-9 text-sm"
+              >
+                {specializationNames.map((name) => (
+                  <SelectItem key={name} value={name}>{name}</SelectItem>
+                ))}
+                <SelectItem value="__custom__">Other (type)</SelectItem>
+              </Select>
+
+              {isCustomSpec && (
+                <div className="pt-2">
+                  <Input
+                    id="specialization_custom"
+                    className="focus:ring-blue-500 h-10 sm:h-9 text-sm placeholder:text-sm placeholder:text-gray-500"
+                    placeholder="Type specialization"
+                    value={currentSpecialization}
+                    onChange={(e) => {
+                      const value = String(e.target.value ?? '').trimStart();
+                      setClassData({ ...classData, specialization: value });
+                    }}
+                    autoComplete="off"
+                    inputMode="text"
+                  />
+                </div>
+              )}
             </div>
             <div className="space-y-1">
               <Label htmlFor="term" className="text-sm font-medium text-gray-700">Term <span className="text-red-500" aria-hidden="true">*</span></Label>
@@ -172,6 +321,44 @@ export default function ClassFormDialog({ open, onOpenChange, onSubmit, classDat
                 }}
               />
             </div>
+
+            <div className="space-y-2 sm:col-span-2">
+                <Label className="text-sm font-medium text-gray-700">
+                  Groups & Students <span className="text-red-500" aria-hidden="true">*</span>
+                </Label>
+                {(!specializationAbbrev || !totalGroups) ? (
+                  <div className="text-xs text-gray-500">
+                    Select specialization and enter total groups to generate group labels.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {groups.map((g, idx) => (
+                      <div key={g?.name || idx} className="flex items-center gap-3">
+                        <div className="w-24 sm:w-28 text-sm font-medium text-gray-800 whitespace-nowrap">
+                          {g?.name || `${specializationAbbrev}-G${idx + 1}`}
+                        </div>
+                        <Input
+                          type="number"
+                          min="1"
+                          placeholder="Students"
+                          className="h-10 sm:h-9 text-sm"
+                          value={g?.num_of_student === null || g?.num_of_student === undefined ? '' : g?.num_of_student}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setClassData((prev) => {
+                              const prevGroups = Array.isArray(prev?.groups) ? prev.groups : [];
+                              const nextGroups = prevGroups.map((gg, i) =>
+                                i === idx ? { ...gg, num_of_student: v === '' ? '' : ( /^\d+$/.test(v) ? v : gg?.num_of_student ) } : gg
+                              );
+                              return { ...prev, groups: nextGroups };
+                            });
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             {onAssignCourses && (
               <div className="space-y-1">
                 <Label htmlFor="assign_courses" className="text-sm font-medium text-gray-700">
@@ -239,7 +426,7 @@ export default function ClassFormDialog({ open, onOpenChange, onSubmit, classDat
               title={!allFilled ? 'Fill in all fields before submitting' : undefined}
               className={`w-full sm:flex-1 shadow-sm ${!allFilled ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
             >
-              {isEdit ? "Update Class" : "Add Class"}
+              {effectiveMode === 'upgrade' ? 'Upgrade Class' : (isEditMode ? 'Update Class' : 'Add Class')}
             </Button>
           </div>
         </form>

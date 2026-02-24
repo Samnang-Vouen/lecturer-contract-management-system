@@ -55,13 +55,18 @@ export function useMenusAndPopovers() {
     const rect = e.currentTarget.getBoundingClientRect();
     const menuHeight = 240;
     const gap = 8;
-    const shouldDropUp = (rect.bottom + menuHeight + gap) > window.innerHeight;
-    const dropUp = shouldDropUp;
-    const y = dropUp 
-      ? Math.max(rect.top - menuHeight - gap, gap) 
-      : Math.min(rect.bottom + gap, Math.max(window.innerHeight - menuHeight - gap, gap));
-    const width = 260;
-    const rawX = rect.right - width;
+    const dropUp = (rect.bottom + menuHeight + gap) > (window.innerHeight - gap);
+
+    // Requirement: show the popover directly below (or above) the trigger button.
+    const y = dropUp
+      ? Math.max(rect.top - menuHeight - gap, gap)
+      : (rect.bottom + gap);
+
+    // Match CoursesPopover width (w-72 => 288px) for correct positioning
+    const width = 288;
+
+    // Align to the trigger button (left edge) and clamp within viewport
+    const rawX = rect.left;
     const x = Math.min(Math.max(rawX, gap), Math.max(window.innerWidth - width - gap, gap));
     const items = (lecturer.courses || []).slice(3);
     

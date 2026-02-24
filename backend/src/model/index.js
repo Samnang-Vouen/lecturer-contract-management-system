@@ -35,6 +35,7 @@ import EvaluationResponse from './evaluation/evaluationResponse.model.js';
 import EvaluationQuestion from './evaluation/evaluationQuestion.model.js';
 import EvaluationLecturer from './evaluation/evaluationLecturer.model.js';
 
+import Notification from './notification.js';
 // Set up associations
 
 // User - Role (Many-to-Many)
@@ -403,6 +404,20 @@ CandidateQuestion.belongsTo(InterviewQuestion, {
   onUpdate: 'CASCADE',
 });
 
+Notification.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "user",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE",
+});
+
+User.hasMany(Notification, {
+  foreignKey: "user_id", 
+  
+})
+
+
+
 // Export all models
 export {
   User,
@@ -439,6 +454,7 @@ export {
   TimeSlot,
   Group,
   Specialization,
+  Notification,
 };
 
 // Default export (User for backward compatibility)

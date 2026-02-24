@@ -3,7 +3,7 @@ import { Eye, Edit, Trash2, BookOpen, Clock, Award } from 'lucide-react';
 
 export default function CourseCard({ course, onView, onEdit, onDelete }) {
   return (
-    <div className="p-4 rounded-2xl border-2 border-slate-200 bg-white hover:border-slate-300 cursor-pointer transition-all duration-300 hover:shadow-lg group relative">
+    <div className="p-4 rounded-2xl border-2 border-slate-200 bg-white hover:border-blue-400 cursor-pointer transition-all duration-300 hover:shadow-lg group relative">
       {/* Action Buttons */}
       <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 z-10">
         <button
@@ -62,12 +62,12 @@ export default function CourseCard({ course, onView, onEdit, onDelete }) {
       {/* Course Details */}
       <div className="space-y-2">
         <div className="flex items-center gap-2 text-sm text-slate-600">
-          <Clock className="w-5 h-5" />
+          <Clock className="w-5 h-5 text-orange-500" />
           <span>{course.hours || 0} hours</span>
         </div>
         
         <div className="flex items-center gap-2 text-sm text-slate-600">
-          <Award className="w-5 h-5" />
+          <Award className="w-5 h-5 text-purple-500" />
           <span>{course.credits || 0} credits</span>
         </div>
       </div>

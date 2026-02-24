@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ចំណាយប្រាក់គ្រូដឹកនាំ - CADT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:ital,wght@0,100..700;1,100..700&display=swap" rel="stylesheet">
+<style>
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+
+  @media print {
+    html, body {
+      width: 210mm;
+      height: 297mm;
+      margin: 0;
+      padding: 0;
+      background: #fff;
+    }
+
+    body {
+      display: block;
+    }
+
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      padding: 12mm;
+      box-shadow: none;
+      margin: 0;
+      background: #fff;
+    }
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: "Kantumruy Pro", sans-serif;
+    font-optical-sizing: auto;
+    background: #c8c8c8;
+    display: flex;
+    justify-content: center;
+    padding: 30px 20px;
+  }
+
+  .page {
+    background: white;
+    width: 1120px;
+    padding: 26px 30px 32px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+    font-size: 9px;
+  }
+
+  /* Header (match Lecturer_Contract_Summary layout) */
+  .header {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .header-bottom {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+  }
+
+  .logo-box {
+    width: 220px;
+    flex-shrink: 0;
+    padding: 0;
+    text-align: center;
+  }
+
+  .cadt-logo-img {
+    display: block;
+    width: 300px;
+    max-width: 100%;
+    height: auto;
+  }
+
+  .dept-info {
+    font-size: 8px;
+    font-weight: 600;
+    color:#1a3a6e;
+    line-height: 1.8;
+    margin-top: 0;
+    text-align: center;
+    padding-right: 14px;
+  }
+
+  .center-header {
+    flex: 1;
+    text-align: center;
+    padding: 0;
+  }
+
+  .kingdom-line {
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.7;
+  }
+
+  .ornament {
+    font-size: 10px;
+    letter-spacing: 8px;
+    color: #666;
+    margin: 2px 0 6px;
+  }
+
+  .doc-title-main {
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.9;
+    text-align: center;
+    margin: 14px 0 6px;
+  }
+
+  .doc-title-main .red { color: #c00000; }
+
+  /* MAIN TABLE */
+  .main-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    font-size: 7.5px;
+  }
+
+  .main-table th,
+  .main-table td {
+    border: 1px solid #555;
+    padding: 3px 3px;
+    text-align: center;
+    vertical-align: middle;
+    line-height: 1.5;
+  }
+
+  .main-table thead th {
+    background: #dce6f1;
+    font-weight: 700;
+    font-size: 7px;
+  }
+
+  .group-hdr th {
+    background: #c5d9f1;
+    font-weight: 700;
+    font-size: 7.5px;
+  }
+
+  .main-table td.txt-left {
+    text-align: left;
+    padding-left: 5px;
+  }
+
+  .total-row td {
+    background: #dce6f1;
+    font-weight: 700;
+  }
+
+  .money { color: #1b3a70; font-weight: 600; }
+
+  /* Signature Section */
+  .signature-section {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+    gap: 10px;
+  }
+
+  .sig-box {
+    flex: 1;
+    text-align: center;
+    font-size: 8.5px;
+    line-height: 2;
+  }
+
+  .sig-box .sig-title {
+    font-weight: 700;
+    padding-bottom: 3px;
+    margin-bottom: 4px;
+    font-size: 8.5px;
+  }
+
+  .sig-box .sig-date-line {
+    color: #333;
+    white-space: nowrap;
+    font-size: 8px;
+  }
+
+  .sig-space {
+    height: 50px;
+  }
+
+  .bottom-seen {
+    margin-top: 12px;
+    display: flex;
+    justify-content: flex-start;
+  }
+
+  .bottom-seen .seen-col {
+    width: 33%;
+    font-size: 7.5px;
+    line-height: 1.9;
+    text-align: center;
+  }
+
+  .seen-col .sig-label {
+    font-weight: 700;
+    font-size: 8px;
+    display: block;
+    margin-top: 34px;
+    border-top: 1px solid #333;
+    padding-top: 3px;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="center-header">
+      <div class="kingdom-line">
+        ព្រះរាជាណាចក្រកម្ពុជា<br>
+        ជាតិ សាសនា ព្រះមហាក្សត្រ
+      </div>
+      <div class="ornament">- ✦ -</div>
+    </div>
+
+    <div class="header-bottom">
+      <div class="logo-box">
+        <img class="cadt-logo-img" src="CADT_logo_with_KH.jpg" alt="CADT Logo" />
+      </div>
+      <div class="dept-info">
+        វិទ្យាស្ថានបច្ចេកវិទ្យា វិទ្យាឌីជីថល<br>
+        មហាវិទ្យាល័យ វិស្វកម្មឌីជីថល<br>
+        ដេប៉ាតឺម៉ង់ វិទ្យាសាស្ត្រកុំព្យូទ័រ
+      </div>
+    </div>
+  </div>
+
+  <div class="doc-title-main">
+        <p>ចំណាយប្រាក់គ្រូដឹកនាំចុះកម្មសិក្សាលើកទី២ សម្រាប់ថ្នាក់បរិញ្ញាបត្រជំនាន់ទី៨</p>
+        <p>នៃបណ្ឌិតសភាបច្ចេកវិទ្យាឌីជីថលកម្ពុជា</p>
+        <p>ថ្ងៃទី<span class="red">០៣</span> ខែកុម្ភៈ រហូតដល់ថ្ងៃទី <span class="red">&#160;&#160;&#160;</span> ខែ <span class="red">&#160;&#160;&#160;</span> ឆ្នាំ<span class="red">២០២៥</span></p>
+      </div>
+
+  <!-- MAIN TABLE -->
+  <table class="main-table">
+    <thead>
+      <tr>
+        <th rowspan="3" style="width:26px;">ល.រ</th>
+        <th rowspan="3">មុខវិជ្ជា</th>
+        <th rowspan="3">ឈ្មោះជាឡាតាំង</th>
+        <th rowspan="3">គោត្តនាម និងនាម<br>ត្រូវ ស</th>
+        <th colspan="2">ព័ត៌មានធនាគារ</th>
+        <th rowspan="3">Charge<br>Hours</th>
+        <th rowspan="3">អត្រា<br>(ដុល្លារ)</th>
+        <th colspan="3">វេលា</th>
+        <th colspan="2">ប្រាក់ចំណាយសរុប ៤-៦ខែ</th>
+        <th rowspan="3">ត្រីមាស</th>
+        <th rowspan="3">ឆ្នាំ<br>សិក្សា</th>
+      </tr>
+      <tr>
+        <th rowspan="2">លេខគណនី</th>
+        <th rowspan="2">ធនាគារ</th>
+        <th rowspan="2">ចំនួន<br>សិស្ស</th>
+        <th rowspan="2">ចំនួន<br>ម៉ោង</th>
+        <th rowspan="2">ម៉ោង<br>សរុប</th>
+        <th rowspan="2">(ដុល្លារ)</th>
+        <th rowspan="2">(រៀល)</th>
+      </tr>
+      <tr></tr>
+      <tr class="group-hdr">
+        <th colspan="15">គ្រូបង្រៀន</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td class="txt-left" rowspan="2">Internship II<br>(4 &amp; 6 months)</td>
+        <td>Chan Dara</td>
+        <td>ចាន់ ដារ៉ា</td>
+        <td>1300-00100911-29</td>
+        <td>ACLEDA</td>
+        <td>0</td>
+        <td>10</td>
+        <td>40</td>
+        <td>10</td>
+        <td>400</td>
+        <td class="money">$4.000,00</td>
+        <td class="money">16.400.000,00៛</td>
+        <td>2</td>
+        <td>4</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td></td><td></td><td></td><td></td>
+        <td></td><td></td><td></td><td></td>
+        <td></td><td></td><td></td><td></td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td></td><td></td><td></td><td></td><td></td>
+        <td></td><td></td><td></td><td></td>
+        <td></td><td></td><td></td><td></td><td></td>
+      </tr>
+      <tr class="total-row">
+        <td colspan="11" style="text-align:right; padding-right:12px;">សរុប</td>
+        <td class="money">$4.000,00</td>
+        <td class="money">16.400.000,00៛</td>
+        <td colspan="2"></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="signature-section">
+    <div class="sig-box">
+      <div>បានឃើញនិងឯកភព</div>
+      <div class="sig-date-line">ថ្ងៃ.............. ខែ.............. ឆ្នាំ......... ព.ស.</div>
+      <div class="sig-date-line">រាជធានីភ្នំពេញថ្ងៃទី........ខែ.........ឆ្នាំ.......</div>
+      <div class="sig-title" >អនុប្រធានបណ្ឌិតសភាបច្ចេកវិទ្យាឌីជីថល</div>
+      <div class="sig-space"></div>
+    </div>
+    <div class="sig-box">
+      <div>បានពិនិត្យរួចរាល់ និងសូមជូនលោកអនុប្រធានបណ្ឌិតសភា<br>មេត្តាពិនិត្យ​ និងសម្រេច</div>
+      <div class="sig-date-line">ថ្ងៃ.............. ខែ............... ឆ្នាំ......... ព.ស.</div>
+      <div class="sig-date-line">រាជធានីភ្នំពេញថ្ងៃទី........ខែ.........ឆ្នាំ.......</div>
+      <div class="sig-title">ប្រធានដេប៉ាតឺម៉ង់ វិទ្យាសាស្ត្រកុំព្យូទ័រ</div>
+      <div class="sig-space"></div>
+    </div>
+    <div class="sig-box">
+      <div class="sig-date-line">ថ្ងៃ.............. ខែ.............. ឆ្នាំ......... ព.ស.</div>
+      <div class="sig-date-line">រាជធានីភ្នំពេញថ្ងៃទី........ខែ.........ឆ្នាំ.......</div>
+      <div class="sig-title">អ្នកធ្វើរបាយការណ៍</div>
+      <div class="sig-space"></div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
