@@ -4,6 +4,10 @@ import { Card, CardContent } from '../../ui/Card.jsx';
 
 export default function CourseStatsCards({ courses, filteredCourses }) {
   const totalCredits = courses.reduce((sum, c) => sum + (c.credits || 0), 0);
+  const activeCoursesCount = courses.reduce((sum, c) => {
+    const assignedCount = Number(c.assigned_class_count ?? c.assignedClassCount ?? 0);
+    return sum + (assignedCount > 0 ? 1 : 0);
+  }, 0);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -24,7 +28,7 @@ export default function CourseStatsCards({ courses, filteredCourses }) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-green-600">Active Courses</p>
-              <p className="text-3xl font-bold text-green-900">{filteredCourses.length}</p>
+              <p className="text-3xl font-bold text-green-900">{activeCoursesCount}</p>
             </div>
             <Award className="h-8 w-8 text-green-500" />
           </div>

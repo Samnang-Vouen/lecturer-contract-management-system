@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>កំណត់ចំណាំបៀវត្សរ៍គ្រូបង្រៀន</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Kantumruy+Pro:ital,wght@0,100..700;1,100..700&display=swap');
+
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+
+  @media print {
+    html, body {
+      width: 210mm;
+      height: 297mm;
+      margin: 0;
+      padding: 0;
+      background: #fff;
+    }
+
+    body {
+      display: block;
+    }
+
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      padding: 12mm;
+      box-shadow: none;
+      margin: 0;
+      background: #fff;
+    }
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: "Kantumruy Pro", sans-serif;
+    font-optical-sizing: auto;
+    font-size: 10px;
+    background: #f0f0f0;
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .page {
+    background: white;
+    width: 1050px;
+    padding: 30px 35px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .header-bottom {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+  }
+
+  .logo-box {
+    flex-shrink: 0;
+    border: 0;
+    padding: 0;
+    text-align: center;
+  }
+
+  .cadt-logo-img {
+    display: block;
+    width: 300px;
+    max-width: 100%;
+    height: auto;
+  }
+
+  .logo-box .cadt-text {
+    font-size: 26px;
+    font-weight: 900;
+    color: #1a3a6e;
+    letter-spacing: 2px;
+    line-height: 1;
+  }
+
+  .logo-box .logo-sub {
+    font-size: 7px;
+    color: #1a3a6e;
+    line-height: 1.4;
+    font-weight: 600;
+  }
+
+  .center-header {
+    flex: 1;
+    text-align: center;
+  }
+
+  .kingdom-title {
+    font-size: 13px;
+    font-weight: 700;
+    font-family: "Kantumruy Pro", sans-serif;
+    line-height: 1.6;
+    color: #000;
+  }
+
+  .divider-ornament {
+    font-size: 12px;
+    color: #555;
+    margin: 4px 0;
+    letter-spacing: 8px;
+  }
+
+  .dept-info {
+    font-size: 9px;
+    font-weight: 600;
+    color: #1a3a6e;
+    line-height: 1.6;
+    margin-top: 0;
+    text-align: center;
+    padding-right: 14px;
+  }
+
+  /* Document Title */
+  .doc-title {
+    text-align: center;
+    margin: 14px 0 6px;
+  }
+
+  .doc-title p {
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.7;
+    color: #000;
+  }
+
+  .doc-title .date-range {
+    font-size: 10px;
+    font-weight: 600;
+    color: #000;
+    margin-top: 2px;
+  }
+
+  /* Main Table */
+  .main-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    font-size: 8.5px;
+  }
+
+  .main-table th, .main-table td {
+    border: 1px solid #333;
+    padding: 3px 4px;
+    text-align: center;
+    vertical-align: middle;
+    line-height: 1.4;
+  }
+
+  .main-table thead tr:first-child th {
+    background: #dce6f1;
+    font-weight: 700;
+    font-size: 8px;
+  }
+
+  .main-table thead tr:nth-child(2) th {
+    background: #dce6f1;
+    font-size: 8px;
+    font-weight: 600;
+  }
+
+  .main-table .group-header {
+    background: #c6d9f1;
+    font-weight: 700;
+    font-size: 8px;
+  }
+
+  .main-table tbody tr:nth-child(even) {
+    background: #f9f9f9;
+  }
+
+  .main-table tbody tr:hover {
+    background: #eef3fa;
+  }
+
+  .main-table td.subject-name {
+    text-align: left;
+    padding-left: 6px;
+  }
+
+  .main-table td.gen-label {
+    background: #e2efda;
+    font-weight: 700;
+    color: #1a3a1a;
+    font-size: 8px;
+    writing-mode: horizontal-tb;
+  }
+
+  .main-table .total-row td {
+    background: #dce6f1;
+    font-weight: 700;
+  }
+
+  .main-table .money-cell {
+    color: #1a3a6e;
+    font-weight: 600;
+  }
+
+  /* Sub-section header */
+  .sub-group {
+    background: #f2f2f2 !important;
+    font-style: italic;
+    color: #555;
+    font-size: 8px;
+  }
+
+  /* Signature Section */
+  .signature-section {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+    gap: 10px;
+  }
+
+  .sig-box {
+    flex: 1;
+    text-align: center;
+    font-size: 8.5px;
+    line-height: 2;
+  }
+
+  .sig-box .sig-title {
+    font-weight: 700;
+    padding-bottom: 3px;
+    margin-bottom: 4px;
+    font-size: 8.5px;
+  }
+
+  .sig-box .sig-date-line {
+    color: #333;
+    white-space: nowrap;
+    font-size: 8px;
+  }
+
+  .sig-space {
+    height: 50px;
+  }
+
+  /* Total row bottom */
+  .grand-total-row td {
+    background: #c6d9f1 !important;
+    font-weight: 700;
+    font-size: 9px;
+  }
+
+  .rowspan-gen {
+    background: #e2efda !important;
+    font-weight: 700;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-size: 8px;
+    color: #1a3a1a;
+    min-width: 30px;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="center-header">
+      <div class="kingdom-title">
+        ព្រះរាជាណាចក្រកម្ពុជា<br>
+        ជាតិ សាសនា ព្រះមហាក្សត្រ
+      </div>
+      <div class="divider-ornament">- - ✦ - -</div>
+    </div>
+
+    <div class="header-bottom">
+      <div class="logo-box">
+        <img class="cadt-logo-img" src="CADT_logo_with_KH.jpg" alt="CADT Logo" />
+      </div>
+      <div class="dept-info">
+        វិទ្យាស្ថានបច្ចេកវិទ្យា វិទ្យាឌីជីថល<br>
+        មហាវិទ្យាល័យ វិស្វកម្មឌីជីថល<br>
+        ដេប៉ាតឺម៉ង់ វិទ្យាសាស្ត្រកុំព្យូទ័រ
+      </div>
+    </div>
+  </div>
+
+  <!-- DOCUMENT TITLE -->
+      <div class="doc-title">
+        <p>ចំណាយប្រាក់ឈ្នួលគ្រូបង្រៀនឯកជន(ភ្នាក់ងរជាតិជាប់កិច្ចសន្យា) សម្រាប់ថ្នាក់បរិញ្ញាបត្រជំនាន់ទី៨ ទី៩ និងជំនាន់ទី១០</p>
+        <p>នៃបណ្ឌិតសភាបច្ចេកវិទ្យាឌីជីថលកម្ពុជា</p>
+        <p class="date-range">ថ្ងៃទី៣០ ខែកញ្ញា រហូតដល់ថ្ងៃទី២៧ ខែធ្នូ ឆ្នាំ២០២៤</p>
+      </div>
+
+  <!-- MAIN TABLE -->
+  <table class="main-table">
+    <thead>
+      <tr>
+        <th rowspan="3">ល.រ</th>
+        <th rowspan="3">មុខវិជ្ជា</th>
+        <th rowspan="3">Name in English</th>
+        <th rowspan="3">គោត្តនាម និងនាមត្រូវ<br>ស</th>
+        <th colspan="2">ព័ត៌មានធនាគារ</th>
+        <th colspan="3">ចំនួន</th>
+        <th colspan="2">វេលាថ្នាក់</th>
+        <th rowspan="3">វេលា<br>សរុប</th>
+        <th rowspan="3">ប្រាក់វេលា<br>សរុប<br>(ដុល្លារ)</th>
+        <th rowspan="3">ប្រាក់វេលា<br>សរុប<br>(រៀល)</th>
+        <th rowspan="3">ប្រាក់វេលា<br>សរុប<br>២ខែ (ដុល្លារ)</th>
+        <th rowspan="3">ប្រាក់វេលា<br>សរុប<br>២ខែ (រៀល)</th>
+        <th rowspan="3">ប្រាក់វេលា<br>សរុប<br>១ខែ (ដុល្លារ)</th>
+        <th rowspan="3">ប្រាក់វេលា<br>សរុប<br>១ខែ (រៀល)</th>
+        <th rowspan="3">ថ្នាក់</th>
+        <th rowspan="3">ឆ្នាំ<br>សិក្សា</th>
+      </tr>
+      <tr>
+        <th rowspan="2">លេខគណនី</th>
+        <th rowspan="2">ធនាគារ</th>
+        <th rowspan="2">ចំនួន<br>ថ្នាក់</th>
+        <th rowspan="2">ចំនួន<br>ខែ</th>
+        <th rowspan="2">ចំនួន<br>ថ្នាក់</th>
+        <th rowspan="2">វេលា<br>ទ្រឹស្ដី</th>
+        <th rowspan="2">វេលា<br>អនុវត្ត</th>
+      </tr>
+      <tr></tr>
+      <tr>
+        <th colspan="20" class="group-header">គ្រូបង្រៀន</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Row 1 - filled -->
+      <tr>
+        <td>1</td>
+        <td class="subject-name">Cloud Computing</td>
+        <td>Chan dara</td>
+        <td>ចាន់ ដារ៉ា</td>
+        <td>0002-01239722-22</td>
+        <td>ACLEDA</td>
+        <td>11</td>
+        <td>1</td>
+        <td>15</td>
+        <td>2</td>
+        <td>30</td>
+        <td>75</td>
+        <td class="money-cell">$825,00</td>
+        <td class="money-cell">3.382.500,00៛</td>
+        <td class="money-cell">$550,00</td>
+        <td class="money-cell">2.255.000,00៛</td>
+        <td class="money-cell">$275,00</td>
+        <td class="money-cell">1.127.500,00៛</td>
+        <td>1</td>
+        <td></td>
+      </tr>
+      <!-- Rows 2-7: Gen9 Year3 group -->
+      <tr>
+        <td>2</td>
+        <td class="subject-name">Statistical Data Analysis</td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+        <td rowspan="6" class="rowspan-gen">Gen9<br>Year3</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td class="subject-name">Project Management</td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td class="subject-name"></td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td class="subject-name">Research Methodology</td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td class="subject-name"></td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+      </tr>
+      <tr>
+        <td>7</td>
+        <td class="subject-name"></td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+      </tr>
+      <!-- Rows 8-22: various subjects, Gen8 Year4 -->
+      <tr>
+        <td>8</td>
+        <td class="subject-name">Design Thinking</td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+        <td rowspan="15" class="rowspan-gen">Gen8<br>Year4</td>
+      </tr>
+      <tr>
+        <td>9</td>
+        <td class="subject-name">Fundamental of Mobile Development</td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+      </tr>
+      <tr>
+        <td>10</td>
+        <td class="subject-name">Project management</td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+      </tr>
+      <tr>
+        <td>11</td>
+        <td class="subject-name"></td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+      </tr>
+      <tr>
+        <td>12</td>
+        <td class="subject-name"></td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+      </tr>
+      <tr>
+        <td>13</td>
+        <td class="subject-name">Cloud Computing</td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+      </tr>
+      <tr>
+        <td>14</td>
+        <td class="subject-name"></td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+      </tr>
+      <tr>
+        <td>15</td>
+        <td class="subject-name">Data Engineering</td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+      </tr>
+      <tr>
+        <td>16</td>
+        <td class="subject-name">Artificial Intelligence</td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+      </tr>
+      <tr>
+        <td>17</td>
+        <td class="subject-name">Natural Language Processing</td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+      </tr>
+      <tr>
+        <td>18</td>
+        <td class="subject-name">Computer Vision</td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+      </tr>
+      <tr>
+        <td>19</td>
+        <td class="subject-name"></td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+      </tr>
+      <tr>
+        <td>20</td>
+        <td class="subject-name"></td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+      </tr>
+      <tr>
+        <td>21</td>
+        <td class="subject-name">Leadership</td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+      </tr>
+      <tr>
+        <td>22</td>
+        <td class="subject-name"></td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+      </tr>
+      <!-- Rows 23-29: Gen10 Year2 -->
+      <tr>
+        <td>23</td>
+        <td class="subject-name">Game Programming</td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+        <td rowspan="7" class="rowspan-gen">Gen10<br>Year2</td>
+      </tr>
+      <tr>
+        <td>24</td>
+        <td class="subject-name">Fundamental of Data Science</td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+      </tr>
+      <tr>
+        <td>25</td>
+        <td class="subject-name"></td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+      </tr>
+      <tr>
+        <td>26</td>
+        <td class="subject-name">Natural Language Processing</td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+      </tr>
+      <tr>
+        <td>27</td>
+        <td class="subject-name">Block Chain</td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+      </tr>
+      <tr>
+        <td>28</td>
+        <td class="subject-name"></td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+      </tr>
+      <tr>
+        <td>29</td>
+        <td class="subject-name">Advanced Algorithms - C++</td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+      </tr>
+      <!-- Subtotal row for Lecturer -->
+      <tr class="grand-total-row">
+        <td colspan="12" style="text-align:right; font-weight:700; padding-right:10px;">សរុប</td>
+        <td class="money-cell">$825,00</td>
+        <td class="money-cell">3.382.500,00៛</td>
+        <td class="money-cell">$550,00</td>
+        <td class="money-cell">2.255.000,00៛</td>
+        <td class="money-cell">$275,00</td>
+        <td class="money-cell">1.127.500,00៛</td>
+        <td colspan="2"></td>
+      </tr>
+      <!-- Assistant sub-header -->
+      <tr>
+        <th colspan="20" class="group-header">ជំនួយការគ្រូបង្រៀន</th>
+      </tr>
+      <tr>
+        <td>30</td>
+        <td class="subject-name">Statistical Data Analysis</td>
+        <td>Jan Jane (AL)</td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+        <td rowspan="2" class="rowspan-gen">Gen10<br>Year2</td>
+      </tr>
+      <tr>
+        <td>31</td>
+        <td class="subject-name">Design Thinking</td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+      </tr>
+      <!-- Grand total -->
+      <tr class="grand-total-row">
+        <td colspan="12" style="text-align:right; font-weight:700; padding-right:10px;">សរុប</td>
+        <td class="money-cell">$825,00</td>
+        <td class="money-cell">3.382.500,00៛</td>
+        <td class="money-cell">$550,00</td>
+        <td class="money-cell">2.255.000,00៛</td>
+        <td class="money-cell">$275,00</td>
+        <td class="money-cell">1.127.500,00៛</td>
+        <td colspan="2"></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- SIGNATURE SECTION -->
+  <div class="signature-section">
+    <div class="sig-box">
+      <div>បានឃើញនិងឯកភព</div>
+      <div class="sig-date-line">ថ្ងៃ.............. ខែ.............. ឆ្នាំ......... ព.ស.</div>
+      <div class="sig-date-line">រាជធានីភ្នំពេញថ្ងៃទី........ខែ.........ឆ្នាំ.......</div>
+      <div class="sig-title" >អនុប្រធានបណ្ឌិតសភាបច្ចេកវិទ្យាឌីជីថល</div>
+      <div class="sig-space"></div>
+    </div>
+    <div class="sig-box">
+      <div>បានពិនិត្យរួចរាល់ និងសូមជូនលោកអនុប្រធានបណ្ឌិតសភា<br>មេត្តាពិនិត្យ​ និងសម្រេច</div>
+      <div class="sig-date-line">ថ្ងៃ.............. ខែ............... ឆ្នាំ......... ព.ស.</div>
+      <div class="sig-date-line">រាជធានីភ្នំពេញថ្ងៃទី........ខែ.........ឆ្នាំ.......</div>
+      <div class="sig-title">ប្រធានដេប៉ាតឺម៉ង់ វិទ្យាសាស្ត្រកុំព្យូទ័រ</div>
+      <div class="sig-space"></div>
+    </div>
+    <div class="sig-box">
+      <div class="sig-date-line">ថ្ងៃ.............. ខែ.............. ឆ្នាំ......... ព.ស.</div>
+      <div class="sig-date-line">រាជធានីភ្នំពេញថ្ងៃទី........ខែ.........ឆ្នាំ.......</div>
+      <div class="sig-title">អ្នកធ្វើរបាយការណ៍</div>
+      <div class="sig-space"></div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

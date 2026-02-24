@@ -61,14 +61,22 @@ export default function CreateLecturerModal({ isOpen, onClose, onLecturerCreated
     const normalizePosition = (val) => {
       const s = String(val || '').trim();
       if (!s) return 'Lecturer';
+      if (/(advisor|adviser)/i.test(s) || /អ្នក\s*ប្រឹក្ស/i.test(s)) return 'Advisor';
       if (/\b(teaching\s*assistant|assistant|\bta\b)\b/i.test(s)) return 'Teaching Assistant (TA)';
       if (/(lecturer|instructor|teacher)/i.test(s)) return 'Lecturer';
       return 'Lecturer';
     };
+
+    const candidatePosition =
+      cand.positionAppliedFor ??
+      cand.positionApplied ??
+      cand.position ??
+      cand.profile?.position;
+
     setFormData(p => ({
       ...p,
       fullName: cand.fullName || p.fullName,
-      position: normalizePosition(cand.positionAppliedFor) || p.position,
+      position: normalizePosition(candidatePosition) || p.position,
       title: cand.title || p.title,
       gender: cand.gender || p.gender
     }));

@@ -18,7 +18,7 @@ export default function CoursesPopover({ courses, coords, onClose }) {
   return (
     <div
       ref={popoverRef}
-      className='fixed z-50 w-72 bg-white rounded-lg shadow-xl border border-gray-200'
+      className='courses-popover fixed z-50 w-72 bg-white rounded-lg shadow-xl border border-gray-200'
       style={{
         top: `${coords.y}px`,
         left: `${coords.x}px`,
@@ -49,14 +49,38 @@ export default function CoursesPopover({ courses, coords, onClose }) {
                 key={idx}
                 className='px-3 py-2 rounded hover:bg-gray-50 text-sm'
               >
-                <div className='font-medium text-gray-900'>
-                  {course.code || course.name}
-                </div>
-                {course.code && course.name && (
-                  <div className='text-xs text-gray-500 mt-0.5'>
-                    {course.name}
-                  </div>
-                )}
+                {(() => {
+                  const code =
+                    course?.course_code ||
+                    course?.courseCode ||
+                    course?.code ||
+                    course?.Course?.course_code ||
+                    course?.Course?.courseCode ||
+                    course?.Course?.code ||
+                    '';
+                  const name =
+                    course?.course_name ||
+                    course?.courseName ||
+                    course?.name ||
+                    course?.Course?.course_name ||
+                    course?.Course?.courseName ||
+                    course?.Course?.name ||
+                    '';
+                  const main = code || name || 'Course';
+                  const sub = code && name ? name : '';
+                  return (
+                    <>
+                      <div className='font-medium text-gray-900'>
+                        {main}
+                      </div>
+                      {sub && (
+                        <div className='text-xs text-gray-500 mt-0.5'>
+                          {sub}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             ))}
           </div>
