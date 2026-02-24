@@ -559,6 +559,8 @@ export async function generatePdf(req, res) {
       lecturer: 'សាស្ត្រាចារ្យ',
       'assistant lecturer': 'សាស្ត្រាចារ្យជំនួយ',
       'senior lecturer': 'សាស្ត្រាចារ្យជាន់ខ្ពស់',
+      advisor: 'អ្នកប្រឹក្សា',
+      adviser: 'អ្នកប្រឹក្សា',
       'adjunct lecturer': 'សាស្ត្រាចារ្យបន្ថែម',
       'visiting lecturer': 'សាស្ត្រាចារ្យអាគន្ដុកៈ',
       'teaching assistant': 'សាស្ត្រាចារ្យជំនួយ',

@@ -6,7 +6,20 @@ import Specialization from '../model/specialization.model.js';
 // GET /api/groups
 export const getGroup = async (req, res) => {
   try {
-    const { class_name, dept_name, specialization } = req.query;
+    const { class_id, class_name, dept_name, specialization } = req.query;
+
+    // Simple direct filter by class_id when provided
+    if (class_id !== undefined && class_id !== null && String(class_id).trim() !== '') {
+      const parsed = Number.parseInt(String(class_id), 10);
+      if (!Number.isFinite(parsed) || parsed <= 0) {
+        return res.status(400).json({ message: 'Invalid class_id' });
+      }
+      const group = await Group.findAll({
+        where: { class_id: parsed },
+        order: [['created_at', 'ASC']],
+      });
+      return res.status(200).json({ group, message: 'Group retrieved successfully.' });
+    }
 
     const group = await Group.findAll({
       include: [

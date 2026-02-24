@@ -9,6 +9,7 @@ export default React.forwardRef(function Select({
     onOpenChange,
     placeholder,
     disabled = false,
+    oneLine = false,
     className = '',
     buttonClassName = '',
     dropdownClassName = '',
@@ -140,7 +141,14 @@ export default React.forwardRef(function Select({
                 onKeyDown={onButtonKeyDown}
                 aria-disabled={disabled || undefined}
             >
-                <span className={(selectedValue ? 'text-gray-900' : 'text-gray-500') + ' block leading-snug whitespace-normal break-words text-base'}>
+                <span
+                    className={
+                        (selectedValue ? 'text-gray-900' : 'text-gray-500') +
+                        (oneLine
+                            ? ' block leading-snug truncate whitespace-nowrap overflow-hidden text-ellipsis text-base'
+                            : ' block leading-snug whitespace-normal break-words text-base')
+                    }
+                >
                     {displayLabel}
                 </span>
                 <ChevronDown className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 ${disabled ? 'text-gray-400' : 'text-gray-500'}`} />

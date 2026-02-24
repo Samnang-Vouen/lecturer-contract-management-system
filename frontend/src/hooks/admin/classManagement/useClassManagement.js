@@ -1,13 +1,16 @@
 import { useState } from "react";
-import { createClass, updateClass, deleteClass } from "../../../services/class.service";
+import { createClass, upgradeClass, updateClass, deleteClass } from "../../../services/class.service";
+import { createGroup, updateGroup, deleteGroup } from "../../../services/group.service";
 
 const initialClassState = {
   name: "",
+  specialization: "",
   term: "",
   year_level: "",
   academic_year: "",
   total_class: 1,
   courses: [],
+  groups: [],
 };
 
 /**
@@ -42,6 +45,9 @@ export function validateClassFields(classData) {
   if (!classData.name.trim()) {
     return "Class name is required";
   }
+  if (!String(classData?.specialization || '').trim()) {
+    return "Specialization is required";
+  }
   if (!classData.term.trim()) {
     return "Term is required";
   }
@@ -63,6 +69,8 @@ export function validateClassFields(classData) {
 export function useClassManagement(classes, setClasses) {
   const [newClass, setNewClass] = useState(initialClassState);
   const [editingClass, setEditingClass] = useState(null);
+  const [upgradingClass, setUpgradingClass] = useState(null);
+  const [upgradeSourceId, setUpgradeSourceId] = useState(null);
   const [classToDelete, setClassToDelete] = useState(null);
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -70,7 +78,128 @@ export function useClassManagement(classes, setClasses) {
   // Dialog states
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isUpgradeDialogOpen, setIsUpgradeDialogOpen] = useState(false);
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
+
+  /**
+   * Open upgrade dialog for a class (creates a NEW class record; original unchanged)
+   */
+  const handleOpenUpgradeClass = (classItem) => {
+    if (!classItem?.id) return;
+    setUpgradeSourceId(classItem.id);
+
+    const specializationName = String(
+      classItem?.specialization
+      || classItem?.Specialization?.name
+      || classItem?.specialization_name
+      || classItem?.specializationName
+      || ''
+    ).trimStart();
+
+    const sourceGroups = Array.isArray(classItem?.Groups)
+      ? classItem.Groups
+      : (Array.isArray(classItem?.groups) ? classItem.groups : []);
+
+    // Remove ids so the form behaves like creating a new record
+    const groups = sourceGroups
+      .map((g) => ({
+        name: g?.name,
+        num_of_student: g?.num_of_student ?? '',
+      }))
+      .filter((g) => g?.name);
+
+    setUpgradingClass({
+      name: classItem?.name || '',
+      specialization: specializationName,
+      term: classItem?.term || '',
+      year_level: classItem?.year_level || '',
+      academic_year: classItem?.academic_year || '',
+      total_class: classItem?.total_class ?? 1,
+      courses: Array.isArray(classItem?.courses) ? classItem.courses : [],
+      groups,
+    });
+
+    setIsUpgradeDialogOpen(true);
+  };
+
+  /**
+   * Upgrade a class: create a NEW class record based on upgradingClass
+   */
+  const handleUpgradeClass = async (selectedCourses = []) => {
+    if (!upgradeSourceId) throw new Error('Missing source class to upgrade');
+    if (!upgradingClass) throw new Error('No upgrade data provided');
+
+    const validationError = validateClassFields(upgradingClass);
+    if (validationError) {
+      throw new Error(validationError);
+    }
+
+    const specializationName = String(upgradingClass?.specialization || '').trim();
+    if (!specializationName) {
+      throw new Error('Specialization is required');
+    }
+
+    const parsedTotal = parseInt(upgradingClass?.total_class, 10);
+    const totalGroups = Number.isFinite(parsedTotal) && parsedTotal > 0 ? parsedTotal : 0;
+    const groups = Array.isArray(upgradingClass?.groups) ? upgradingClass.groups : [];
+
+    if (totalGroups <= 0) {
+      throw new Error('Total Groups must be a positive number');
+    }
+    if (groups.length !== totalGroups) {
+      throw new Error('Please generate and fill all groups');
+    }
+    for (const g of groups) {
+      const students = parseInt(g?.num_of_student, 10);
+      if (!g?.name) throw new Error('Each group must have a name');
+      if (!Number.isFinite(students) || students <= 0) {
+        throw new Error('Each group must have a positive number of students');
+      }
+    }
+
+    setLoading(true);
+    try {
+      const payload = { ...upgradingClass };
+      payload.total_class = totalGroups || 1;
+      payload.courses = selectedCourses;
+      delete payload.groups;
+
+      const res = await upgradeClass(upgradeSourceId, payload);
+      const createdClass = res.data;
+
+      let createdGroups = [];
+      if (createdClass?.id) {
+        const groupResults = await Promise.all(
+          groups.map((g) =>
+            createGroup({
+              class_id: createdClass.id,
+              name: g.name,
+              num_of_student: parseInt(g.num_of_student, 10),
+            })
+          )
+        );
+        createdGroups = groupResults
+          .map((r) => r?.data?.group)
+          .filter(Boolean);
+      }
+
+      // Attach groups for immediate display
+      const createdWithGroups = createdGroups.length
+        ? { ...createdClass, Groups: createdGroups }
+        : createdClass;
+
+      setClasses(prev => [createdWithGroups, ...prev]);
+      setIsUpgradeDialogOpen(false);
+      setUpgradingClass(null);
+      setUpgradeSourceId(null);
+      return createdWithGroups;
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || err.response?.data?.error || err.message || "Failed to upgrade class. Please try again.";
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   /**
    * Add a new class
@@ -81,18 +210,59 @@ export function useClassManagement(classes, setClasses) {
       throw new Error(validationError);
     }
 
+    // Require specialization + groups + student counts for new class
+    const specializationName = String(newClass?.specialization || '').trim();
+    if (!specializationName) {
+      throw new Error('Specialization is required');
+    }
+
+    const parsedTotal = parseInt(newClass?.total_class, 10);
+    const totalGroups = Number.isFinite(parsedTotal) && parsedTotal > 0 ? parsedTotal : 0;
+    const groups = Array.isArray(newClass?.groups) ? newClass.groups : [];
+
+    if (totalGroups <= 0) {
+      throw new Error('Total Groups must be a positive number');
+    }
+    if (groups.length !== totalGroups) {
+      throw new Error('Please generate and fill all groups');
+    }
+    for (const g of groups) {
+      const students = parseInt(g?.num_of_student, 10);
+      if (!g?.name) throw new Error('Each group must have a name');
+      if (!Number.isFinite(students) || students <= 0) {
+        throw new Error('Each group must have a positive number of students');
+      }
+    }
+
     setLoading(true);
     try {
       const payload = { ...newClass };
-      const parsedTotal = parseInt(payload.total_class, 10);
-      payload.total_class = Number.isFinite(parsedTotal) && parsedTotal > 0 ? parsedTotal : 1;
+      payload.total_class = totalGroups || 1;
       payload.courses = selectedCourses;
 
+      // groups are stored in a separate table; do not send in class payload
+      delete payload.groups;
+
       const res = await createClass(payload);
-      setClasses(prev => [...prev, res.data]);
+
+      // Create groups after class is created
+      const createdClass = res.data;
+      if (createdClass?.id) {
+        await Promise.all(
+          groups.map((g) =>
+            createGroup({
+              class_id: createdClass.id,
+              name: g.name,
+              num_of_student: parseInt(g.num_of_student, 10),
+            })
+          )
+        );
+      }
+
+      setClasses(prev => [...prev, createdClass]);
       setIsAddDialogOpen(false);
       setNewClass(initialClassState);
-      return res.data;
+      return createdClass;
     } catch (err) {
       const errorMessage = err.response?.data?.message || err.message || "Failed to add class. Please try again.";
       throw new Error(errorMessage);
@@ -118,14 +288,54 @@ export function useClassManagement(classes, setClasses) {
       throw new Error(validationError);
     }
 
+    // Validate groups + student counts (edit flow)
+    const parsedTotal = parseInt(editingClass?.total_class, 10);
+    const totalGroups = Number.isFinite(parsedTotal) && parsedTotal > 0 ? parsedTotal : 0;
+    const groups = Array.isArray(editingClass?.groups) ? editingClass.groups : [];
+    const originalGroups = Array.isArray(editingClass?._original_groups) ? editingClass._original_groups : [];
+
+    if (totalGroups <= 0) {
+      throw new Error('Total Groups must be a positive number');
+    }
+    if (groups.length !== totalGroups) {
+      throw new Error('Please generate and fill all groups');
+    }
+    for (const g of groups) {
+      const students = parseInt(g?.num_of_student, 10);
+      if (!g?.name) throw new Error('Each group must have a name');
+      if (!Number.isFinite(students) || students <= 0) {
+        throw new Error('Each group must have a positive number of students');
+      }
+    }
+
     setLoading(true);
     try {
       const payload = { ...editingClass };
-      const parsedTotal = parseInt(payload.total_class, 10);
-      payload.total_class = Number.isFinite(parsedTotal) && parsedTotal > 0 ? parsedTotal : 1;
+      payload.total_class = totalGroups || 1;
       payload.courses = selectedCourses;
 
+      // groups are stored in a separate table; do not send in class payload
+      delete payload.groups;
+      delete payload._original_groups;
+
       const res = await updateClass(editingClass.id, payload);
+
+      // Sync groups: update existing, create new, delete removed
+      const nextIds = new Set(groups.map((g) => String(g?.id || '')).filter(Boolean));
+      const removed = originalGroups.filter((g) => g?.id && !nextIds.has(String(g.id)));
+
+      await Promise.all([
+        ...groups.map((g) => {
+          const body = {
+            class_id: editingClass.id,
+            name: g.name,
+            num_of_student: parseInt(g.num_of_student, 10),
+          };
+          return g?.id ? updateGroup(g.id, body) : createGroup(body);
+        }),
+        ...removed.map((g) => deleteGroup(g.id)),
+      ]);
+
       setClasses(prev => prev.map(c => c.id === editingClass.id ? res.data : c));
       setIsEditDialogOpen(false);
       setEditingClass(null);
@@ -175,6 +385,10 @@ export function useClassManagement(classes, setClasses) {
     setNewClass,
     editingClass,
     setEditingClass,
+    upgradingClass,
+    setUpgradingClass,
+    upgradeSourceId,
+    setUpgradeSourceId,
     classToDelete,
     setClassToDelete,
     loading,
@@ -186,10 +400,14 @@ export function useClassManagement(classes, setClasses) {
     isEditDialogOpen,
     setIsEditDialogOpen,
     isConfirmDeleteOpen,
+    isUpgradeDialogOpen,
+    setIsUpgradeDialogOpen,
     setIsConfirmDeleteOpen,
     // Actions
     handleAddClass,
     handleEditClass,
+    handleOpenUpgradeClass,
+    handleUpgradeClass,
     handleUpdateClass,
     handleDeleteClass,
     performDeleteClass,

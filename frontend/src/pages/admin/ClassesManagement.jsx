@@ -12,6 +12,7 @@ import { useClassManagement } from "../../hooks/admin/classManagement/useClassMa
 import { useCourseAssignment } from "../../hooks/admin/classManagement/useCourseAssignment";
 import { useErrorHandling } from "../../hooks/useErrorHandling";
 import { createClassHandlers } from "../../utils/classHandlers";
+import { getGroups } from "../../services/group.service";
 
 export default function ClassesManagement() {
   // Error handling
@@ -23,6 +24,7 @@ export default function ClassesManagement() {
     setClasses,
     availableCourses,
     setAvailableCourses,
+    availableSpecializations,
     loading,
     selectedAcademicYear,
     setSelectedAcademicYear,
@@ -37,6 +39,8 @@ export default function ClassesManagement() {
     setNewClass,
     editingClass,
     setEditingClass,
+    upgradingClass,
+    setUpgradingClass,
     classToDelete,
     setClassToDelete,
     deleting,
@@ -45,10 +49,14 @@ export default function ClassesManagement() {
     setIsAddDialogOpen,
     isEditDialogOpen,
     setIsEditDialogOpen,
+    isUpgradeDialogOpen,
+    setIsUpgradeDialogOpen,
     isConfirmDeleteOpen,
     setIsConfirmDeleteOpen,
     handleAddClass,
     handleEditClass,
+    handleOpenUpgradeClass,
+    handleUpgradeClass,
     handleUpdateClass,
     handleDeleteClass,
     performDeleteClass,
@@ -87,7 +95,52 @@ export default function ClassesManagement() {
     showErrorPopup,
   });
 
+  const onUpgradeClass = async (classItem) => {
+    // Pre-fill selected courses from source class
+    setSelectedCourses(Array.isArray(classItem?.courses) ? classItem.courses : []);
+    handleOpenUpgradeClass(classItem);
+  };
+
+  const onSubmitUpgrade = async () => {
+    try {
+      await handleUpgradeClass(selectedCourses);
+      setSelectedCourses([]);
+    } catch (err) {
+      showErrorPopup(err.message);
+    }
+  };
+
   const filteredClasses = getFilteredClasses();
+
+  // When editing a class, load its groups so we can edit student counts / sync group changes
+  React.useEffect(() => {
+    const classId = editingClass?.id;
+    if (!isEditDialogOpen || !classId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await getGroups({ class_id: classId });
+        const list = Array.isArray(res.data?.group) ? res.data.group : [];
+        const groups = list
+          .map((g) => ({
+            id: g.id,
+            name: g.name,
+            num_of_student: g.num_of_student,
+          }))
+          .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+        if (cancelled) return;
+        setEditingClass((prev) => {
+          if (!prev) return prev;
+          return { ...prev, groups, _original_groups: groups };
+        });
+      } catch {
+        // non-fatal; allow editing class fields without group data
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isEditDialogOpen, editingClass?.id, setEditingClass]);
 
   return (
     <div className="p-4 md:p-6 lg:p-8 space-y-6">
@@ -111,6 +164,7 @@ export default function ClassesManagement() {
         <ClassesTable
           classes={filteredClasses}
           onEdit={onEditClass}
+          onUpgrade={onUpgradeClass}
           onDelete={handleDeleteClass}
           loading={loading}
           courseCatalog={availableCourses}
@@ -157,6 +211,7 @@ export default function ClassesManagement() {
         isEdit={false}
         onAssignCourses={onAssignCourses}
         courseCatalog={availableCourses}
+        specializationOptions={availableSpecializations}
         selectedCourses={selectedCourses}
       />
 
@@ -168,8 +223,31 @@ export default function ClassesManagement() {
         classData={editingClass || initialClassState}
         setClassData={setEditingClass}
         isEdit={true}
+        mode="edit"
         onAssignCourses={onAssignCourses}
         courseCatalog={availableCourses}
+        specializationOptions={availableSpecializations}
+        selectedCourses={selectedCourses}
+      />
+
+      {/* Upgrade Class Dialog */}
+      <ClassFormDialog
+        open={isUpgradeDialogOpen}
+        onOpenChange={(open) => {
+          setIsUpgradeDialogOpen(open);
+          if (!open) {
+            setUpgradingClass(null);
+            setSelectedCourses([]);
+          }
+        }}
+        onSubmit={onSubmitUpgrade}
+        classData={upgradingClass || initialClassState}
+        setClassData={setUpgradingClass}
+        isEdit={false}
+        mode="upgrade"
+        onAssignCourses={onAssignCourses}
+        courseCatalog={availableCourses}
+        specializationOptions={availableSpecializations}
         selectedCourses={selectedCourses}
       />
 
