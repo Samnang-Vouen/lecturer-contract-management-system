@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Clipboard } from 'lucide-react';
+import { Plus, Clipboard, GraduationCap } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../ui/Card';
 import Button from '../../ui/Button';
 import Badge from '../../ui/Badge';
@@ -7,20 +7,33 @@ import toast from 'react-hot-toast';
 
 export default function SessionCreatedList({ createdLecturers, onOpenCreateModal }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className='flex items-center gap-2'>
-          <Plus className='w-5 h-5'/> Create Lecturer
-        </CardTitle>
-        <CardDescription>Add a new lecturer and view lecturers created this session.</CardDescription>
-      </CardHeader>
-      <CardContent className='space-y-6'>
-        <div>
-          <Button onClick={onOpenCreateModal} className='flex items-center gap-2'>
-            <Plus className='w-4 h-4'/> New Lecturer
+    <Card className='rounded-2xl shadow-lg border-gray-100'>
+      <CardHeader className='border-b-0 px-6 py-6 sm:px-8 sm:py-8'>
+        <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
+          <div className='flex items-center gap-3 sm:gap-4'>
+            <div className='p-3 sm:p-4 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl'>
+              <GraduationCap className='w-6 h-6 sm:w-8 sm:h-8 text-white' />
+            </div>
+            <div>
+              <CardTitle className='text-2xl sm:text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent'>
+                Create Lecturer
+              </CardTitle>
+              <CardDescription className='text-gray-600 mt-1 sm:mt-2 text-sm sm:text-lg'>
+                Add a new lecturer and view lecturers created this session.
+              </CardDescription>
+            </div>
+          </div>
+
+          <Button
+            onClick={onOpenCreateModal}
+            className='w-full sm:w-auto justify-center bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200'
+          >
+            <Plus className='w-5 h-5 mr-2' />
+            <span>New Lecturer</span>
           </Button>
         </div>
-        
+      </CardHeader>
+      <CardContent className='space-y-6'>
         <div className='border rounded-md overflow-hidden'>
           <div className='px-4 py-3 bg-gray-50 flex items-center justify-between'>
             <p className='text-sm font-medium text-gray-700'>

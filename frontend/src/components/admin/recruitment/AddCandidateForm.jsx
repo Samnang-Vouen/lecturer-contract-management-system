@@ -1,6 +1,13 @@
 import React from 'react';
-import { User, Mail, Phone, GraduationCap, Calendar, Plus } from 'lucide-react';
-import { isE164 } from '../../../utils/recruitmentHelpers';
+import { User, Mail, Phone, GraduationCap, Calendar, Plus, ChevronDown } from 'lucide-react';
+import {
+  formatFullNameInput,
+  formatPhoneInput,
+  fromDateTimeLocalToPhnomPenhISO,
+  hasAtSign,
+  isE164,
+  toPhnomPenhDateTimeLocal,
+} from '../../../utils/recruitmentHelpers';
 import LoadingSpinner from './LoadingSpinner';
 
 export default function AddCandidateForm({
@@ -10,8 +17,14 @@ export default function AddCandidateForm({
   isSubmitting,
   submitAttempted
 }) {
-  const allFilled = ['fullName', 'email', 'phone', 'positionAppliedFor', 'interviewDate']
-    .every((k) => String(candidate[k] || '').trim() !== '') && isE164(candidate.phone);
+  const allFilled =
+    ['fullName', 'email', 'phone', 'positionAppliedFor', 'interviewDate'].every(
+      (k) => String(candidate[k] || '').trim() !== ''
+    ) &&
+    hasAtSign(candidate.email) &&
+    isE164(candidate.phone);
+
+  const interviewDateLocalValue = toPhnomPenhDateTimeLocal(candidate.interviewDate);
 
   return (
     <div className="p-8">
@@ -31,12 +44,15 @@ export default function AddCandidateForm({
           <div className="space-y-3">
             <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
               <User className="w-4 h-4" />
-              Full Name
+              Full Name <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={candidate.fullName}
               onChange={(e) => onChange({ ...candidate, fullName: e.target.value })}
+              onBlur={(e) =>
+                onChange({ ...candidate, fullName: formatFullNameInput(e.target.value) })
+              }
               className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200 bg-white"
               placeholder="John Smith"
             />
@@ -49,7 +65,7 @@ export default function AddCandidateForm({
           <div className="space-y-3">
             <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
               <Mail className="w-4 h-4" />
-              Email Address
+              Email Address <span className="text-red-500">*</span>
             </label>
             <input
               type="email"
@@ -61,20 +77,25 @@ export default function AddCandidateForm({
             {submitAttempted && !candidate.email && (
               <p className="text-red-500 text-sm">Email is required</p>
             )}
+            {submitAttempted && candidate.email && !hasAtSign(candidate.email) && (
+              <p className="text-red-500 text-sm">Email must contain @</p>
+            )}
           </div>
 
           {/* Phone */}
           <div className="space-y-3">
             <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
               <Phone className="w-4 h-4" />
-              Phone Number
+              Phone Number <span className="text-red-500">*</span>
             </label>
             <input
               type="tel"
               value={candidate.phone}
-              onChange={(e) => onChange({ ...candidate, phone: e.target.value })}
+              onChange={(e) =>
+                onChange({ ...candidate, phone: formatPhoneInput(e.target.value) })
+              }
               className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200 bg-white"
-              placeholder="+855 12 345 678"
+              placeholder="+855 123 456 789"
             />
             {submitAttempted && !isE164(candidate.phone) && (
               <p className="text-red-500 text-sm">Valid phone number is required</p>
@@ -85,19 +106,23 @@ export default function AddCandidateForm({
           <div className="space-y-3">
             <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
               <GraduationCap className="w-4 h-4" />
-              Position Applied For
+              Position Applied For <span className="text-red-500">*</span>
             </label>
-            <select
-              value={candidate.positionAppliedFor}
-              onChange={(e) => onChange({ ...candidate, positionAppliedFor: e.target.value })}
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200 bg-white"
-            >
-              <option value="">Select Position</option>
-              <option value="Lecturer">Lecturer</option>
-              <option value="Assistant Lecturer">Assistant Lecturer</option>
-              <option value="Senior Lecturer">Senior Lecturer</option>
-              <option value="Professor">Professor</option>
-            </select>
+            <div className="relative">
+              <select
+                value={candidate.positionAppliedFor}
+                onChange={(e) => onChange({ ...candidate, positionAppliedFor: e.target.value })}
+                className="w-full cursor-pointer appearance-none px-4 py-3 pr-12 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200 bg-white"
+              >
+                <option value="">Select Position</option>
+                <option value="Lecturer">Lecturer</option>
+                <option value="Advisor">Advisor</option>
+                <option value="Assistant Lecturer">Assistant Lecturer</option>
+                {/* <option value="Senior Lecturer">Senior Lecturer</option>
+                <option value="Professor">Professor</option> */}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
+            </div>
             {submitAttempted && !candidate.positionAppliedFor && (
               <p className="text-red-500 text-sm">Position is required</p>
             )}
@@ -107,13 +132,20 @@ export default function AddCandidateForm({
           <div className="space-y-3 lg:col-span-2">
             <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
               <Calendar className="w-4 h-4" />
-              Interview Date & Time
+              Interview Date & Time <span className="text-red-500">*</span>
             </label>
             <input
               type="datetime-local"
-              value={candidate.interviewDate}
-              onChange={(e) => onChange({ ...candidate, interviewDate: e.target.value })}
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200 bg-white"
+              value={interviewDateLocalValue}
+              onFocus={(e) => e.currentTarget.showPicker?.()}
+              onClick={(e) => e.currentTarget.showPicker?.()}
+              onChange={(e) =>
+                onChange({
+                  ...candidate,
+                  interviewDate: fromDateTimeLocalToPhnomPenhISO(e.target.value),
+                })
+              }
+              className="w-full cursor-pointer px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200 bg-white"
             />
             {submitAttempted && !candidate.interviewDate && (
               <p className="text-red-500 text-sm">Interview date is required</p>
@@ -124,7 +156,7 @@ export default function AddCandidateForm({
         <div className="flex justify-end pt-6 border-t border-slate-200/50">
           <button
             onClick={onSubmit}
-            disabled={isSubmitting}
+            disabled={isSubmitting || !allFilled}
             className="flex items-center gap-3 px-8 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting ? <LoadingSpinner /> : <Plus className="w-5 h-5" />}

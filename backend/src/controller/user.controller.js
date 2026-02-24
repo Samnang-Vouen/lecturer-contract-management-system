@@ -342,9 +342,16 @@ export const createLecturerFromCandidate = async (req, res) => {
     const normalizePosition = (val) => {
       const s = String(val || '').trim();
       if (!s) return 'Lecturer';
-      const lower = s.toLowerCase();
-      // Map common variants to TA
-      if (/\b(teaching\s*assistant|assistant|\bta\b)\b/i.test(s)) return 'Teaching Assistant (TA)';
+      // Advisor (EN/KM)
+      if (/\b(advisor|adviser)\b/i.test(s) || /អ្នកប្រឹក្សា/.test(s)) return 'Advisor';
+      // Professor
+      if (/\bprofessor\b/i.test(s)) return 'Professor';
+      // Senior Lecturer
+      if (/\bsenior\s+lecturer\b/i.test(s)) return 'Senior Lecturer';
+      // Assistant Lecturer
+      if (/\bassistant\s+lecturer\b/i.test(s)) return 'Assistant Lecturer';
+      // Teaching Assistant (keep last so it doesn't swallow Assistant Lecturer)
+      if (/\b(teaching\s*assistant|\bta\b)\b/i.test(s)) return 'Teaching Assistant (TA)';
       // Lecturer variants
       if (/(lecturer|instructor|teacher)/i.test(s)) return 'Lecturer';
       return 'Lecturer';

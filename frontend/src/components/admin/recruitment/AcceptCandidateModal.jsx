@@ -1,5 +1,6 @@
 import React from 'react';
 import { CheckCircle } from 'lucide-react';
+import { sanitizeTextOnly } from '../../../utils/recruitmentHelpers';
 import LoadingSpinner from './LoadingSpinner';
 
 export default function AcceptCandidateModal({
@@ -31,7 +32,7 @@ export default function AcceptCandidateModal({
         <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="space-y-3">
-              <label className="text-sm font-semibold text-slate-700">Hourly Rate (USD) *</label>
+              <label className="text-sm font-semibold text-slate-700">Hourly Rate ($) <span className="text-red-500">*</span></label>
               <input
                 type="number"
                 value={decision.hourlyRate}
@@ -42,20 +43,25 @@ export default function AcceptCandidateModal({
             </div>
             
             <div className="space-y-3">
-              <label className="text-sm font-semibold text-slate-700">Evaluator Name *</label>
+              <label className="text-sm font-semibold text-slate-700">Evaluator Name <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 value={decision.evaluator}
-                onChange={(e) => onDecisionChange({ ...decision, evaluator: e.target.value })}
+                onChange={(e) =>
+                  onDecisionChange({
+                    ...decision,
+                    evaluator: sanitizeTextOnly(e.target.value),
+                  })
+                }
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all duration-200 bg-white"
-                placeholder="Dr. Robert Smith"
+                placeholder="Mr. Robert Smith"
               />
             </div>
           </div>
 
           <div className="space-y-3">
             <label className="text-sm font-semibold text-slate-700 flex items-center justify-between">
-              <span>Reason for Rate *</span>
+              <span>Reason for Rate <span className="text-red-500">*</span></span>
               <span className="text-xs text-slate-500">
                 {decision.rateReason.length}/250
               </span>

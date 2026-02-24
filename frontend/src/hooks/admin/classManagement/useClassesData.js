@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { getClasses } from "../../../services/class.service";
 import { getCourses } from "../../../services/course.service";
+import { getSpecializations } from "../../../services/specialization.service";
 
 /**
  * Custom hook for managing classes data with infinite scroll and filtering
@@ -8,6 +9,7 @@ import { getCourses } from "../../../services/course.service";
 export function useClassesData() {
   const [classes, setClasses] = useState([]);
   const [availableCourses, setAvailableCourses] = useState([]);
+  const [availableSpecializations, setAvailableSpecializations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedAcademicYear, setSelectedAcademicYear] = useState("all");
   const [page, setPage] = useState(1);
@@ -61,6 +63,17 @@ export function useClassesData() {
     }
   }, []);
 
+  const loadSpecializations = useCallback(async () => {
+    try {
+      const res = await getSpecializations();
+      const payload = res.data;
+      const list = Array.isArray(payload) ? payload : (Array.isArray(payload.data) ? payload.data : []);
+      setAvailableSpecializations(list);
+    } catch (error) {
+      console.warn('Failed to load specializations list');
+    }
+  }, []);
+
   // Initial load
   useEffect(() => {
     loadClasses(true);
@@ -93,6 +106,11 @@ export function useClassesData() {
     loadCourses();
   }, [loadCourses]);
 
+  // Load specializations
+  useEffect(() => {
+    loadSpecializations();
+  }, [loadSpecializations]);
+
   // Filtering logic
   const getUniqueAcademicYears = useCallback(() => {
     const years = [...new Set(classes.map(c => c.academic_year))].filter(year => {
@@ -112,6 +130,8 @@ export function useClassesData() {
     setClasses,
     availableCourses,
     setAvailableCourses,
+    availableSpecializations,
+    setAvailableSpecializations,
     loading,
     selectedAcademicYear,
     setSelectedAcademicYear,
@@ -119,6 +139,7 @@ export function useClassesData() {
     sentinelRef,
     loadClasses,
     loadCourses,
+    loadSpecializations,
     getUniqueAcademicYears,
     getFilteredClasses,
   };

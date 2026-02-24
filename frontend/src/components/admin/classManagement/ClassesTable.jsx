@@ -1,13 +1,14 @@
 import React from "react";
-import { School, GraduationCap, Users, BookOpen, Edit, Trash2 } from 'lucide-react';
+import { createPortal } from "react-dom";
+import { School, GraduationCap, Users, BookOpen, Edit, Trash2, MoreHorizontal, ArrowUpCircle } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../ui/Table";
 import Badge from "../../ui/Badge";
-import Button from "../../ui/Button";
 import Checkbox from "../../ui/Checkbox";
 
 export default function ClassesTable({
   classes,
   onEdit,
+  onUpgrade,
   onDelete,
   onAssignCourses,
   loading,
@@ -19,6 +20,76 @@ export default function ClassesTable({
   onToggleOne = () => {},
   onToggleAll = () => {},
 }) {
+  const [openMenuId, setOpenMenuId] = React.useState(null);
+  const [menuCoords, setMenuCoords] = React.useState({ x: 0, y: 0 });
+
+  const closeMenu = () => setOpenMenuId(null);
+
+  const openMenu = (classId, event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const button = event.currentTarget;
+    const rect = button.getBoundingClientRect();
+
+    const menuWidth = 192; // w-48
+
+    const actionCount = [onEdit, onUpgrade, onAssignCourses, onDelete].filter(Boolean).length;
+    // Approx height: (actions * 48px) + padding
+    const menuHeight = Math.max(64, actionCount * 48 + 16);
+    const spacing = 8;
+
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    // Horizontal positioning: prioritize left side placement
+    let x = rect.left - menuWidth - spacing;
+
+    // If menu goes off-screen on the left, show on right side instead
+    if (x < spacing) {
+      x = rect.right + spacing;
+
+      // If it also goes off-screen on the right, align to right edge
+      if (x + menuWidth > viewportWidth - spacing) {
+        x = viewportWidth - menuWidth - spacing;
+      }
+    }
+
+    // Vertical positioning: align with button, but keep within viewport
+    let y = rect.top;
+
+    // If menu goes below viewport, shift it up
+    if (y + menuHeight > viewportHeight - spacing) {
+      y = Math.max(spacing, viewportHeight - menuHeight - spacing);
+    }
+
+    // Ensure minimum top spacing
+    y = Math.max(spacing, y);
+
+    setMenuCoords({ x, y });
+    setOpenMenuId(classId);
+  };
+
+  // Close menu on outside click or scroll/resize
+  React.useEffect(() => {
+    function onDocClick(e) {
+      if (!e.target.closest('.user-action-menu') && !e.target.closest('.user-action-trigger')) {
+        closeMenu();
+      }
+    }
+    if (openMenuId) {
+      document.addEventListener('click', onDocClick);
+    }
+    const onScrollOrResize = () => closeMenu();
+    window.addEventListener('scroll', onScrollOrResize, true);
+    window.addEventListener('resize', onScrollOrResize);
+    return () => {
+      document.removeEventListener('click', onDocClick);
+      window.removeEventListener('scroll', onScrollOrResize, true);
+      window.removeEventListener('resize', onScrollOrResize);
+    };
+  }, [openMenuId]);
+
   const { codeToName, idToName } = React.useMemo(() => {
     const codeMap = new Map();
     const idMap = new Map();
@@ -123,11 +194,12 @@ export default function ClassesTable({
                 </TableHead>
               )}
               <TableHead className="text-gray-800 text-sm font-semibold tracking-wide">Class Name</TableHead>
-              <TableHead className="text-gray-800 text-sm font-semibold tracking-wide">Term</TableHead>
-              <TableHead className="text-gray-800 text-sm font-semibold tracking-wide">Year Level</TableHead>
-              <TableHead className="text-gray-800 text-sm font-semibold tracking-wide">Academic Year</TableHead>
-              <TableHead className="text-gray-800 text-sm font-semibold tracking-wide">Total Groups</TableHead>
-              <TableHead className="text-gray-800 text-sm font-semibold tracking-wide">Assigned Courses</TableHead>
+              <TableHead className="text-gray-800 text-sm font-semibold tracking-wide text-center">Specialization</TableHead>
+              <TableHead className="text-gray-800 text-sm font-semibold tracking-wide text-center">Term</TableHead>
+              <TableHead className="text-gray-800 text-sm font-semibold tracking-wide text-center">Year Level</TableHead>
+              <TableHead className="text-gray-800 text-sm font-semibold tracking-wide text-center">Academic Year</TableHead>
+              <TableHead className="text-gray-800 text-sm font-semibold tracking-wide text-center">Groups</TableHead>
+              <TableHead className="text-gray-800 text-sm font-semibold tracking-wide text-center">Assigned Courses</TableHead>
               <TableHead className="text-gray-800 text-sm font-semibold tracking-wide text-right pr-6">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -144,12 +216,45 @@ export default function ClassesTable({
                   </TableCell>
                 )}
                 <TableCell className="font-medium text-gray-800">{classItem.name}</TableCell>
-                <TableCell className="text-gray-700 text-sm">{classItem.term}</TableCell>
-                <TableCell className="text-gray-700 text-sm">{classItem.year_level}</TableCell>
-                <TableCell className="text-gray-700 text-sm">{classItem.academic_year}</TableCell>
-                <TableCell className="text-gray-700 text-sm">{classItem.total_class}</TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1 max-w-xs">
+                <TableCell className="text-gray-700 text-sm text-center">
+                  {classItem?.Specialization?.name
+                    || classItem?.specialization?.name
+                    || classItem?.specialization_name
+                    || classItem?.specializationName
+                    || (
+                      (classItem?.specialization_id ?? classItem?.specializationId) != null
+                        ? `#${classItem?.specialization_id ?? classItem?.specializationId}`
+                        : <span className="text-gray-400 italic">—</span>
+                    )}
+                </TableCell>
+                <TableCell className="text-gray-700 text-sm text-center whitespace-nowrap">{classItem.term}</TableCell>
+                <TableCell className="text-gray-700 text-sm text-center whitespace-nowrap">{classItem.year_level}</TableCell>
+                <TableCell className="text-gray-700 text-sm text-center whitespace-nowrap">{classItem.academic_year}</TableCell>
+                <TableCell className="text-center">
+                  <div className="flex flex-wrap gap-1 max-w-sm justify-center">
+                    {(() => {
+                      const groups = Array.isArray(classItem?.Groups)
+                        ? classItem.Groups
+                        : Array.isArray(classItem?.groups)
+                          ? classItem.groups
+                          : [];
+                      if (!groups.length) {
+                        return (
+                          <span className="text-gray-400 text-xs italic flex items-center gap-1">
+                            —
+                          </span>
+                        );
+                      }
+                      return groups.map((g) => (
+                        <Badge key={g.id || g.name} variant="course" className="text-[10px] px-2 py-0.5">
+                          {String(g?.name ?? '').trim()}{Number.isFinite(+g?.num_of_student) ? `: ${+g.num_of_student} Students` : ''}
+                        </Badge>
+                      ));
+                    })()}
+                  </div>
+                </TableCell>
+                <TableCell className="text-center">
+                  <div className="flex flex-wrap gap-1 max-w-xs justify-center">
                     {(classItem.courses || []).map((entry, idx) => {
                       // entry may be a code, id, name string, or an object
                       let label = '';
@@ -184,40 +289,17 @@ export default function ClassesTable({
                   </div>
                 </TableCell>
                 <TableCell>
-                  <div className="flex items-center gap-2 justify-end">
-                    {onAssignCourses && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-blue-200 text-blue-700 hover:bg-blue-50"
-                        onClick={() => onAssignCourses(classItem)}
-                        title="Assign Courses"
-                      >
-                        <Users className="h-4 w-4" />
-                      </Button>
-                    )}
-                    {onEdit && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-gray-200 text-gray-600 hover:bg-gray-100"
-                        onClick={() => onEdit(classItem)}
-                        title="Edit Class"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    )}
-                    {onDelete && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-red-200 text-red-600 hover:bg-red-50"
-                        onClick={() => onDelete(classItem.id)}
-                        title="Delete Class"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
+                  <div className="flex items-center justify-end">
+                    <button
+                      type="button"
+                      className="user-action-trigger p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                      onClick={(e) => openMenu(classItem.id, e)}
+                      title="Actions"
+                      aria-haspopup="menu"
+                      aria-expanded={openMenuId === classItem.id}
+                    >
+                      <MoreHorizontal className="w-5 h-5" />
+                    </button>
                   </div>
                 </TableCell>
               </TableRow>
@@ -225,6 +307,83 @@ export default function ClassesTable({
           </TableBody>
         </Table>
       </div>
+
+      {openMenuId && createPortal(
+        (() => {
+          const classItem = classes.find((c) => c.id === openMenuId);
+          if (!classItem) return null;
+          return (
+            <div
+              className="fixed z-[9999] user-action-menu animate-in fade-in zoom-in-95 duration-100"
+              style={{ top: `${menuCoords.y}px`, left: `${menuCoords.x}px` }}
+              role="menu"
+            >
+              <div className="w-48 bg-white border-2 border-gray-300 rounded-xl shadow-2xl py-2">
+                {onEdit && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onEdit(classItem);
+                      closeMenu();
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-blue-50 text-left transition-colors"
+                    role="menuitem"
+                  >
+                    <Edit className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm font-medium text-gray-700">Edit Class</span>
+                  </button>
+                )}
+
+                {onUpgrade && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onUpgrade(classItem);
+                      closeMenu();
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-blue-50 text-left transition-colors"
+                    role="menuitem"
+                  >
+                    <ArrowUpCircle className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm font-medium text-gray-700">Upgrade Class</span>
+                  </button>
+                )}
+
+                {onAssignCourses && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onAssignCourses(classItem);
+                      closeMenu();
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-blue-50 text-left transition-colors"
+                    role="menuitem"
+                  >
+                    <Users className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm font-medium text-gray-700">Assign Courses</span>
+                  </button>
+                )}
+
+                {onDelete && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onDelete(classItem.id);
+                      closeMenu();
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-red-50 text-left transition-colors"
+                    role="menuitem"
+                  >
+                    <Trash2 className="w-4 h-4 text-red-600" />
+                    <span className="text-sm font-medium text-red-600">Delete Class</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })(),
+        document.body
+      )}
     </div>
   );
 }

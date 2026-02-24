@@ -1,4 +1,4 @@
-import { Department } from '../model/index.js';
+import { Department, ClassModel } from '../model/index.js';
 import Course from '../model/course.model.js';
 import { Op, UniqueConstraintError } from 'sequelize';
 import sequelize from '../config/db.js';
@@ -75,6 +75,25 @@ export const listCourses = async (req, res) => {
       limit,
       offset,
     });
+
+    // Compute how many classes each course_code is assigned to.
+    // Classes store assigned courses as an array of course_code strings in `Classes.courses`.
+    // Scope by dept_id when available to keep counts consistent with course scoping.
+    let classCountByCode = null;
+    if (where.dept_id) {
+      classCountByCode = new Map();
+      const classRows = await ClassModel.findAll({
+        where: { dept_id: where.dept_id },
+        attributes: ['id', 'courses'],
+      });
+      for (const cls of classRows) {
+        const codes = Array.isArray(cls.courses) ? cls.courses : [];
+        const uniqueCodes = new Set(codes.filter(Boolean).map((x) => String(x).trim()).filter(Boolean));
+        for (const code of uniqueCodes) {
+          classCountByCode.set(code, (classCountByCode.get(code) || 0) + 1);
+        }
+      }
+    }
     const totalPages = Math.ceil(count / limit) || 1;
     const hasMore = page < totalPages;
     return res.json({
@@ -86,6 +105,7 @@ export const listCourses = async (req, res) => {
         hours: c.hours,
         credits: c.credits,
         dept_id: c.dept_id,
+        assigned_class_count: classCountByCode ? (classCountByCode.get(c.course_code) || 0) : 0,
       })),
       page,
       limit,

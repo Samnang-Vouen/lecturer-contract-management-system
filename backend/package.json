@@ -10,6 +10,8 @@
     "start:prod": "node src/server.js",
     "validate": "node -e \"require('fs').existsSync('src/server.js')||process.exit(1)\"",
     "seed:courses": "node src/scripts/seedCourses.js",
+    "seed:departments-courses": "node src/scripts/seedDepartmentsCourses.js",
+    "seed:specializations": "node src/scripts/seedSpecializations.js",
     "lint": "eslint \"src/**/*.js\"",
     "format": "prettier --write ."
   },
@@ -30,12 +32,12 @@
     "puppeteer": "^22.15.0",
     "sequelize": "^6.37.7",
     "swagger-ui-express": "^5.0.1",
-    "zod": "^3.23.8",
-    "yargs": "^18.0.0"
+    "yargs": "^18.0.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
+    "eslint": "^10.0.0",
     "nodemon": "^3.1.10",
-    "eslint": "^9.13.0",
     "prettier": "^3.2.5"
   }
 }
