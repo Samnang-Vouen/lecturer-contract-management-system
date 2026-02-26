@@ -33,6 +33,7 @@
     "sequelize": "^6.37.7",
     "socket.io": "^4.8.3",
     "swagger-ui-express": "^5.0.1",
+    "xlsx": "^0.18.5",
     "yargs": "^18.0.0",
     "zod": "^3.23.8"
   },

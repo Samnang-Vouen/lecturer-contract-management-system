@@ -83,12 +83,12 @@ export const getSchedule = async (req, res) => {
 
 // Helper to embed idt_logo.png as base64 in HTML
 function embedIdtLogo(html) {
-  const logoPath = path.join(process.cwd(), 'src', 'utils', 'idt.png');
+  const logoPath = path.join(process.cwd(), 'src', 'utils', 'idt-logo-blue.png');
   let base64 = '';
   try {
     base64 = fs.readFileSync(logoPath, 'base64');
   } catch {}
-  return html.replace('src="idt.png"', `src="data:image/png;base64,${base64}"`);
+  return html.replace('src="idt-logo-blue.png"', `src="data:image/png;base64,${base64}"`);
 }
 
 // GET /api/schedules/pdf

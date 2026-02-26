@@ -20,6 +20,7 @@ import contractsRoutes from './contracts.route.js';
 import lecturerDashboardRoutes from './lecturerDashboard.route.js';
 import schedule from './schedule.route.js';
 import group from './group.route.js';
+import evaluationRoutes from './evaluation.route.js';
 import specialization from './specialization.route.js';
 
 export function registerRoutes(app) {
@@ -46,5 +47,6 @@ export function registerRoutes(app) {
   app.use('/api/lecturer-dashboard', lecturerDashboardRoutes);
   app.use('/api/schedules', schedule);
   app.use('/api/groups', group);
+  app.use('/api/evaluations', evaluationRoutes);
   app.use('/api/specializations', specialization);
 }
