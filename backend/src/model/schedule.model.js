@@ -10,37 +10,20 @@ const Schedule = sequelize.define(
       autoIncrement: true,
     },
 
-    course_mapping_id: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-      references: {
-        model: 'Course_Mappings',
-        key: 'id',
-      },
-    },
-
-    day_of_week: {
-      type: DataTypes.ENUM('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'),
-      allowNull: false,
-    },
-
-    time_slot_id: {
+    group_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'time_slots',
+        model: 'group',
         key: 'id',
       },
+      onDelete: 'CASCADE',
     },
 
-    room: {
-      type: DataTypes.STRING(100),
+    name: {
+      type: DataTypes.STRING,
       allowNull: false,
-    },
-
-    session_type: {
-      type: DataTypes.ENUM('Theory', 'Lab', 'Lab + Theory'),
-      allowNull: false,
+      comment: 'e.g., "DS - Group 1 - Term 1 2024-2025"',
     },
 
     notes: {
@@ -50,8 +33,8 @@ const Schedule = sequelize.define(
 
     start_date: {
       type: DataTypes.DATEONLY,
-      allowNull: false,
-      defaultValue: DataTypes.NOW,
+      allowNull: true,
+      defaultValue: null,
     },
   },
   {

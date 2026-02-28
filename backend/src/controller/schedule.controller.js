@@ -1,85 +1,16 @@
-import ClassModel from '../model/class.model.js';
+import Schedule from '../model/schedule.model.js';
+import ScheduleEntry from '../model/scheduleEntry.model.js';
+import Group from '../model/group.model.js';
+import CourseMapping from '../model/courseMapping.model.js';
 import Course from '../model/course.model.js';
-import { LecturerProfile, Department, Schedule, CourseMapping } from '../model/index.js';
+import LecturerProfile from '../model/lecturerProfile.model.js';
+import ClassModel from '../model/class.model.js';
+import Specialization from '../model/specialization.model.js';
+import Department from '../model/department.model.js';
+import { TimeSlot } from '../model/timeSlot.model.js';
 import puppeteer from 'puppeteer';
 import fs from 'fs';
 import path from 'path';
-import { TimeSlot } from '../model/timeSlot.model.js';
-import Specialization from '../model/specialization.model.js';
-import Group from '../model/group.model.js';
-import { availabilityToScheduleEntries } from '../utils/availabilityParser.js';
-import { checkScheduleConflict } from '../utils/scheduleHelper.js';
-
-// GET /api/schedules
-export const getSchedule = async (req, res) => {
-  try {
-    const { class_name, dept_name, specialization } = req.query;
-
-    const schedule = await Schedule.findAll({
-      attributes: [
-        'id',
-        'day_of_week',
-        'room',
-        'session_type',
-        'notes',
-        'start_date',
-        'created_at',
-      ],
-      include: [
-        {
-          model: TimeSlot,
-          attributes: ['label'],
-          required: true,
-        },
-        {
-          model: CourseMapping,
-          attributes: ['id', 'academic_year', 'year_level', 'term'],
-          required: true,
-          include: [
-            { model: Course, attributes: ['course_name'] },
-            { model: LecturerProfile, attributes: ['title', 'full_name_english'] },
-            {
-              model: Group,
-              attributes: ['name', 'num_of_student'],
-              required: true,
-              include: [
-                {
-                  model: ClassModel,
-                  attributes: ['name'],
-                  required: !!class_name || !!specialization || !!dept_name,
-                  where: class_name ? { name: class_name } : undefined,
-                  include: [
-                    {
-                      model: Specialization,
-                      attributes: ['name'],
-                      required: !!specialization || !!dept_name,
-                      where: specialization ? { name: specialization } : undefined,
-                      include: [
-                        {
-                          model: Department,
-                          attributes: ['dept_name'],
-                          required: !!dept_name,
-                          where: dept_name ? { dept_name } : undefined,
-                        },
-                      ],
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    });
-
-    return res.status(200).json({
-      schedule,
-      message: 'Schedule retrieved successfully',
-    });
-  } catch (err) {
-    return res.status(500).json({ message: err.message });
-  }
-};
 
 // Helper to embed idt_logo.png as base64 in HTML
 function embedIdtLogo(html) {
@@ -91,8 +22,195 @@ function embedIdtLogo(html) {
   return html.replace('src="idt-logo-blue.png"', `src="data:image/png;base64,${base64}"`);
 }
 
-// GET /api/schedules/pdf
-export const generateSchedulePDF = async (req, res) => {
+// GET /api/schedules - Get all timetable containers
+export const getSchedules = async (req, res) => {
+  try {
+    const { class_name, dept_name, specialization } = req.query;
+
+    const schedules = await Schedule.findAll({
+      attributes: ['id', 'notes', 'start_date', 'created_at'],
+      include: [
+        {
+          model: Group,
+          attributes: ['name', 'num_of_student'],
+          required: true,
+          include: [
+            {
+              model: ClassModel,
+              attributes: ['name'],
+              required: !!class_name || !!specialization || !!dept_name,
+              where: class_name ? { name: class_name } : undefined,
+              include: [
+                {
+                  model: Specialization,
+                  attributes: ['name'],
+                  required: !!specialization || !!dept_name,
+                  where: specialization ? { name: specialization } : undefined,
+                  include: [
+                    {
+                      model: Department,
+                      attributes: ['dept_name'],
+                      required: !!dept_name,
+                      where: dept_name ? { dept_name } : undefined,
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    return res.status(200).json({
+      schedules,
+      message: 'Schedule retrieved successfully.',
+    });
+  } catch (err) {
+    return res.status(500).json({ message: 'Internal Server Error', error: err.message });
+  }
+};
+
+// GET /api/schedules/:id - Get timetable with all entries
+export const getScheduleById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const schedule = await Schedule.findByPk(id, {
+      include: [
+        {
+          model: Group,
+          include: [
+            {
+              model: ClassModel,
+              include: [
+                {
+                  model: Specialization,
+                  include: [
+                    {
+                      model: Department,
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          model: ScheduleEntry,
+          include: [
+            {
+              model: CourseMapping,
+              include: [{ model: Course }, { model: LecturerProfile }],
+            },
+            {
+              model: TimeSlot,
+            },
+          ],
+        },
+      ],
+    });
+
+    if (!schedule) {
+      return res.status(404).json({ message: 'Schedule not found' });
+    }
+
+    return res.status(200).json({ schedule, message: 'Schedule retrieved successfully.' });
+  } catch (err) {
+    return res.status(500).json({ message: 'Internal Server Error', error: err.message });
+  }
+};
+
+// POST /api/schedules - Create a new timetable container
+export const createSchedule = async (req, res) => {
+  try {
+    const { group_id, name, notes, start_date } = req.body;
+
+    if (!group_id) {
+      return res.status(400).json({ message: 'Required group_id' });
+    }
+    if (!name) {
+      return res.status(400).json({ message: 'Required name' });
+    }
+
+    // Verify group exists
+    const group = await Group.findByPk(group_id);
+    if (!group) {
+      return res.status(404).json({ message: 'Group not found' });
+    }
+
+    // Check if schedule already exists for this group
+    const existingSchedule = await Schedule.findOne({
+      where: { group_id },
+    });
+
+    if (existingSchedule) {
+      return res.status(409).json({
+        message: 'A schedule already exists for this group',
+        existing_schedule_id: existingSchedule.id,
+        existing_schedule_name: existingSchedule.name,
+      });
+    }
+
+    const schedule = await Schedule.create({
+      group_id,
+      name,
+      notes,
+      start_date,
+    });
+
+    return res.status(201).json({ schedule, message: 'Schedule created successfully.' });
+  } catch (err) {
+    return res.status(500).json({ message: 'Internal Server Error', error: err.message });
+  }
+};
+
+// PUT /api/schedules/:id - Update timetable container
+export const updateSchedule = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, notes, start_date } = req.body;
+
+    const schedule = await Schedule.findByPk(id);
+    if (!schedule) {
+      return res.status(404).json({ message: 'Schedule not found' });
+    }
+
+    await schedule.update({
+      name: name || schedule.name,
+      notes: notes !== undefined ? notes : schedule.notes,
+      start_date: start_date || schedule.start_date,
+    });
+
+    res.json({ message: 'Schedule updated successfully', schedule });
+  } catch (err) {
+    console.error('[UpdateSchedule]', err);
+    res.status(500).json({ message: 'Internal Server Error', error: err.message });
+  }
+};
+
+// DELETE /api/schedules/:id - Delete timetable (cascades to entries)
+export const deleteSchedule = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const schedule = await Schedule.findByPk(id);
+    if (!schedule) {
+      return res.status(404).json({ message: 'Schedule not found' });
+    }
+
+    // This will cascade delete all schedule entries due to onDelete: 'CASCADE'
+    await schedule.destroy();
+
+    res.json({ message: 'Schedule and all entries deleted successfully' });
+  } catch (err) {
+    console.error('[DeleteSchedule]', err);
+    res.status(500).json({ message: 'Internal Server Error', error: err.message });
+  }
+};
+
+// GET /api/schedules/pdf - Generate PDF with filters (class_name, dept_name, specialization)
+export const generateFilteredSchedulePDF = async (req, res) => {
   let browser;
   try {
     const { class_name, dept_name, specialization } = req.query;
@@ -105,59 +223,45 @@ export const generateSchedulePDF = async (req, res) => {
       order: [['order_index', 'ASC']],
     });
 
-    const schedule = await Schedule.findAll({
-      attributes: [
-        'id',
-        'day_of_week',
-        'room',
-        'session_type',
-        'notes',
-        'start_date',
-        'created_at',
-        'course_mapping_id',
-      ],
+    const scheduleEntries = await ScheduleEntry.findAll({
+      attributes: ['id', 'schedule_id', 'day_of_week', 'room', 'session_type'],
       include: [
         {
           model: TimeSlot,
-          attributes: ['label'],
+          attributes: ['label', 'order_index'],
           required: false,
         },
         {
           model: CourseMapping,
-          attributes: [
-            'id',
-            'group_id',
-            'course_id',
-            'lecturer_profile_id',
-            'academic_year',
-            'year_level',
-            'term',
-          ],
+          attributes: ['academic_year', 'year_level', 'term'],
           required: false,
           include: [
-            { model: Course, attributes: ['course_name'], required: false },
+            { model: Course, attributes: ['course_name', 'course_code'], required: false },
             {
               model: LecturerProfile,
               attributes: ['title', 'full_name_english'],
               required: false,
             },
+          ],
+        },
+        {
+          model: Schedule,
+          attributes: ['id', 'name', 'notes', 'start_date', 'created_at'],
+          required: false,
+          include: [
             {
               model: Group,
-              attributes: ['name', 'num_of_student', 'class_id'],
+              attributes: ['name', 'num_of_student'],
               required: false,
               include: [
                 {
                   model: ClassModel,
-                  attributes: [
-                    'name',
-                    'specialization_id',
-                    'dept_id',
-                  ],
+                  attributes: ['name'],
                   required: false,
                   include: [
                     {
                       model: Specialization,
-                      attributes: ['name', 'dept_id'],
+                      attributes: ['name'],
                       required: false,
                       include: [
                         {
@@ -176,15 +280,15 @@ export const generateSchedulePDF = async (req, res) => {
       ],
     });
 
-    if (schedule.length === 0) {
-      return res.status(404).json({ message: 'No schedule data found in database' });
+    if (scheduleEntries.length === 0) {
+      return res.status(404).json({ message: 'No schedule found' });
     }
 
-    // Filter schedules based on query parameters
-    let filteredSchedule = schedule.filter((s) => {
-      const className = s.CourseMapping?.Group?.Class?.name;
-      const deptName = s.CourseMapping?.Group?.Class?.Specialization?.Department?.dept_name;
-      const specName = s.CourseMapping?.Group?.Class?.Specialization?.name;
+    // Filter schedule entries based on query parameters
+    let filteredEntries = scheduleEntries.filter((entry) => {
+      const className = entry.Schedule?.Group?.Class?.name;
+      const deptName = entry.Schedule?.Group?.Class?.Specialization?.Department?.dept_name;
+      const specName = entry.Schedule?.Group?.Class?.Specialization?.name;
 
       let matches = true;
 
@@ -201,41 +305,43 @@ export const generateSchedulePDF = async (req, res) => {
       return matches;
     });
 
-    if (filteredSchedule.length === 0) {
+    if (filteredEntries.length === 0) {
       return res.status(404).json({ message: 'No schedule data found matching the criteria' });
     }
 
-    // Group schedules by group name
-    const schedulesByGroup = {};
-    filteredSchedule.forEach((s) => {
-      const groupName = s.CourseMapping?.Group?.name;
-      if (groupName) {
-        if (!schedulesByGroup[groupName]) {
-          schedulesByGroup[groupName] = [];
+    // Group entries by schedule_id
+    const entriesBySchedule = {};
+    filteredEntries.forEach((entry) => {
+      const scheduleId = entry.schedule_id;
+      if (scheduleId) {
+        if (!entriesBySchedule[scheduleId]) {
+          entriesBySchedule[scheduleId] = [];
         }
-        schedulesByGroup[groupName].push(s);
+        entriesBySchedule[scheduleId].push(entry);
       }
     });
 
-    const groupNames = Object.keys(schedulesByGroup);
+    const scheduleIds = Object.keys(entriesBySchedule);
 
-    if (groupNames.length === 0) {
-      return res.status(404).json({ message: 'No valid groups found in schedule data' });
+    if (scheduleIds.length === 0) {
+      return res.status(404).json({ message: 'No valid schedules found in data' });
     }
 
-    const generateGroupHTML = (groupSchedules) => {
-      const firstSchedule = groupSchedules[0];
-      const cm = firstSchedule.CourseMapping;
+    const generateScheduleHTML = (entries) => {
+      const firstEntry = entries[0];
+      const cm = firstEntry.CourseMapping;
+      const scheduleContainer = firstEntry.Schedule;
 
       const academic_year = cm?.academic_year || 'N/A';
       const term = cm?.term || 'N/A';
       const year_level = cm?.year_level || 'N/A';
-      const dept_name = cm?.Group?.Class?.Specialization?.Department?.dept_name || 'N/A';
-      const class_name = cm?.Group?.Class?.name || 'N/A';
-      const group_name = cm?.Group?.name || 'N/A';
-      const num_of_student = cm?.Group?.num_of_student || 'N/A';
-      const specialization = cm?.Group?.Class?.Specialization?.name || 'N/A';
-      const note = firstSchedule.notes || 'N/A';
+      const dept_name_val =
+        scheduleContainer?.Group?.Class?.Specialization?.Department?.dept_name || 'N/A';
+      const class_name_val = scheduleContainer?.Group?.Class?.name || 'N/A';
+      const group_name = scheduleContainer?.Group?.name || 'N/A';
+      const num_of_student = scheduleContainer?.Group?.num_of_student || 'N/A';
+      const specialization_val = scheduleContainer?.Group?.Class?.Specialization?.name || 'N/A';
+      const note = scheduleContainer?.notes || 'N/A';
 
       const formatDate = (dateString) => {
         const date = new Date(dateString);
@@ -257,7 +363,6 @@ export const generateSchedulePDF = async (req, res) => {
         const month = monthNames[date.getMonth()];
         const year = date.getFullYear();
 
-        // Add ordinal suffix
         const getOrdinal = (n) => {
           const s = ['th', 'st', 'nd', 'rd'];
           const v = n % 100;
@@ -267,16 +372,16 @@ export const generateSchedulePDF = async (req, res) => {
         return `${getOrdinal(day)} ${month}, ${year}`;
       };
 
-      const created_at = formatDate(firstSchedule.created_at);
-      const start_date = formatDate(firstSchedule.start_date);
+      const created_at = formatDate(scheduleContainer?.created_at);
+      const start_date = formatDate(scheduleContainer?.start_date);
 
+      // Group entries by time slot and day
       const grouped = {};
-
-      groupSchedules.forEach((s) => {
-        if (!s.TimeSlot || !s.TimeSlot.label) return;
-        const key = s.TimeSlot.label;
+      entries.forEach((entry) => {
+        if (!entry.TimeSlot || !entry.TimeSlot.label) return;
+        const key = entry.TimeSlot.label;
         if (!grouped[key]) grouped[key] = {};
-        grouped[key][s.day_of_week] = s;
+        grouped[key][entry.day_of_week] = entry;
       });
 
       const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
@@ -340,30 +445,30 @@ export const generateSchedulePDF = async (req, res) => {
                     }
                   }
 
-                  const s = dayMap[day];
-                  if (!s) return `<td></td>`;
+                  const entry = dayMap[day];
+                  if (!entry) return `<td></td>`;
 
                   if (
-                    !s.CourseMapping ||
-                    !s.CourseMapping.Course ||
-                    !s.CourseMapping.LecturerProfile
+                    !entry.CourseMapping ||
+                    !entry.CourseMapping.Course ||
+                    !entry.CourseMapping.LecturerProfile
                   ) {
                     return `<td></td>`;
                   }
 
                   const sessionLabel =
-                    s.session_type === 'Theory'
+                    entry.session_type === 'Theory'
                       ? 'Theory Class | G1+G2'
-                      : s.session_type === 'Lab'
+                      : entry.session_type === 'Lab'
                         ? 'Lab Class'
                         : 'Theory + Lab';
 
                   return `
                   <td>
                     <p class="class">(${sessionLabel})</p>
-                    <p><strong>${s.CourseMapping.Course.course_name}</strong></p>
-                    <p>${s.CourseMapping.LecturerProfile.title}. ${s.CourseMapping.LecturerProfile.full_name_english}</p>
-                    <p class="class">Room: ${s.room}</p>
+                    <p><strong>${entry.CourseMapping.Course.course_name}</strong></p>
+                    <p>${entry.CourseMapping.LecturerProfile.title}. ${entry.CourseMapping.LecturerProfile.full_name_english}</p>
+                    <p class="class">Room: ${entry.room}</p>
                   </td>
                 `;
                 })
@@ -373,25 +478,23 @@ export const generateSchedulePDF = async (req, res) => {
         })
         .join('');
 
-      let pageHTML = scheduleHTML
+      return scheduleHTML
         .replaceAll('{start_date}', start_date || '')
         .replaceAll('{academic_year}', academic_year || '')
         .replaceAll('{term}', term || '')
         .replaceAll('{year_level}', year_level || '')
-        .replaceAll('{dept_name}', dept_name || '')
-        .replaceAll('{class_name}', class_name || '')
-        .replaceAll('{specialization}', specialization || '')
+        .replaceAll('{dept_name}', dept_name_val || '')
+        .replaceAll('{class_name}', class_name_val || '')
+        .replaceAll('{specialization}', specialization_val || '')
         .replaceAll('{group_name}', group_name || '')
         .replaceAll('{num_of_student}', String(num_of_student) || '')
         .replaceAll('{note}', note || '')
         .replaceAll('{created_at}', created_at || '')
         .replaceAll('{schedule_rows}', rowsHTML);
-
-      return pageHTML;
     };
 
-    const pageContents = groupNames.map((groupName) => {
-      return generateGroupHTML(schedulesByGroup[groupName]);
+    const pageContents = scheduleIds.map((scheduleId) => {
+      return generateScheduleHTML(entriesBySchedule[scheduleId]);
     });
 
     const combinedBodyContent = pageContents
@@ -428,200 +531,8 @@ export const generateSchedulePDF = async (req, res) => {
     res.setHeader('Content-Type', 'application/pdf');
     res.send(pdfBuffer);
   } catch (err) {
-    console.error('PDF generation failed: ', err);
     return res.status(500).json({ message: 'Failed to generate PDF', error: err.message });
   } finally {
     if (browser) await browser.close();
-  }
-};
-
-// POST /api/schedules
-export const createSchedule = async (req, res) => {
-  try {
-    const { course_mapping_id, time_slot_id, start_date, day_of_week, room, session_type, notes } =
-      req.body;
-
-    if (!start_date) return res.status(400).json({ message: 'Required start_date' });
-    if (!room) return res.status(400).json({ message: 'Required room' });
-    if (!session_type) return res.status(400).json({ message: 'Required session_type' });
-    if (!course_mapping_id) return res.status(400).json({ message: 'Required course_mapping_id' });
-    if (!day_of_week) return res.status(400).json({ message: 'Required day_of_week' });
-    if (!time_slot_id) return res.status(400).json({ message: 'Required time_slot_id' });
-
-    const courseMapping = await CourseMapping.findByPk(course_mapping_id);
-    if (!courseMapping) {
-      return res.status(404).json({ message: 'Course mapping not found' });
-    }
-
-    // Validate against availability if set
-    if (courseMapping.availability) {
-      const scheduleEntries = await availabilityToScheduleEntries(
-        courseMapping.availability,
-        TimeSlot
-      );
-      const isValidSchedule = scheduleEntries.some(
-        (entry) => entry.day_of_week === day_of_week && entry.time_slot_id === time_slot_id
-      );
-
-      if (!isValidSchedule) {
-        const requestedTimeSlot = await TimeSlot.findByPk(time_slot_id);
-        const timeSlotLabel = requestedTimeSlot ? requestedTimeSlot.label : time_slot_id;
-
-        return res.status(400).json({
-          message: `Invalid schedule: ${day_of_week} at ${timeSlotLabel} is not in the course availability.`,
-          availability: courseMapping.availability,
-          requested: { day: day_of_week, time_slot: timeSlotLabel },
-          hint: 'The schedule must match one of the sessions defined in the course mapping availability.',
-        });
-      }
-    }
-
-    // Check for conflicts
-    const conflictCheck = await checkScheduleConflict(
-      course_mapping_id,
-      time_slot_id,
-      day_of_week,
-      room
-    );
-
-    if (conflictCheck.hasError) {
-      return res.status(conflictCheck.error.status).json({ message: conflictCheck.error.message });
-    }
-
-    if (conflictCheck.hasConflict) {
-      return res.status(conflictCheck.conflict.status).json({
-        message: conflictCheck.conflict.message,
-        conflict: conflictCheck.conflict.details,
-      });
-    }
-
-    // Create the schedule
-    const schedule = await Schedule.create({
-      course_mapping_id,
-      time_slot_id,
-      day_of_week,
-      room,
-      session_type,
-      notes,
-      start_date,
-    });
-
-    return res.status(201).json({ schedule, message: 'Schedule created successfully' });
-  } catch (err) {
-    console.log('[CreateSchedule]', err);
-    res.status(500).json({ message: 'Internal Server Error', error: err.message });
-  }
-};
-
-// PUT /api/schedules/:id
-export const editSchedule = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const schedule = await Schedule.findByPk(id);
-
-    if (!schedule) {
-      return res.status(404).json({ message: 'Schedule not found' });
-    }
-
-    const { course_mapping_id, time_slot_id, start_date, day_of_week, room, session_type, notes } =
-      req.body;
-
-    if (!start_date) return res.status(400).json({ message: 'Required start_date' });
-    if (!day_of_week) return res.status(400).json({ message: 'Required day_of_week' });
-    if (!room) return res.status(400).json({ message: 'Required room' });
-    if (!session_type) return res.status(400).json({ message: 'Required session_type' });
-
-    const mappingId = course_mapping_id || schedule.course_mapping_id;
-    const slotId = time_slot_id || schedule.time_slot_id;
-
-    // Fetch course mapping to validate availability
-    const courseMapping = await CourseMapping.findByPk(mappingId);
-    if (!courseMapping) {
-      return res.status(404).json({ message: 'Course mapping not found' });
-    }
-
-    // Validate against availability if set
-    if (courseMapping.availability) {
-      const scheduleEntries = await availabilityToScheduleEntries(
-        courseMapping.availability,
-        TimeSlot
-      );
-      const isValidSchedule = scheduleEntries.some(
-        (entry) => entry.day_of_week === day_of_week && entry.time_slot_id === slotId
-      );
-
-      if (!isValidSchedule) {
-        const requestedTimeSlot = await TimeSlot.findByPk(slotId);
-        const timeSlotLabel = requestedTimeSlot ? requestedTimeSlot.label : slotId;
-
-        return res.status(400).json({
-          message: `Invalid schedule: ${day_of_week} at ${timeSlotLabel} is not in the course availability.`,
-          availability: courseMapping.availability,
-          requested: { day: day_of_week, time_slot: timeSlotLabel },
-          hint: 'The schedule must match one of the sessions defined in the course mapping availability.',
-        });
-      }
-    }
-
-    // Check if any conflict-worthy changes are being made
-    const checkingConflict =
-      (course_mapping_id && course_mapping_id !== schedule.course_mapping_id) ||
-      (time_slot_id && time_slot_id !== schedule.time_slot_id) ||
-      day_of_week !== schedule.day_of_week ||
-      room !== schedule.room;
-
-    if (checkingConflict) {
-      // Check for conflicts (excluding current schedule)
-      const conflictCheck = await checkScheduleConflict(mappingId, slotId, day_of_week, room, id);
-
-      if (conflictCheck.hasError) {
-        return res
-          .status(conflictCheck.error.status)
-          .json({ message: conflictCheck.error.message });
-      }
-
-      if (conflictCheck.hasConflict) {
-        return res.status(conflictCheck.conflict.status).json({
-          message: conflictCheck.conflict.message,
-          conflict: conflictCheck.conflict.details,
-        });
-      }
-    }
-
-    await schedule.update({
-      course_mapping_id: mappingId,
-      time_slot_id: slotId,
-      start_date,
-      day_of_week,
-      room,
-      session_type,
-      notes: notes !== undefined ? notes : schedule.notes,
-    });
-
-    return res.status(200).json({ schedule, message: 'Schedule updated successfully' });
-  } catch (err) {
-    console.log('[EditSchedule]', err);
-    res.status(500).json({ message: 'Internal Server Error', error: err.message });
-  }
-};
-
-// DELETE /api/schedules/:id
-export const deleteSchedule = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const schedule = await Schedule.findByPk(id);
-    if (!schedule) {
-      return res.status(404).json({ message: 'Schedule not found' });
-    }
-
-    await schedule.destroy();
-
-    return res.status(200).json({
-      message: 'Schedule deleted successfully',
-    });
-  } catch (err) {
-    console.log('[DeleteSchedule]', err);
-    res.status(500).json({ message: 'Internal Server Error', error: err.message });
   }
 };
