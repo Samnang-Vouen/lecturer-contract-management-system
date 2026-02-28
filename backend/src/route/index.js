@@ -22,6 +22,7 @@ import schedule from './schedule.route.js';
 import group from './group.route.js';
 import evaluationRoutes from './evaluation.route.js';
 import specialization from './specialization.route.js';
+import scheduleEntryRoutes from './scheduleEntry.route.js';
 
 export function registerRoutes(app) {
   // IMPORTANT: Mount the more specific lecturer onboarding route BEFORE the generic /api/lecturers route.
@@ -46,6 +47,7 @@ export function registerRoutes(app) {
   app.use('/api/contracts', contractsRoutes);
   app.use('/api/lecturer-dashboard', lecturerDashboardRoutes);
   app.use('/api/schedules', schedule);
+  app.use('/api/schedules-entries', scheduleEntryRoutes);
   app.use('/api/groups', group);
   app.use('/api/evaluations', evaluationRoutes);
   app.use('/api/specializations', specialization);
