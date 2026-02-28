@@ -111,6 +111,16 @@ export const createSchedule = async (req, res) => {
       return res.status(404).json({ message: 'Course mapping not found' });
     }
 
+    // Ensure the course mapping belongs to the same group as the schedule container
+    if (
+      scheduleContainer.group_id !== undefined &&
+      courseMapping.group_id !== undefined &&
+      scheduleContainer.group_id !== courseMapping.group_id
+    ) {
+      return res.status(400).json({
+        message: 'Course mapping does not belong to the same group as the schedule container',
+      });
+    }
     // Validate against availability if set
     if (courseMapping.availability) {
       const scheduleEntries = await availabilityToScheduleEntries(
