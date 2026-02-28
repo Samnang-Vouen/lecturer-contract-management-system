@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
-import { 
-  LayoutDashboard, 
-  Users, 
+import {
+  LayoutDashboard,
+  Users,
   UserPlus,
-  FileText, 
-  LogOut, 
-  Building2, 
+  FileText,
+  LogOut,
+  Building2,
   Settings,
   PanelRightClose,
   PanelRightOpen,
@@ -18,10 +18,11 @@ import {
   UserCog,
   GraduationCap,
   UsersIcon,
+  CalendarDays,
   FileBarChart,
   Shield,
   ChevronDown,
-  Briefcase
+  Briefcase,
 } from "lucide-react";
 
 // Font styles
@@ -60,7 +61,7 @@ const navItems = [
     href: "/dashboard",
     icon: LayoutDashboard,
     roles: ["superadmin", "admin", "lecturer", "management"],
-    category: null
+    category: null,
   },
   {
     title: "Academic Management",
@@ -68,7 +69,7 @@ const navItems = [
     icon: GraduationCap,
     roles: ["admin"],
     category: "academic",
-    hasSubmenu: true
+    hasSubmenu: true,
   },
   {
     title: "Personnel & HR",
@@ -76,28 +77,35 @@ const navItems = [
     icon: UsersIcon,
     roles: ["admin"],
     category: "personnel",
-    hasSubmenu: true
+    hasSubmenu: true,
   },
   {
     title: "My Contracts",
     href: "/lecturer/my-contracts",
     icon: Briefcase,
     roles: ["lecturer"],
-    category: null
+    category: null,
   },
   {
     title: "Contract Management",
     href: "/management/contracts",
     icon: FileText,
     roles: ["management"],
-    category: null
+    category: null,
+  },
+  {
+    title: "Lecturer Schedule",
+    href: "/lecturer/schedule",
+    icon: CalendarDays,
+    roles: ["lecturer"],
+    category: null,
   },
   {
     title: "Profile Settings",
     href: "/management/profile",
     icon: Settings,
     roles: ["management"],
-    category: null
+    category: null,
   },
   {
     title: "System Administration",
@@ -105,21 +113,21 @@ const navItems = [
     icon: Shield,
     roles: ["superadmin"],
     category: "system",
-    hasSubmenu: true
+    hasSubmenu: true,
   },
   {
     title: "Profile Settings",
     href: "/admin/profile",
     icon: Settings,
     roles: ["admin"],
-    category: null
+    category: null,
   },
   {
-    title: "Account Settings", 
+    title: "Account Settings",
     href: "/lecturer/profile",
     icon: Settings,
     roles: ["lecturer"],
-    category: null
+    category: null,
   },
 ];
 
