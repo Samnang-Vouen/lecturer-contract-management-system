@@ -22,6 +22,7 @@ import NewContract from './newContract.model.js';
 import ContractItem from './contractItem.model.js';
 import AdvisorResponsibility from './advisorResponsibility.model.js';
 import Schedule from './schedule.model.js';
+import ScheduleEntry from './scheduleEntry.model.js';
 
 import HourRating from './hourRating.model.js';
 import RateHistory from './rateHistory.model.js';
@@ -36,6 +37,7 @@ import EvaluationQuestion from './evaluation/evaluationQuestion.model.js';
 import EvaluationLecturer from './evaluation/evaluationLecturer.model.js';
 
 import Notification from './notification.js';
+
 // Set up associations
 
 // User - Role (Many-to-Many)
@@ -199,11 +201,11 @@ Department.hasMany(CourseMapping, {
   foreignKey: 'dept_id',
 });
 
-CourseMapping.hasMany(Schedule, {
+CourseMapping.hasMany(ScheduleEntry, {
   foreignKey: 'course_mapping_id',
 });
 
-Schedule.belongsTo(CourseMapping, {
+ScheduleEntry.belongsTo(CourseMapping, {
   foreignKey: 'course_mapping_id',
 });
 
@@ -214,12 +216,30 @@ Evaluation.belongsTo(CourseMapping, {
   foreignKey: 'course_mapping_id',
 });
 
-TimeSlot.hasMany(Schedule, {
+TimeSlot.hasMany(ScheduleEntry, {
   foreignKey: 'time_slot_id',
 });
 
-Schedule.belongsTo(TimeSlot, {
+ScheduleEntry.belongsTo(TimeSlot, {
   foreignKey: 'time_slot_id',
+});
+
+// Schedule - Group relationships
+Schedule.belongsTo(Group, {
+  foreignKey: 'group_id',
+  onDelete: 'CASCADE',
+  onUpdate: 'CASCADE',
+});
+Group.hasMany(Schedule, {
+  foreignKey: 'group_id',
+});
+
+// Schedule - ScheduleEntry relationships
+Schedule.hasMany(ScheduleEntry, {
+  foreignKey: 'schedule_id',
+});
+ScheduleEntry.belongsTo(Schedule, {
+  foreignKey: 'schedule_id',
 });
 
 // Teaching contract relationships
@@ -405,18 +425,15 @@ CandidateQuestion.belongsTo(InterviewQuestion, {
 });
 
 Notification.belongsTo(User, {
-  foreignKey: "user_id",
-  as: "user",
-  onDelete: "CASCADE",
-  onUpdate: "CASCADE",
+  foreignKey: 'user_id',
+  as: 'user',
+  onDelete: 'CASCADE',
+  onUpdate: 'CASCADE',
 });
 
 User.hasMany(Notification, {
-  foreignKey: "user_id", 
-  
-})
-
-
+  foreignKey: 'user_id',
+});
 
 // Export all models
 export {
@@ -443,6 +460,7 @@ export {
   ContractItem,
   AdvisorResponsibility,
   Schedule,
+  ScheduleEntry,
   Evaluation,
   EvaluationSubmission,
   LecturerEvaluation,
