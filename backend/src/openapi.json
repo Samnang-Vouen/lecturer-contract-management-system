@@ -3431,7 +3431,6 @@
                         }
                       }
                     },
-                    "count": { "type": "integer", "description": "Total number of lecturers" },
                     "message": { "type": "string" }
                   }
                 }
@@ -3490,7 +3489,7 @@
                         "id": { "type": "integer" },
                         "full_name_english": { "type": "string" },
                         "candidate_id": { "type": "integer" },
-                        "hourlyRate": { "type": "string" }
+                        "hourlyRate": { "type": "number" }
                       }
                     }
                   }
