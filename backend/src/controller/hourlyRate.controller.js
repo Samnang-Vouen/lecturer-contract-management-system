@@ -145,7 +145,7 @@ export const getHourlyRate = async (req, res) => {
         gender: lecturer.gender,
         full_name_english: lecturer.full_name_english,
         full_name_khmer: lecturer.full_name_khmer,
-        hourlyRate: lecturer.Candidate?.hourlyRate || null,
+        hourlyRate: lecturer.Candidate?.hourlyRate ?? null,
         totalTerms,
         totalHours,
         totalRatingSum,
