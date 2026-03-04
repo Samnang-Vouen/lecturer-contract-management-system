@@ -145,7 +145,7 @@ export const getHourlyRate = async (req, res) => {
         gender: lecturer.gender,
         full_name_english: lecturer.full_name_english,
         full_name_khmer: lecturer.full_name_khmer,
-        hourlyRate: lecturer.Candidate?.hourlyRate || null,
+        hourlyRate: lecturer.Candidate?.hourlyRate ?? null,
         totalTerms,
         totalHours,
         totalRatingSum,
@@ -182,7 +182,7 @@ export const updateHourlyRate = async (req, res) => {
 
     // Validate hourlyRate is a valid number
     const rateValue = parseFloat(hourlyRate);
-    if (isNaN(rateValue) || rateValue < 0) {
+    if (isNaN(rateValue) || rateValue <= 0) {
       return res.status(400).json({ message: 'Hourly rate must be a valid positive number' });
     }
 
