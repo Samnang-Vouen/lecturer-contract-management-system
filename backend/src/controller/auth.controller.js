@@ -1,5 +1,5 @@
 import { User, Role, UserRole, LecturerProfile } from '../model/index.js';
-import { generateToken } from '../config/utils.js';
+import { generateToken, getJwtSecret } from '../config/utils.js';
 import {
   EMAIL_DOMAIN,
   PASSWORD_MIN_LENGTH,
@@ -195,7 +195,7 @@ export const checkAuth = async (req, res) => {
 
     let payload;
     try {
-      payload = jwt.verify(token, process.env.JWT_SECRET);
+      payload = jwt.verify(token, getJwtSecret());
     } catch (_) {
       return res.status(HTTP_STATUS.OK).json({ authenticated: false });
     }
