@@ -10,8 +10,8 @@ export default function LecturerHeader({ onOpenCreateModal }) {
           <Users className='w-6 h-6 sm:w-8 sm:h-8 text-white' />
         </div>
         <div>
-          <h1 className='text-2xl sm:text-3xl font-bold text-gray-900'>Lecturer Management</h1>
-          <p className='text-gray-600 mt-1 sm:mt-2 text-sm sm:text-lg'>Manage lecturer accounts and profiles</p>
+          <h1 className='text-2xl sm:text-3xl font-bold text-gray-900'>Lecturer & Advisor Management</h1>
+          <p className='text-gray-600 mt-1 sm:mt-2 text-sm sm:text-lg'>Manage lecturer and advisor accounts and profiles</p>
         </div>
       </div>
 
@@ -20,7 +20,7 @@ export default function LecturerHeader({ onOpenCreateModal }) {
         className='w-auto justify-center bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200'
       >
         <Plus className='w-5 h-5 mr-2' />
-        <span>New Lecturer</span>
+        <span>New Lecturer / Advisor</span>
       </Button>
     </div>
   );

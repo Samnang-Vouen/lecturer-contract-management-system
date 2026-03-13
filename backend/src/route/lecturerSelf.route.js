@@ -4,8 +4,8 @@ import { getMyCourses, getMyCourseMappings } from '../controller/lecturerSelf.co
 
 const router = express.Router();
 
-// Only lecturers can access these endpoints
-router.use(protect, authorizeRoles(['lecturer']));
+// Lecturers and advisors can access these endpoints
+router.use(protect, authorizeRoles(['lecturer', 'advisor']));
 
 router.get('/courses', getMyCourses);
 router.get('/course-mappings', getMyCourseMappings);

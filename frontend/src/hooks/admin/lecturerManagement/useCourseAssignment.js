@@ -1,7 +1,14 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { updateLecturerCourses } from '../../../services/lecturer.service';
+import { updateAdvisorCourses } from '../../../services/advisor.service';
 import { getCatalogCourses } from '../../../services/catalog.service';
+
+const isAdvisorTarget = (target) => {
+  const roleLc = String(target?.role || '').trim().toLowerCase();
+  const positionLc = String(target?.position || '').trim().toLowerCase();
+  return roleLc === 'advisor' || positionLc === 'advisor';
+};
 
 export function useCourseAssignment(setLecturers) {
   const [assigning, setAssigning] = useState(null);
@@ -57,7 +64,8 @@ export function useCourseAssignment(setLecturers) {
       const course_ids = selectedCourses.map(code => map.get(code)).filter(Boolean);
       
       setAssignLoading(true);
-      await updateLecturerCourses(assigning.id, course_ids);
+      const updater = isAdvisorTarget(assigning) ? updateAdvisorCourses : updateLecturerCourses;
+      await updater(assigning.id, course_ids);
       
       toast.success('Courses updated');
       

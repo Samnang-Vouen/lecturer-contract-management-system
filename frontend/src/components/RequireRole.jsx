@@ -7,19 +7,22 @@ const roleHome = {
   superadmin: '/superadmin',
   admin: '/admin',
   lecturer: '/lecturer',
+  advisor: '/advisor',
   management: '/management',
 };
 
 export default function RequireRole({ allowed, children }) {
-  const { authUser, isCheckingAuth } = useAuthStore();
+  const authUser = useAuthStore((s) => s.authUser);
+  const isCheckingAuth = useAuthStore((s) => s.isCheckingAuth);
   const location = useLocation();
   const [onboardingStatus, setOnboardingStatus] = useState({ loading: false, complete: true });
 
   useEffect(()=>{
     let ignore=false;
     async function check(){
-      if(!authUser || authUser.role !== 'lecturer') {
-        // Reset to default for non-lecturers
+      const r = String(authUser?.role || '').toLowerCase();
+      if(!authUser || (r !== 'lecturer' && r !== 'advisor')) {
+        // Reset to default for non lecturer/advisor users
         setOnboardingStatus({ loading: false, complete: true });
         return;
       }
@@ -50,16 +53,19 @@ export default function RequireRole({ allowed, children }) {
     return <Navigate to={roleHome[authUser.role] || '/login'} replace />;
   }
 
-  // Lecturer onboarding gate: if lecturer accessing any lecturer route except /onboarding and not complete -> redirect
-  if(authUser.role==='lecturer'){
+  // Lecturer/Advisor onboarding gate: block panel until onboarding complete
+  {
+    const r = String(authUser.role || '').toLowerCase();
+    if (r === 'lecturer' || r === 'advisor') {
     const pathname = location.pathname;
     const isOnboardingPage = pathname.startsWith('/onboarding');
     if(onboardingStatus.loading) return null; // wait
     if(!onboardingStatus.complete && !isOnboardingPage){
       return <Navigate to="/onboarding" replace state={{ from: pathname }} />;
     }
-    if(onboardingStatus.complete && isOnboardingPage){
-      return <Navigate to="/lecturer" replace />;
+      if(onboardingStatus.complete && isOnboardingPage){
+        return <Navigate to={r === 'advisor' ? '/advisor' : '/lecturer'} replace />;
+      }
     }
   }
 

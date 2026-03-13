@@ -18,6 +18,7 @@ import majorRoutes from './major.route.js';
 import teachingContractRoutes from './teachingContract.route.js';
 import contractsRoutes from './contracts.route.js';
 import advisorContractRoutes from './advisorContract.route.js';
+import advisorRoutes from './advisor.route.js';
 import lecturerDashboardRoutes from './lecturerDashboard.route.js';
 import schedule from './schedule.route.js';
 import group from './group.route.js';
@@ -33,6 +34,7 @@ export function registerRoutes(app) {
   app.use('/api/users', userRoutes);
   app.use('/api/lecturers/onboarding', onboardingRoutes);
   app.use('/api/lecturers', lecturerRoutes);
+  app.use('/api/advisors', advisorRoutes);
   app.use('/api/lecturer', lecturerSelfRoutes);
   app.use('/api/lecturer-profile', lecturerProfileRoutes);
   app.use('/api/classes', classRoutes);

@@ -12,7 +12,7 @@ import {
 
 const router = express.Router();
 
-router.use(protect, authorizeRoles(['lecturer', 'admin', 'superadmin']));
+router.use(protect, authorizeRoles(['lecturer', 'advisor', 'admin', 'superadmin']));
 
 router.get('/me', getMyLecturerProfile);
 router.put('/me', updateMyLecturerProfile);

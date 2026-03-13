@@ -21,7 +21,11 @@ const router = express.Router();
 
 router.use(protect);
 
-router.get('/', authorizeRoles(['admin', 'management', 'superadmin', 'lecturer']), listAdvisorContracts);
+router.get(
+  '/',
+  authorizeRoles(['admin', 'management', 'superadmin', 'lecturer', 'advisor']),
+  listAdvisorContracts
+);
 
 router.post(
   '/',
@@ -30,12 +34,16 @@ router.post(
   createAdvisorContract
 );
 
-router.get('/:id', authorizeRoles(['admin', 'management', 'superadmin', 'lecturer']), getAdvisorContract);
+router.get(
+  '/:id',
+  authorizeRoles(['admin', 'management', 'superadmin', 'lecturer', 'advisor']),
+  getAdvisorContract
+);
 
 // Update status (e.g., management requests redo)
 router.patch(
   '/:id/status',
-  authorizeRoles(['admin', 'management', 'superadmin', 'lecturer']),
+  authorizeRoles(['admin', 'management', 'superadmin', 'lecturer', 'advisor']),
   validate(AdvisorContractStatusUpdateSchema, 'body'),
   updateAdvisorStatus
 );
@@ -51,14 +59,14 @@ router.patch(
 // Generate/preview advisor contract PDF
 router.get(
   '/:id/pdf',
-  authorizeRoles(['admin', 'management', 'superadmin', 'lecturer']),
+  authorizeRoles(['admin', 'management', 'superadmin', 'lecturer', 'advisor']),
   generateAdvisorPdf
 );
 
 // Upload e-signature (who=advisor|management)
 router.post(
   '/:id/signature',
-  authorizeRoles(['admin', 'lecturer', 'management', 'superadmin']),
+  authorizeRoles(['admin', 'lecturer', 'advisor', 'management', 'superadmin']),
   uploadAdvisorSignature.single('file'),
   uploadAdvisorContractSignature
 );

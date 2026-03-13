@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useAuthStore } from '../../../store/useAuthStore';
 import { listContracts } from '../../../services/contract.service';
 import { listAdvisorContracts } from '../../../services/advisorContract.service';
 import { getMyLecturerProfile } from '../../../services/lecturerProfile.service';
@@ -9,6 +10,7 @@ import { getDisplayStatus } from '../../../utils/lecturerContractHelpers';
  * Handles fetching contracts and lecturer profile
  */
 export const useContractData = () => {
+  const { authUser } = useAuthStore();
   const [contracts, setContracts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -23,14 +25,21 @@ export const useContractData = () => {
   const fetchContracts = async () => {
     try {
       setLoading(true);
-      const [teachingRes, advisorRes] = await Promise.all([
-        listContracts({ page, limit, q: q || undefined }),
-        // Advisor contracts endpoint supports lecturer scope; keep it unfiltered for now.
-        listAdvisorContracts({ page: 1, limit: 1000 }),
-      ]);
+      const role = String(authUser?.role || '').toLowerCase();
 
-      const teaching = (teachingRes?.data || []).map((c) => ({ ...c, contract_type: 'TEACHING' }));
-      const advisor = (advisorRes?.data || []).map((c) => ({ ...c, contract_type: 'ADVISOR' }));
+      let teaching = [];
+      let advisor = [];
+
+      // Advisors should only see advisor contracts (teaching contracts are lecturer-only).
+      if (role !== 'advisor') {
+        const teachingRes = await listContracts({ page, limit, q: q || undefined });
+        teaching = (teachingRes?.data || []).map((c) => ({ ...c, contract_type: 'TEACHING' }));
+      }
+
+      // Advisor contracts endpoint supports lecturer/advisor scope; keep it unfiltered.
+      const advisorRes = await listAdvisorContracts({ page: 1, limit: 1000 });
+      advisor = (advisorRes?.data || []).map((c) => ({ ...c, contract_type: 'ADVISOR' }));
+
       const merged = [...teaching, ...advisor];
 
       setContracts(merged);
@@ -69,7 +78,7 @@ export const useContractData = () => {
   // Fetch contracts when dependencies change
   useEffect(() => {
     fetchContracts();
-  }, [page, limit, q]);
+  }, [page, limit, q, authUser?.role]);
 
   // Pending contracts (requiring lecturer signature)
   const pendingContracts = useMemo(() => 

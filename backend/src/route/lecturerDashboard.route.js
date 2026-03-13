@@ -12,22 +12,22 @@ const router = express.Router();
 router.use(protect);
 router.get(
   '/summary',
-  authorizeRoles(['lecturer', 'admin', 'management', 'superadmin']),
+  authorizeRoles(['lecturer', 'advisor', 'admin', 'management', 'superadmin']),
   getLecturerDashboardSummary
 );
 router.get(
   '/realtime',
-  authorizeRoles(['lecturer', 'admin', 'management', 'superadmin']),
+  authorizeRoles(['lecturer', 'advisor', 'admin', 'management', 'superadmin']),
   getLecturerRealtime
 );
 router.get(
   '/activities',
-  authorizeRoles(['lecturer', 'admin', 'management', 'superadmin']),
+  authorizeRoles(['lecturer', 'advisor', 'admin', 'management', 'superadmin']),
   getLecturerActivities
 );
 router.get(
   '/salary-analysis',
-  authorizeRoles(['lecturer', 'admin', 'management', 'superadmin']),
+  authorizeRoles(['lecturer', 'advisor', 'admin', 'management', 'superadmin']),
   getLecturerSalaryAnalysis
 );
 

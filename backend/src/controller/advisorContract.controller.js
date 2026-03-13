@@ -10,6 +10,30 @@ async function ensureUserHasRole(userId, roleName, { transaction } = {}) {
   const normalized = String(roleName || '').trim().toLowerCase();
   if (!normalized) return;
 
+  // Business rule: only Lecturer/Assistant Lecturer positions can be promoted to advisor.
+  // Advisor-position users can still have advisor role (already advisor).
+  if (normalized === 'advisor') {
+    const profile = await LecturerProfile.findOne({
+      where: { user_id: userId },
+      attributes: ['id', 'position'],
+      transaction,
+    });
+    const posNorm = String(profile?.position || '')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, ' ');
+    const isAdvisorPosition = posNorm === 'advisor';
+    const isPromotableLecturerPosition = posNorm === 'lecturer' || posNorm === 'assistant lecturer';
+
+    if (!isAdvisorPosition && !isPromotableLecturerPosition) {
+      const err = new Error(
+        "Only users with position 'Lecturer' or 'Assistant Lecturer' can be promoted to the 'advisor' role"
+      );
+      err.status = HTTP_STATUS.BAD_REQUEST;
+      throw err;
+    }
+  }
+
   const roles = await Role.findAll({ transaction });
   let role = roles.find((r) => String(r?.role_type || '').trim().toLowerCase() === normalized) || null;
   if (!role) {
@@ -163,7 +187,7 @@ export async function uploadAdvisorContractSignature(req, res) {
     if (!req.file) return res.status(HTTP_STATUS.BAD_REQUEST).json({ message: 'No file uploaded' });
 
     const actorRole = String(req.user?.role || '').toLowerCase();
-    if (actorRole === 'lecturer' && found.lecturer_user_id !== req.user.id) {
+    if ((actorRole === 'lecturer' || actorRole === 'advisor') && found.lecturer_user_id !== req.user.id) {
       return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied' });
     }
     if (['admin', 'management'].includes(actorRole)) {
@@ -293,6 +317,9 @@ export async function createAdvisorContract(req, res) {
       await tx.rollback();
     } catch {}
     console.error('[createAdvisorContract]', e);
+    if (e?.status && Number.isInteger(e.status) && e.status >= 400 && e.status < 500) {
+      return res.status(e.status).json({ message: e.message });
+    }
     return res
       .status(HTTP_STATUS.SERVER_ERROR)
       .json({ message: 'Failed to create advisor contract', error: e.message });
@@ -310,7 +337,7 @@ export async function listAdvisorContracts(req, res) {
 
     const where = {};
     const actorRole = String(req.user?.role || '').toLowerCase();
-    if (actorRole === 'lecturer') {
+    if (actorRole === 'lecturer' || actorRole === 'advisor') {
       where.lecturer_user_id = req.user.id;
     }
     if (['admin', 'management'].includes(actorRole)) {
@@ -381,7 +408,7 @@ export async function getAdvisorContract(req, res) {
     if (!found) return res.status(HTTP_STATUS.NOT_FOUND).json({ message: 'Not found' });
 
     const actorRole = String(req.user?.role || '').toLowerCase();
-    if (actorRole === 'lecturer' && found.lecturer_user_id !== req.user.id) {
+    if ((actorRole === 'lecturer' || actorRole === 'advisor') && found.lecturer_user_id !== req.user.id) {
       return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied' });
     }
     if (['admin', 'management'].includes(actorRole)) {
@@ -418,7 +445,7 @@ export async function updateAdvisorStatus(req, res) {
     if (!found) return res.status(HTTP_STATUS.NOT_FOUND).json({ message: 'Not found' });
 
     const actorRole = String(req.user?.role || '').toLowerCase();
-    if (actorRole === 'lecturer' && found.lecturer_user_id !== req.user.id) {
+    if ((actorRole === 'lecturer' || actorRole === 'advisor') && found.lecturer_user_id !== req.user.id) {
       return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied' });
     }
     if (['admin', 'management'].includes(actorRole)) {
@@ -541,7 +568,7 @@ export async function generateAdvisorPdf(req, res) {
     if (!found) return res.status(HTTP_STATUS.NOT_FOUND).json({ message: 'Not found' });
 
     const actorRole = String(req.user?.role || '').toLowerCase();
-    if (actorRole === 'lecturer' && found.lecturer_user_id !== req.user.id) {
+    if ((actorRole === 'lecturer' || actorRole === 'advisor') && found.lecturer_user_id !== req.user.id) {
       return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied' });
     }
     if (['admin', 'management'].includes(actorRole)) {

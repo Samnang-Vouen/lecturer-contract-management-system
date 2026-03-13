@@ -165,7 +165,7 @@ export const getAllUsers = async (req, res) => {
  */
 export const createUser = async (req, res) => {
   try {
-    let { fullName, email, role, department, position } = req.body;
+    let { fullName, email, role, department, position, title, gender } = req.body;
     const errors = {};
     if (!fullName || !fullName.trim()) errors.fullName = 'Full name is required';
     if (!email || !email.trim()) {
@@ -177,6 +177,7 @@ export const createUser = async (req, res) => {
     }
     // Force lecturer role if not supplied
     if (!role) role = 'lecturer';
+    const roleLc = String(role || '').toLowerCase();
     // Infer department from creating admin if not supplied; do NOT fall back to 'General'
     if (!department) {
       if (req.user?.department_name) {
@@ -185,13 +186,30 @@ export const createUser = async (req, res) => {
         errors.department = 'Department missing (assign admin a department first)';
       }
     }
-    // Validate position field for lecturers
-    if (role.toLowerCase() === 'lecturer') {
-      if (!position || !position.trim()) {
+    // Normalize/validate position per role
+    const positionTrimmed = String(position || '').trim();
+    if (roleLc === 'lecturer') {
+      if (!positionTrimmed) {
         errors.position = 'Position is required for lecturers';
-      } else if (!['Lecturer', 'Teaching Assistant (TA)'].includes(position.trim())) {
-        errors.position = "Position must be either 'Lecturer' or 'Teaching Assistant (TA)'";
+      } else if (positionTrimmed.toLowerCase() === 'advisor') {
+        // Advisor must be created via the advisor role/route.
+        errors.position = "Advisor accounts must be created with role 'advisor'";
+      } else if (!['Lecturer', 'Assistant Lecturer'].includes(positionTrimmed)) {
+        errors.position = "Position must be either 'Lecturer' or 'Assistant Lecturer'";
       }
+    } else if (roleLc === 'advisor') {
+      // Always force Advisor position for advisor users
+      if (positionTrimmed && positionTrimmed.toLowerCase() !== 'advisor') {
+        errors.position = "Advisor users must have position 'Advisor'";
+      }
+      position = 'Advisor';
+    }
+    // Validate optional profile enums
+    if (title && !['Mr', 'Ms', 'Mrs', 'Dr', 'Prof'].includes(String(title))) {
+      errors.title = 'Invalid title';
+    }
+    if (gender && !['male', 'female', 'other'].includes(String(gender))) {
+      errors.gender = 'Invalid gender';
     }
     if (Object.keys(errors).length > 0)
       return res.status(400).json({ message: 'Validation failed', errors });
@@ -240,14 +258,17 @@ export const createUser = async (req, res) => {
       await UserRole.create({ user_id: newUser.id, role_id: userRole.id }, { transaction: t });
 
       let lecturerProfile = null;
-      if (role.toLowerCase() === 'lecturer') {
+      if (roleLc === 'lecturer' || roleLc === 'advisor') {
         console.log('[createUser] (tx) creating LecturerProfile');
         lecturerProfile = await LecturerProfile.create(
           {
             user_id: newUser.id,
             employee_id: `EMP${Date.now().toString().slice(-6)}`,
             full_name_english: fullName,
-            position: position.trim(),
+            position: String(position || '').trim(),
+            occupation: String(position || '').trim(),
+            title: title || null,
+            gender: gender || null,
             join_date: new Date(),
             status: 'active',
             cv_uploaded: false,
@@ -344,19 +365,21 @@ export const createLecturerFromCandidate = async (req, res) => {
       if (!s) return 'Lecturer';
       // Advisor (EN/KM)
       if (/\b(advisor|adviser)\b/i.test(s) || /អ្នកប្រឹក្សា/.test(s)) return 'Advisor';
-      // Professor
-      if (/\bprofessor\b/i.test(s)) return 'Professor';
-      // Senior Lecturer
-      if (/\bsenior\s+lecturer\b/i.test(s)) return 'Senior Lecturer';
       // Assistant Lecturer
       if (/\bassistant\s+lecturer\b/i.test(s)) return 'Assistant Lecturer';
-      // Teaching Assistant (keep last so it doesn't swallow Assistant Lecturer)
-      if (/\b(teaching\s*assistant|\bta\b)\b/i.test(s)) return 'Teaching Assistant (TA)';
       // Lecturer variants
       if (/(lecturer|instructor|teacher)/i.test(s)) return 'Lecturer';
       return 'Lecturer';
     };
     const position = normalizePosition(cand.positionAppliedFor);
+
+    // Enforce separation: advisor candidates must use advisor creation route/controller
+    if (String(position).toLowerCase() === 'advisor') {
+      return res.status(400).json({
+        message:
+          'Candidate applied for Advisor. Create this user via POST /api/advisors/from-candidate/:id to assign the advisor role.',
+      });
+    }
 
     // Prefer admin-provided title/gender; fallback to simple heuristics/null
     let { title, gender } = req.body || {};
@@ -472,14 +495,54 @@ export const updateUser = async (req, res) => {
     await user.save();
 
     // Update role if provided
+    // Business rules:
+    // - Lecturer-type users can be promoted to advisor (add advisor role) only if their position is Lecturer/Assistant Lecturer.
+    // - Advisor-type users (position Advisor) cannot be promoted to anything else.
     if (role) {
-      const [roleModel] = await Role.findOrCreate({
-        where: { role_type: role },
-        defaults: { role_type: role },
-      });
-      // Remove existing
-      await UserRole.destroy({ where: { user_id: user.id } });
-      await UserRole.create({ user_id: user.id, role_id: roleModel.id });
+      const requestedRole = String(role || '').trim().toLowerCase();
+      const profile = await LecturerProfile.findOne({ where: { user_id: user.id } });
+      const posNorm = String(profile?.position || '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, ' ');
+
+      const isAdvisorPosition = posNorm === 'advisor';
+      const isPromotableLecturerPosition = posNorm === 'lecturer' || posNorm === 'assistant lecturer';
+
+      if (requestedRole === 'lecturer') {
+        if (isAdvisorPosition) {
+          return res
+            .status(400)
+            .json({ message: "Advisor-position users cannot be assigned the 'lecturer' role" });
+        }
+        const [roleModel] = await Role.findOrCreate({
+          where: { role_type: 'lecturer' },
+          defaults: { role_type: 'lecturer' },
+        });
+        const existing = await UserRole.findOne({ where: { user_id: user.id, role_id: roleModel.id } });
+        if (!existing) await UserRole.create({ user_id: user.id, role_id: roleModel.id });
+      } else if (requestedRole === 'advisor') {
+        if (!isAdvisorPosition && !isPromotableLecturerPosition) {
+          return res.status(400).json({
+            message:
+              "Only users with position 'Lecturer' or 'Assistant Lecturer' can be promoted to the 'advisor' role",
+          });
+        }
+        const [roleModel] = await Role.findOrCreate({
+          where: { role_type: 'advisor' },
+          defaults: { role_type: 'advisor' },
+        });
+        const existing = await UserRole.findOne({ where: { user_id: user.id, role_id: roleModel.id } });
+        if (!existing) await UserRole.create({ user_id: user.id, role_id: roleModel.id });
+      } else {
+        // For non lecturer/advisor roles, keep previous behavior (replace roles) to avoid changing admin semantics.
+        const [roleModel] = await Role.findOrCreate({
+          where: { role_type: role },
+          defaults: { role_type: role },
+        });
+        await UserRole.destroy({ where: { user_id: user.id } });
+        await UserRole.create({ user_id: user.id, role_id: roleModel.id });
+      }
     }
     return res.json({ message: 'User updated' });
   } catch (e) {

@@ -22,7 +22,18 @@ export function clearAuthToken() {
 
 // Basic pass-through interceptors, reserved for future instrumentation
 axiosInstance.interceptors.request.use(
-    (config) => config,
+    (config) => {
+        try {
+            if (import.meta?.env?.DEV && String(config?.url || '').includes('/lecturers')) {
+                console.debug('[axios] request', {
+                    baseURL: config.baseURL,
+                    url: config.url,
+                    params: config.params,
+                });
+            }
+        } catch {}
+        return config;
+    },
     (error) => Promise.reject(error)
 );
 

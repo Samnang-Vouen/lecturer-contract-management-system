@@ -5,6 +5,7 @@ import CreateLecturerModal from '../../components/CreateLecturerModal';
 import AssignCoursesDialog from '../../components/AssignCoursesDialog';
 import toast from 'react-hot-toast';
 import { getLecturerDetail } from '../../services/lecturer.service';
+import { getAdvisorDetail } from '../../services/advisor.service';
 
 // Custom Hooks
 import { useLecturers } from '../../hooks/admin/lecturerManagement/useLecturers';
@@ -32,6 +33,7 @@ export default function LecturerManagement() {
     lecturers,
     setLecturers,
     isLoading,
+    isUpdating,
     searchQuery,
     setSearchQuery,
     page,
@@ -111,7 +113,10 @@ export default function LecturerManagement() {
       email: lec.email,
       status: 'inactive',
       lastLogin: 'Never',
-      role: 'lecturer',
+      role: lec.role || lec.user?.role || 'lecturer',
+      roles: Array.isArray(lec.roles)
+        ? lec.roles
+        : [lec.role || lec.user?.role || 'lecturer'],
       position: lec.profile?.position || 'Lecturer',
       tempPassword: lec.tempPassword
     };
@@ -132,7 +137,11 @@ export default function LecturerManagement() {
   const handleAssignCoursesClick = async (lecturer) => {
     closeMenu();
     try {
-      const detail = await getLecturerDetail(lecturer.id);
+      const roleLc = Array.isArray(lecturer?.role)
+        ? lecturer.role.map(r => String(r ?? '').trim().toLowerCase()).filter(Boolean).join(',')
+        : String(lecturer?.role || '').trim().toLowerCase();
+      const isAdvisor = roleLc === 'advisor' || roleLc.includes('advisor');
+      const detail = await (isAdvisor ? getAdvisorDetail(lecturer.id) : getLecturerDetail(lecturer.id));
       await openAssignment(lecturer, detail);
     } catch (e) {
       console.error('Failed to open assignment', e);
@@ -152,7 +161,11 @@ export default function LecturerManagement() {
 
   const handleSaveProfile = async () => {
     const success = await saveProfile(selectedLecturer, async (id) => {
-      const raw = await getLecturerDetail(id);
+      const roleLc = Array.isArray(selectedLecturer?.role)
+        ? selectedLecturer.role.map(r => String(r ?? '').trim().toLowerCase()).filter(Boolean).join(',')
+        : String(selectedLecturer?.role || '').trim().toLowerCase();
+      const isAdvisor = roleLc === 'advisor' || roleLc.includes('advisor');
+      const raw = await (isAdvisor ? getAdvisorDetail(id) : getLecturerDetail(id));
       const get = (k, alt) => raw[k] ?? raw.data?.[k] ?? raw.profile?.[k] ?? alt;
       setSelectedLecturer(p => ({
         ...p,
@@ -167,7 +180,7 @@ export default function LecturerManagement() {
   };
 
   const handlePayrollUploadWrapper = async (file) => {
-    const newPath = await handlePayrollUpload(selectedLecturer.id, file, (path) => {
+    await handlePayrollUpload(selectedLecturer, file, (path) => {
       setSelectedLecturer(p => ({
         ...p,
         payrollFilePath: path || p.payrollFilePath,
@@ -184,11 +197,15 @@ export default function LecturerManagement() {
         </div>
       </div>
 
-      <LecturerSearch searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
+      <LecturerSearch
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+      />
 
       <LecturerTable
         lecturers={lecturers}
         isLoading={isLoading}
+        isUpdating={isUpdating}
         totalLecturers={totalLecturers}
         page={page}
         setPage={setPage}

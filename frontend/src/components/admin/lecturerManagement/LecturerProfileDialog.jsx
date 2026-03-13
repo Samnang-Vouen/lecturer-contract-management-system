@@ -24,6 +24,18 @@ export default function LecturerProfileDialog({
 }) {
   if (!lecturer) return null;
 
+  const normalizedRole = Array.isArray(lecturer.role)
+    ? lecturer.role.map(r => String(r ?? '').trim().toLowerCase()).filter(Boolean).join(',')
+    : String(lecturer.role ?? '').trim().toLowerCase();
+
+  // Advisor-specific fields should be shown based on the user's role.
+  // Previously this also required `position === 'advisor'`, which caused advisor profiles
+  // to render without their role-specific information.
+  const isAdvisor = normalizedRole === 'advisor' || normalizedRole.includes('advisor');
+
+  const specialization = Array.isArray(lecturer.specialization) ? lecturer.specialization : [];
+  const education = Array.isArray(lecturer.education) ? lecturer.education : [];
+
   const handleTabChange = (newTab) => {
     console.log('Tab changing from', activeTab, 'to', newTab);
     setActiveTab(newTab);
@@ -67,28 +79,46 @@ export default function LecturerProfileDialog({
                 <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
                   <div className='space-y-2'>
                     <Label>Full Name</Label>
-                    <Input value={lecturer.name} readOnly />
+                    <Input value={lecturer.name || ''} readOnly />
                   </div>
                   <div className='space-y-2'>
                     <Label>Email</Label>
-                    <Input value={lecturer.email} readOnly />
+                    <Input value={lecturer.email || ''} readOnly />
                   </div>
+                  {isAdvisor && (
+                    <div className='space-y-2'>
+                      <Label>Full Name (Khmer)</Label>
+                      <Input value={lecturer.full_name_khmer || ''} readOnly />
+                    </div>
+                  )}
+                  {isAdvisor && (
+                    <div className='space-y-2'>
+                      <Label>Personal Email</Label>
+                      <Input value={lecturer.personal_email || ''} readOnly />
+                    </div>
+                  )}
                   <div className='space-y-2'>
                     <Label>Phone</Label>
                     <Input 
-                      value={lecturer.phone} 
+                      value={lecturer.phone || ''} 
                       onChange={e => setLecturer(p => ({ ...p, phone: e.target.value }))} 
                       readOnly={readonly} 
                     />
                   </div>
                   <div className='space-y-2'>
                     <Label>Department</Label>
-                    <Input value={lecturer.department} readOnly />
+                    <Input value={lecturer.department || ''} readOnly />
                   </div>
+                  {isAdvisor && (
+                    <div className='space-y-2'>
+                      <Label>Country</Label>
+                      <Input value={lecturer.country || ''} readOnly />
+                    </div>
+                  )}
                   <div className='space-y-2'>
                     <Label>Position</Label>
-                    {readonly ? (
-                      <Input value={lecturer.position} readOnly />
+                    {readonly || isAdvisor ? (
+                      <Input value={lecturer.position || ''} readOnly />
                     ) : (
                       <Select 
                         value={lecturer.position} 
@@ -130,16 +160,24 @@ export default function LecturerProfileDialog({
                   <Label>Bio</Label>
                   <Textarea 
                     rows={4} 
-                    value={lecturer.bio} 
+                    value={lecturer.bio || ''} 
                     onChange={e => setLecturer(p => ({ ...p, bio: e.target.value }))} 
                     readOnly={readonly} 
                   />
                 </div>
+
+                {isAdvisor && (
+                  <div className='space-y-2'>
+                    <Label>Qualifications</Label>
+                    <Textarea rows={3} value={lecturer.qualifications || ''} readOnly />
+                  </div>
+                )}
+
                 <div className='space-y-2'>
                   <Label>Research Field</Label>
                   <div className='flex flex-wrap gap-2'>
-                    {lecturer.specialization.length ? (
-                      lecturer.specialization.map(spec => (
+                    {specialization.length ? (
+                      specialization.map(spec => (
                         <Badge key={spec} variant='secondary'>{spec}</Badge>
                       ))
                     ) : (
@@ -147,14 +185,48 @@ export default function LecturerProfileDialog({
                     )}
                   </div>
                 </div>
+
+                {isAdvisor && (
+                  <div className='space-y-2'>
+                    <Label>Departments (Onboarding)</Label>
+                    <div className='flex flex-wrap gap-2'>
+                      {Array.isArray(lecturer.departments) && lecturer.departments.length ? (
+                        lecturer.departments.map((d) => (
+                          <Badge key={d.id ?? d.name ?? String(d)} variant='secondary'>
+                            {d?.name ?? String(d)}
+                          </Badge>
+                        ))
+                      ) : (
+                        <span className='text-xs text-gray-400'>None</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {isAdvisor && (
+                  <div className='space-y-2'>
+                    <Label>Courses (Onboarding)</Label>
+                    {Array.isArray(lecturer.courses) && lecturer.courses.length ? (
+                      <div className='space-y-1 text-sm'>
+                        {lecturer.courses.map((c) => (
+                          <div key={c.id ?? c.course_id ?? `${c.course_code}-${c.course_name}`}> 
+                            {c.course_code ? `${c.course_code} — ` : ''}{c.course_name || c.name || '—'}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className='text-xs text-gray-400'>None</span>
+                    )}
+                  </div>
+                )}
               </div>
             </TabsContent>
 
             {/* Education Tab */}
             <TabsContent value='education'>
               <div className='space-y-4'>
-                {lecturer.education.length ? (
-                  lecturer.education.map(edu => (
+                {education.length ? (
+                  education.map(edu => (
                     <Card key={edu.id || edu.degree + edu.institution}>
                       <CardContent className='pt-4'>
                         <div className='grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm'>

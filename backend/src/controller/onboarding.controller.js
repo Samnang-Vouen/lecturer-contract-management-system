@@ -25,6 +25,9 @@ export const onboardingUploadMiddleware = upload.fields([
 
 export const submitOnboarding = async (req, res) => {
   try {
+    const role = String(req.user?.role || '').toLowerCase();
+    const isAdvisor = role === 'advisor';
+
     const userId = req.user.id;
     const user = await User.findByPk(userId);
     if (!user) return res.status(404).json({ message: 'User not found' });
@@ -54,17 +57,21 @@ export const submitOnboarding = async (req, res) => {
     };
 
     const cvFile = req.files?.cv?.[0];
-    const syllabusFile = req.files?.syllabus?.[0];
+    // Advisors do not upload course syllabus during onboarding.
+    const syllabusFile = isAdvisor ? null : req.files?.syllabus?.[0];
     const payrollFile = req.files?.payroll?.[0];
 
     const cv_path = await saveFile(
       cvFile,
       'cv' + (cvFile?.originalname ? path.extname(cvFile.originalname) : '.pdf')
     );
-    const course_syllabus = await saveFile(
-      syllabusFile,
-      'syllabus' + (syllabusFile?.originalname ? path.extname(syllabusFile.originalname) : '.pdf')
-    );
+    const course_syllabus = isAdvisor
+      ? null
+      : await saveFile(
+          syllabusFile,
+          'syllabus' +
+            (syllabusFile?.originalname ? path.extname(syllabusFile.originalname) : '.pdf')
+        );
     const pay_roll_in_riel = await saveFile(
       payrollFile,
       'payroll' + (payrollFile?.originalname ? path.extname(payrollFile.originalname) : '.pdf')
@@ -98,8 +105,8 @@ export const submitOnboarding = async (req, res) => {
         ? body.research_fields.join(',')
         : body.research_fields || null,
       short_bio: body.short_bio || null,
-      course_syllabus: course_syllabus || null,
-      upload_syllabus: !!course_syllabus,
+      course_syllabus: isAdvisor ? null : course_syllabus || null,
+      upload_syllabus: isAdvisor ? false : !!course_syllabus,
       bank_name: body.bank_name || null,
       account_name: body.account_name || null,
       account_number: body.account_number || null,

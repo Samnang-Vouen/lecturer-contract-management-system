@@ -12,10 +12,23 @@ export default function LecturerActionMenu({
 }) {
   if (!lecturer) return null;
 
+  const roles = Array.isArray(lecturer.roles)
+    ? lecturer.roles.map((r) => String(r || '').toLowerCase()).filter(Boolean)
+    : [];
+
+  // Advisor-only should hide lecturer-specific actions.
+  // If a user has both roles, keep lecturer actions available.
+  const isAdvisorOnly = roles.length
+    ? roles.includes('advisor') && !roles.includes('lecturer')
+    : String(lecturer.role || '').toLowerCase() === 'advisor' ||
+      String(lecturer.position || '').toLowerCase() === 'advisor';
+
   const menuItems = [
     { icon: Eye, label: 'View Profile', onClick: () => onView(lecturer) },
     { icon: Edit, label: 'Edit Profile', onClick: () => onEdit(lecturer) },
-    { icon: BookOpen, label: 'Assign Courses', onClick: () => onAssignCourses(lecturer) },
+    ...(!isAdvisorOnly
+      ? [{ icon: BookOpen, label: 'Assign Courses', onClick: () => onAssignCourses(lecturer) }]
+      : []),
     { 
       icon: Power, 
       label: lecturer.status === 'active' ? 'Deactivate' : 'Activate', 

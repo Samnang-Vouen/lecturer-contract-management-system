@@ -22,6 +22,8 @@ const LecturerProfile = lazy(() => import('./pages/lecturer/LecturerProfile.jsx'
 const LecturerContracts = lazy(() => import('./pages/lecturer/LecturerContracts.jsx'));
 const Onboarding = lazy(() => import('./pages/lecturer/Onboarding.jsx'));
 
+const AdvisorProfile = lazy(() => import('./pages/advisor/AdvisorProfile.jsx'));
+
 const ManagementDashboardLayout = lazy(() => import('./pages/ManagementDashboard.jsx'));
 const ManagementHome = lazy(() => import('./pages/management/ManagementHome.jsx'));
 const ManagementProfile = lazy(() => import('./pages/management/ManagementProfile.jsx'));
@@ -34,7 +36,8 @@ const LoginForm = lazy(() => import('./components/LoginForm.jsx'));
 
 
 function App() {
-  const { authUser, checkAuth } = useAuthStore();
+  const authUser = useAuthStore((s) => s.authUser);
+  const checkAuth = useAuthStore((s) => s.checkAuth);
 
   useEffect(() => {
     checkAuth();
@@ -109,6 +112,20 @@ function App() {
         >
           <Route index element={<LecturerDashboard />} />
           <Route path="profile" element={<LecturerProfile />} />
+          <Route path="my-contracts" element={<LecturerContracts />} />
+        </Route>
+
+        {/* Advisor + Nested routes (same panel UX as lecturer, but different profile settings design) */}
+        <Route
+          path="/advisor"
+          element={
+            <RequireRole allowed={["advisor"]}>
+              <LecturerDashboardLayout />
+            </RequireRole>
+          }
+        >
+          <Route index element={<LecturerDashboard />} />
+          <Route path="profile" element={<AdvisorProfile />} />
           <Route path="my-contracts" element={<LecturerContracts />} />
         </Route>
         <Route path="/onboarding" element={<Onboarding />} />
