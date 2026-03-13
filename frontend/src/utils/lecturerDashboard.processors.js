@@ -52,7 +52,8 @@ export const processContracts = (contractsRes, lastViewedAtRef, showNotification
       return {
         message: `Contract #${c.id} ${ui.label}.`,
         time: d.toLocaleString(),
-        ts
+        ts,
+        contract_id: c.id
       };
     })
     .filter(n => (n.ts || 0) >= since)

@@ -271,7 +271,16 @@ TeachingContractCourse.belongsTo(TeachingContract, {
   onDelete: 'CASCADE',
   onUpdate: 'CASCADE',
 });
-TeachingContract.hasMany(TeachingContractCourse, { foreignKey: 'contract_id', as: 'courses' });
+TeachingContract.hasMany(TeachingContractCourse, { foreignKey: 'contract_id', as: 'contractCourses' });
+
+TeachingContract.prototype.toJSON = function () {
+  const data = { ...this.get() };
+  if (data.contractCourses !== undefined) {
+    data.courses = data.contractCourses;
+    delete data.contractCourses;
+  }
+  return data;
+};
 
 TeachingContractCourse.belongsTo(Course, {
   foreignKey: 'course_id',

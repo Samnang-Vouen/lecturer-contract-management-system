@@ -1,5 +1,4 @@
-import { useState, useCallback } from 'react';
-import { listContracts } from '../../../services/contract.service';
+import { useState, useCallback, useEffect } from 'react';
 import {
   getLecturerCourses,
   getLecturerDashboardSummary,
@@ -10,7 +9,9 @@ import {
 } from '../../../services/lecturerDashboard.service';
 import { chartColors, weeklyOverviewData, gradeDistributionData } from '../../../utils/lecturerDashboard.constants';
 import { generateTrend } from '../../../utils/lecturerDashboard.utils';
-import { processCourses, processContracts, processDashboardSummary } from '../../../utils/lecturerDashboard.processors';
+import { processCourses, processDashboardSummary } from '../../../utils/lecturerDashboard.processors';
+import { useAuthStore } from '../../../store/useAuthStore';
+import { getSocket } from '../../../services/socket';
 
 export const useLecturerDashboard = (selectedTimeRange, lastViewedAtRef, showNotificationsRef) => {
   const [isLoading, setIsLoading] = useState(true);
@@ -44,18 +45,34 @@ export const useLecturerDashboard = (selectedTimeRange, lastViewedAtRef, showNot
     byMonth: []
   });
 
+  const { authUser } = useAuthStore();
+
+  useEffect(() => {
+    if (!authUser?.id) return;
+    const socket = getSocket();
+    const handleConnect = () => socket.emit('join', { id: authUser.id, role: authUser.role });
+    socket.on('connect', handleConnect);
+    socket.on('notification:new', (notif) => {
+      const ts = new Date(notif.createdAt || notif.created_at || Date.now()).getTime();
+      const newNotif = { message: notif.message, time: new Date(ts).toLocaleString(), ts, _fromSocket: true, contract_id: notif.contract_id || null };
+      setNotifications((prev) => [newNotif, ...prev]);
+      if (!showNotificationsRef?.current) setUnreadCount((prev) => prev + 1);
+    });
+    socket.connect();
+    return () => { socket.off('connect', handleConnect); socket.off('notification:new'); socket.disconnect(); };
+  }, [authUser?.id]);
+
   const fetchDashboardData = useCallback(async (showRefresh = false) => {
     try {
       if (showRefresh) setIsRefreshing(true); else setIsLoading(true);
 
-      const [coursesRes, lecturerDashRes, realtimeRes, activitiesRes, mappingsRes, salaryRes, contractsRes] = await Promise.allSettled([
+      const [coursesRes, lecturerDashRes, realtimeRes, activitiesRes, mappingsRes, salaryRes] = await Promise.allSettled([
         getLecturerCourses(),
         getLecturerDashboardSummary({ timeRange: selectedTimeRange }),
         getLecturerRealtime(),
         getLecturerActivities(),
         getLecturerCourseMappings(),
-        getLecturerSalaryAnalysis(),
-        listContracts({ page: 1, limit: 100 })
+        getLecturerSalaryAnalysis()
       ]);
 
       const nextData = { ...dashboardData };
@@ -76,17 +93,6 @@ export const useLecturerDashboard = (selectedTimeRange, lastViewedAtRef, showNot
       if (lecturerDashRes.status === 'fulfilled') {
         const metrics = processDashboardSummary(lecturerDashRes);
         Object.assign(nextData, metrics);
-      }
-
-      // Build notifications
-      if (contractsRes.status === 'fulfilled') {
-        const { notifications: notis, unreadCount: unread } = processContracts(
-          contractsRes, 
-          lastViewedAtRef, 
-          showNotificationsRef
-        );
-        setNotifications(notis);
-        setUnreadCount(unread);
       }
 
       // Realtime
@@ -140,7 +146,7 @@ export const useLecturerDashboard = (selectedTimeRange, lastViewedAtRef, showNot
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [selectedTimeRange, lastViewedAtRef, showNotificationsRef]);
+  }, [selectedTimeRange]);
 
   return {
     isLoading,

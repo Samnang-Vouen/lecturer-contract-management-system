@@ -291,7 +291,7 @@ export async function getLecturerSalaryAnalysis(req, res) {
     // Fetch contracts with their courses to sum hours
     const contracts = await TeachingContract.findAll({
       where: { lecturer_user_id: lecturerUserId },
-      include: [{ model: TeachingContractCourse, as: 'courses', attributes: ['hours'] }],
+      include: [{ model: TeachingContractCourse, as: 'contractCourses', attributes: ['hours'] }],
       order: [['created_at', 'DESC']],
     });
 
@@ -319,7 +319,7 @@ export async function getLecturerSalaryAnalysis(req, res) {
     };
 
     for (const c of contracts) {
-      const hours = (c.courses || []).reduce(
+      const hours = (c.contractCourses || []).reduce(
         (a, cur) => a + (Number.isFinite(+cur.hours) ? +cur.hours : 0),
         0
       );

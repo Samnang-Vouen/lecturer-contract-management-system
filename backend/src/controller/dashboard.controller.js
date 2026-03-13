@@ -128,7 +128,7 @@ export const getDashboardStats = async (req, res) => {
         ? [
             {
               model: TeachingContractCourse,
-              as: 'courses',
+              as: 'contractCourses',
               required: true,
               attributes: [],
               include: [
@@ -143,7 +143,6 @@ export const getDashboardStats = async (req, res) => {
           where: tcWhere,
           include: tcIncludeCourses,
           distinct: true,
-          col: 'TeachingContract.id',
         }),
       0
     );
@@ -159,7 +158,6 @@ export const getDashboardStats = async (req, res) => {
           where: pendingWhere,
           include: tcIncludeCourses,
           distinct: true,
-          col: 'TeachingContract.id',
         }),
       0
     );
@@ -183,7 +181,7 @@ export const getDashboardStats = async (req, res) => {
             ],
           ],
           include: tcIncludeLean,
-          group: ['status'],
+          group: ['TeachingContract.status'],
         }),
       []
     );
@@ -451,7 +449,6 @@ export const getDashboardStats = async (req, res) => {
             where: contractsCompletedWhere,
             include: tcIncludeCourses,
             distinct: true,
-            col: 'TeachingContract.id',
           }),
         0
       );
@@ -599,7 +596,7 @@ export const getDashboardRealtime = async (req, res) => {
         ? [
             {
               model: TeachingContractCourse,
-              as: 'courses',
+              as: 'contractCourses',
               required: true,
               attributes: [],
               include: [
@@ -614,7 +611,6 @@ export const getDashboardRealtime = async (req, res) => {
         where: tcWhere,
         include: includeCourseScope,
         distinct: true,
-        col: 'TeachingContract.id',
       });
     } catch {
       teachingActive = 0;
@@ -628,7 +624,6 @@ export const getDashboardRealtime = async (req, res) => {
         where: expiredWhere,
         include: includeCourseScope,
         distinct: true,
-        col: 'TeachingContract.id',
       });
     } catch {
       expiredContracts = 0;
@@ -722,7 +717,7 @@ export const getDashboardNotifications = async (req, res) => {
         ? [
             {
               model: TeachingContractCourse,
-              as: 'courses',
+              as: 'contractCourses',
               required: true,
               attributes: [],
               include: [

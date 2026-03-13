@@ -94,7 +94,8 @@ export default function ContractGenerationDialog({
         courses: selectedCoursesPayload,
         start_date: dlgStartDate,
         end_date: dlgEndDate,
-        items: dlgItems
+        items: dlgItems,
+        hourly_rate: dlgHourlyRate ? parseFloat(dlgHourlyRate) : null,
       });
       
       // Reset form
@@ -202,10 +203,11 @@ export default function ContractGenerationDialog({
           {/* Hourly Rate */}
           <div className="space-y-1 mb-4">
             <label className="block text-sm font-medium">Hourly Rate ($)</label>
-            <Input 
-              className="w-full cursor-pointer h-11 text-base shadow-sm" 
-              value={dlgHourlyRate} 
-              readOnly 
+            <Input
+              className="w-full h-11 text-base shadow-sm"
+              value={dlgHourlyRate}
+              onChange={(e) => setDlgHourlyRate(e.target.value)}
+              placeholder="e.g. 85"
             />
           </div>
 

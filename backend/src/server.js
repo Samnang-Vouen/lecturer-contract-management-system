@@ -13,8 +13,8 @@ import { notFound, errorHandler } from './middleware/error.middleware.js';
 import { CORS_ALLOWED_ORIGIN } from './config/constants.js';
 import { runSchemaBootstrapping } from './bootstrap/schema.js';
 import { runSeeds } from './bootstrap/seeds.js';
-import { initSocket } from './bootstrap/socket.js';
 import http from 'http';
+import { initSocket } from './socket/index.js';
 // Load env without noisy debug to avoid EPIPE when stdout is closed by parent
 process.env.DOTENV_CONFIG_SILENT = 'true';
 dotenv.config();
@@ -29,13 +29,14 @@ const ORIGIN = CORS_ALLOWED_ORIGIN;
 
 app.use(express.json());
 app.use(cookieParser());
+
 // Allow flexible localhost origins in development (Vite may pick a random port)
 const corsOptions = {
   origin: (origin, callback) => {
     if (!origin) return callback(null, true); // mobile apps / curl / local HTML files
     // Allow exact configured origin
     if (origin === ORIGIN) return callback(null, true);
-    // Allow any localhost:* during development
+    
     if (process.env.NODE_ENV !== 'production' && /^http:\/\/localhost:\d+$/i.test(origin)) {
       return callback(null, true);
     }
@@ -111,7 +112,7 @@ app.use(errorHandler);
     if (MIGRATE_ON_START) await runSchemaBootstrapping(sequelize);
     if (SEED_ON_START) await runSeeds();
 
-    app.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
+    server.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
   } catch (e) {
     console.error('Startup failure:', e.message);
     process.exit(1);
