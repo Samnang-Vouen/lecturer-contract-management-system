@@ -45,7 +45,6 @@ export const CONTRACT_ALLOWED_STATUSES = Object.freeze([
   'WAITING_MANAGEMENT',
   'REQUEST_REDO',
   'COMPLETED',
-  'REQUEST_REDO',
 ]);
 
 // HTTP status codes for readability

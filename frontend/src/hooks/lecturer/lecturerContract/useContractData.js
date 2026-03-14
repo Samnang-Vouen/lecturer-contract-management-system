@@ -28,22 +28,26 @@ export const useContractData = () => {
       const role = String(authUser?.role || '').toLowerCase();
 
       let teaching = [];
+      let teachingTotal = 0;
       let advisor = [];
 
       // Advisors should only see advisor contracts (teaching contracts are lecturer-only).
       if (role !== 'advisor') {
         const teachingRes = await listContracts({ page, limit, q: q || undefined });
         teaching = (teachingRes?.data || []).map((c) => ({ ...c, contract_type: 'TEACHING' }));
+        teachingTotal = teachingRes?.total ?? teaching.length;
       }
 
-      // Advisor contracts endpoint supports lecturer/advisor scope; keep it unfiltered.
-      const advisorRes = await listAdvisorContracts({ page: 1, limit: 1000 });
+      // Fetch advisor contracts with the same page/limit/search inputs for consistent pagination.
+      const advisorRes = await listAdvisorContracts({ page, limit, q: q || undefined });
       advisor = (advisorRes?.data || []).map((c) => ({ ...c, contract_type: 'ADVISOR' }));
 
       const merged = [...teaching, ...advisor];
 
       setContracts(merged);
-      setTotal(merged.length);
+      // Sum API-reported totals so the pagination control reflects the true record count.
+      const advisorTotal = advisorRes?.total ?? advisor.length;
+      setTotal(teachingTotal + advisorTotal);
     } catch (e) {
       // Silent fail
     } finally {
