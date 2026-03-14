@@ -123,6 +123,11 @@ export const useContractActions = (lecturerProfile, authUser, fetchContracts) =>
     setSignOpen(true);
   };
 
+  const openRedoDialog = (contract) => {
+    setSelectedContract(contract);
+    setRedoOpen(true);
+  }
+
   return {
     uploading,
     selectedContract,
