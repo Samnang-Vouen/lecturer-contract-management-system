@@ -14,7 +14,7 @@ import ContractDeleteDialog from '../../components/admin/contractsGeneration/Con
 import ContractRedoEditDialog from '../../components/admin/contractsGeneration/ContractRedoEditDialog';
 import { formatContractId } from '../../utils/contractHelpers';
 import { createAdvisorContract, editAdvisorContract, getAdvisorContract, listAdvisorContracts } from '../../services/advisorContract.service';
-import { editTeachingContract } from '../../services/contract.service';
+import { editTeachingContract, listContracts } from '../../services/contract.service';
 
 export default function ContractGeneration() {
   const { authUser } = useAuthStore();
@@ -38,6 +38,7 @@ export default function ContractGeneration() {
   const [advisorTotal, setAdvisorTotal] = useState(0);
   const [_advisorLoading, setAdvisorLoading] = useState(false);
   const [editRedo, setEditRedo] = useState({ open: false, contract: null });
+  const [teachingBaseTotal, setTeachingBaseTotal] = useState(0);
 
   useEffect(() => {
     try {
@@ -63,10 +64,30 @@ export default function ContractGeneration() {
 
   const normalizeAdvisorContract = (c) => {
     const raw = c || {};
-    const status = String(raw.status || '').toUpperCase();
+    const status = String(raw.status || '')
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g, '_');
     const hasAdvisorSig = !!raw?.advisor_signed_at;
     const hasManagementSig = !!raw?.management_signed_at;
+
+    const end = raw?.end_date || raw?.endDate;
+    const isEndedByDate = (() => {
+      if (!end) return false;
+      try {
+        const d = new Date(end);
+        if (isNaN(d.getTime())) return false;
+        const today = new Date();
+        d.setHours(0, 0, 0, 0);
+        today.setHours(0, 0, 0, 0);
+        return d <= today;
+      } catch {
+        return false;
+      }
+    })();
+
     const derivedStatus = (() => {
+      if (status === 'CONTRACT_ENDED' || isEndedByDate) return 'CONTRACT_ENDED';
       if (status === 'REQUEST_REDO') return 'REQUEST_REDO';
       if (status === 'COMPLETED' || (hasAdvisorSig && hasManagementSig)) return 'COMPLETED';
       if (status === 'WAITING_MANAGEMENT' || (hasAdvisorSig && !hasManagementSig)) return 'WAITING_MANAGEMENT';
@@ -145,8 +166,29 @@ export default function ContractGeneration() {
     Promise.all(missing.map(year => contractMappings.fetchMappingsForYear(year)));
   }, [contractData.contracts, contractMappings]);
 
-  // Filter contracts based on search and auth
-  const filteredContracts = useMemo(() => {
+  // Base totals for header counts: respect search input, but ignore status filter.
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const body = await listContracts({
+          page: 1,
+          limit: 1,
+          q: contractData.search || undefined,
+          academic_year: contractData.listAcademicYear || undefined,
+        });
+        const total = Number(body?.total || 0);
+        if (mounted) setTeachingBaseTotal(Number.isFinite(total) ? total : 0);
+      } catch {
+        if (mounted) setTeachingBaseTotal(0);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [contractData.search, contractData.listAcademicYear]);
+
+  const advisorBaseTotal = useMemo(() => {
     const normalize = (s) => (s || '').toLowerCase().replace(/\./g, ' ').replace(/\s+/g, ' ').trim();
     const stripTitle = (s) => {
       const titles = '(mr|mrs|ms|miss|dr|prof|professor)';
@@ -154,12 +196,36 @@ export default function ContractGeneration() {
     };
     const qRaw = normalize(contractData.search || '');
     const qName = stripTitle(qRaw);
-    const statusNeedle = String(contractData.statusFilter || '').toUpperCase();
+    const pool = advisorContracts || [];
+    if (!qName) return pool.length;
+
+    return pool.filter((c) => {
+      const lecturerTitle = normalize(c.lecturer?.LecturerProfile?.title || c.lecturer?.title || '');
+      const lecturerNameBase = normalize(c.lecturer?.display_name || c.lecturer?.full_name || c.lecturer?.email || '');
+      const fullName = `${lecturerTitle ? lecturerTitle + ' ' : ''}${lecturerNameBase}`.trim();
+      const candidate = stripTitle(fullName);
+      return candidate.startsWith(qName);
+    }).length;
+  }, [advisorContracts, contractData.search]);
+
+  const totalBase = (teachingBaseTotal || 0) + (advisorBaseTotal || 0);
+
+  // Filter contracts based on search and auth
+  const filteredContracts = useMemo(() => {
+    const normalize = (s) => (s || '').toLowerCase().replace(/\./g, ' ').replace(/\s+/g, ' ').trim();
+    const normalizeStatus = (s) => String(s || '').trim().toUpperCase().replace(/\s+/g, '_');
+    const stripTitle = (s) => {
+      const titles = '(mr|mrs|ms|miss|dr|prof|professor)';
+      return s.replace(new RegExp(`^${titles}\\s+`, 'i'), '').trim();
+    };
+    const qRaw = normalize(contractData.search || '');
+    const qName = stripTitle(qRaw);
+    const statusNeedle = normalizeStatus(contractData.statusFilter);
     const pool = [...(contractData.contracts || []), ...(advisorContracts || [])];
 
     const byStatus = !statusNeedle
       ? pool
-      : pool.filter(c => String(c?.status || '').toUpperCase() === statusNeedle);
+      : pool.filter(c => normalizeStatus(c?.status) === statusNeedle);
     
     if (!qName) return byStatus;
     
@@ -170,7 +236,7 @@ export default function ContractGeneration() {
       const candidate = stripTitle(fullName);
       return candidate.startsWith(qName);
     });
-  }, [contractData.contracts, advisorContracts, contractData.search, contractData.statusFilter, authUser]);
+  }, [contractData.contracts, advisorContracts, contractData.search, contractData.statusFilter]);
 
   const handleCreateContract = async (payload) => {
     // Helper to safely parse integers
@@ -264,7 +330,13 @@ export default function ContractGeneration() {
   };
 
   const handleOpenRedoEdit = (contract) => {
-    const st = String(contract?.status || '').toUpperCase();
+    const st = String(contract?.status || '')
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g, '_');
+
+    // Admin can edit a contract only when it is sent back as REQUEST_REDO.
+    // (For advisor contracts, this corresponds to a redo request from the advisor.)
     if (st !== 'REQUEST_REDO') return;
     setEditRedo({ open: true, contract });
   };
@@ -354,10 +426,10 @@ export default function ContractGeneration() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-blue-600"/>
-            <h2 className="text-lg font-semibold">Contracts ({contractData.total + advisorTotal})</h2>
+            <h2 className="text-lg font-semibold">Contracts ({(filteredContracts || []).length} of {totalBase})</h2>
           </div>
           <div className="text-sm text-gray-600">
-            {((contractData.contracts?.length || 0) + (advisorContracts?.length || 0))} of {(contractData.total + advisorTotal)} shown
+            {((filteredContracts || []).length)} of {totalBase} shown
           </div>
         </div>
 

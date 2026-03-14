@@ -36,6 +36,7 @@ export default function ContractFilters({
           <SelectItem value="WAITING_LECTURER">Waiting Lecturer</SelectItem>
           <SelectItem value="WAITING_ADVISOR">Waiting Advisor</SelectItem>
           <SelectItem value="COMPLETED">Completed</SelectItem>
+          <SelectItem value="CONTRACT_ENDED">Contract Ended</SelectItem>
         </Select>
       </div>
     </div>

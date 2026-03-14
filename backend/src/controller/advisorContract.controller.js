@@ -468,7 +468,8 @@ export async function updateAdvisorStatus(req, res) {
   try {
     const id = parseInt(req.params.id, 10);
     const body = req.validated?.body || req.body || {};
-    const status = String(body.status || '').toUpperCase();
+    const statusRaw = String(body.status || '').trim().toUpperCase();
+    const status = statusRaw === 'CONTRACT_ENDED' ? 'CONTRACT_ENDED' : statusRaw;
 
     const found = await AdvisorContract.findByPk(id, {
       include: [

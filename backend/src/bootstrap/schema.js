@@ -141,7 +141,7 @@ export async function runSchemaBootstrapping(sequelize) {
           } catch {}
           // Now ensure enum supports the current contract lifecycle
           await sequelize.query(
-            "ALTER TABLE `Teaching_Contracts` MODIFY COLUMN `status` ENUM('WAITING_LECTURER','WAITING_ADVISOR','WAITING_MANAGEMENT','REQUEST_REDO','COMPLETED') NOT NULL DEFAULT 'WAITING_LECTURER'"
+            "ALTER TABLE `Teaching_Contracts` MODIFY COLUMN `status` ENUM('WAITING_LECTURER','WAITING_ADVISOR','WAITING_MANAGEMENT','REQUEST_REDO','COMPLETED','CONTRACT ENDED') NOT NULL DEFAULT 'WAITING_LECTURER'"
           );
         }
       } catch (e) {
@@ -168,7 +168,7 @@ export async function runSchemaBootstrapping(sequelize) {
       // Ensure enum supports redo lifecycle
       try {
         await sequelize.query(
-          "ALTER TABLE `Advisor_Contracts` MODIFY COLUMN `status` ENUM('DRAFT','WAITING_MANAGEMENT','REQUEST_REDO','COMPLETED') NOT NULL DEFAULT 'DRAFT'"
+          "ALTER TABLE `Advisor_Contracts` MODIFY COLUMN `status` ENUM('DRAFT','WAITING_MANAGEMENT','REQUEST_REDO','COMPLETED','CONTRACT_ENDED') NOT NULL DEFAULT 'DRAFT'"
         );
       } catch (e) {
         console.warn('[schema] migrate Advisor_Contracts.status failed:', e.message);

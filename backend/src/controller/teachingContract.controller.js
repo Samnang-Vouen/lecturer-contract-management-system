@@ -792,7 +792,11 @@ export async function updateStatus(req, res) {
   try {
     const id = parseInt(req.params.id, 10);
     const body = req.validated?.body || req.body || {};
-    const { status, remarks } = body;
+    const { remarks } = body;
+    const statusRaw = body.status;
+    const status =
+      CONTRACT_STATUS_ALIAS_MAP[String(statusRaw || '').trim().toUpperCase()] ||
+      String(statusRaw || '').trim();
     // Validation handled by middleware; status is already safe
     const contract = await TeachingContract.findByPk(id);
     if (!contract) return res.status(HTTP_STATUS.NOT_FOUND).json({ message: 'Not found' });

@@ -232,7 +232,8 @@ export const isContractExpired = (contract) => {
     endD.setHours(0, 0, 0, 0);
     today.setHours(0, 0, 0, 0);
     
-    return endD < today;
+    // Ended when the calendar day reaches/passes end_date
+    return endD <= today;
   } catch { 
     return false; 
   }
@@ -244,6 +245,8 @@ export const isContractExpired = (contract) => {
  * @returns {string} Display status
  */
 export const getDisplayStatus = (contract) => {
+  const rawStatus = String(contract?.status || '').trim().toUpperCase().replace(/\s+/g, '_');
+  if (rawStatus === 'CONTRACT_ENDED') return 'CONTRACT_ENDED';
   if (isContractExpired(contract)) return 'CONTRACT_ENDED';
 
   const t = String(contract?.contract_type || '').toUpperCase();

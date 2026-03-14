@@ -16,10 +16,30 @@ export const useContracts = () => {
 
   const normalizeAdvisorContract = (c) => {
     const raw = c || {};
-    const statusRaw = String(raw.status || '').toUpperCase();
+    const statusRaw = String(raw.status || '')
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g, '_');
     const hasAdvisorSig = !!raw?.advisor_signed_at;
     const hasManagementSig = !!raw?.management_signed_at;
+
+    const end = raw?.end_date || raw?.endDate;
+    const isEndedByDate = (() => {
+      if (!end) return false;
+      try {
+        const d = new Date(end);
+        if (isNaN(d.getTime())) return false;
+        const today = new Date();
+        d.setHours(0, 0, 0, 0);
+        today.setHours(0, 0, 0, 0);
+        return d <= today;
+      } catch {
+        return false;
+      }
+    })();
+
     const derivedStatus = (() => {
+      if (statusRaw === 'CONTRACT_ENDED' || isEndedByDate) return 'CONTRACT_ENDED';
       if (statusRaw === 'REQUEST_REDO') return 'REQUEST_REDO';
       if (statusRaw === 'COMPLETED' || (hasAdvisorSig && hasManagementSig)) return 'COMPLETED';
       if (statusRaw === 'WAITING_MANAGEMENT' || (hasAdvisorSig && !hasManagementSig)) return 'WAITING_MANAGEMENT';
@@ -79,6 +99,7 @@ export const useContracts = () => {
 
   // Client-side search: dynamic, case-insensitive, starts-with on lecturer name only (ignore titles)
   const filteredContracts = useMemo(() => {
+    const normStatus = (s) => String(s || '').trim().toUpperCase().replace(/\s+/g, '_');
     const normalize = (s) => (s || '').toLowerCase().replace(/\./g, ' ').replace(/\s+/g, ' ').trim();
     const stripTitle = (s) => {
       const titles = '(mr|mrs|ms|miss|dr|prof|professor)';
@@ -90,7 +111,7 @@ export const useContracts = () => {
     // Start with server results and apply status filter again client-side for robustness
     const base = (contracts || []).filter(c => {
       if (!status) return true;
-      return c.status === status;
+      return normStatus(c.status) === normStatus(status);
     });
     
     if (!qName) return base;

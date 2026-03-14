@@ -56,11 +56,14 @@ export default function ContractCard({
   const totalValue = rateForContract != null ? rateForContract * hours : null;
   const displayStatus = getDisplayStatus(contract);
   const statusConfig = getStatusLabel(displayStatus);
+  const isEnded = String(displayStatus || '').trim().toUpperCase() === 'CONTRACT_ENDED';
   const canSign = isAdvisor
-    ? (String(contract?.status || '').toUpperCase() === 'DRAFT' && !contract?.advisor_signed_at)
+    ? (!isEnded && String(contract?.status || '').toUpperCase() === 'DRAFT' && !contract?.advisor_signed_at)
     : (
-        contract.status === 'MANAGEMENT_SIGNED' ||
-        contract.status === 'WAITING_LECTURER'
+        !isEnded && (
+          contract.status === 'MANAGEMENT_SIGNED' ||
+          contract.status === 'WAITING_LECTURER'
+        )
       );
   const deptDisplay = getLecturerDepartment(contract);
   const lecturerName = getLecturerName(contract, lecturerProfile, authUser);

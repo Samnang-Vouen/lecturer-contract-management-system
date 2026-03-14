@@ -1,10 +1,15 @@
-import { Clock, CircleCheck } from 'lucide-react';
+import { Clock, CircleCheck, AlertCircle } from 'lucide-react';
 
 /**
  * Get status label, styling, and icon for contract status
  */
 export const getStatusLabel = (status) => {
-  switch (status) {
+  const st = String(status || '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '_');
+
+  switch (st) {
     case 'DRAFT':
       return { label: 'draft', class: 'bg-gray-100 text-gray-700 border-gray-200', icon: Clock };
     case 'WAITING_MANAGEMENT':
@@ -15,6 +20,8 @@ export const getStatusLabel = (status) => {
       return { label: 'waiting lecturer', class: 'bg-amber-50 text-amber-700 border-amber-200', icon: Clock };
     case 'COMPLETED':
       return { label: 'completed', class: 'bg-green-50 text-green-700 border-green-200', icon: CircleCheck };
+    case 'CONTRACT_ENDED':
+      return { label: 'contract ended', class: 'bg-gray-100 text-red-700 border-red-200', icon: AlertCircle };
     default:
       return { label: 'draft', class: 'bg-gray-100 text-gray-700 border-gray-200', icon: Clock };
   }

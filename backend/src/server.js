@@ -15,6 +15,7 @@ import { runSchemaBootstrapping } from './bootstrap/schema.js';
 import { runSeeds } from './bootstrap/seeds.js';
 import http from 'http';
 import { initSocket } from './socket/index.js';
+import { startContractExpiryScheduler } from './utils/contractExpiryScheduler.js';
 // Load env without noisy debug to avoid EPIPE when stdout is closed by parent
 process.env.DOTENV_CONFIG_SILENT = 'true';
 dotenv.config();
@@ -111,6 +112,13 @@ app.use(errorHandler);
     const SEED_ON_START = process.env.SEED_ON_START !== 'false'; // default true in dev
     if (MIGRATE_ON_START) await runSchemaBootstrapping(sequelize);
     if (SEED_ON_START) await runSeeds();
+
+    // Auto-expire contracts whose end_date is reached/passed.
+    // Runs once on startup + periodically (default: hourly).
+    startContractExpiryScheduler({
+      intervalMs: Number(process.env.CONTRACT_EXPIRY_INTERVAL_MS || 0) || undefined,
+      runOnStart: process.env.CONTRACT_EXPIRY_RUN_ON_START !== 'false',
+    });
 
     server.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
   } catch (e) {

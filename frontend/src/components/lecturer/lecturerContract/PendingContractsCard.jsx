@@ -6,7 +6,8 @@ import {
   formatContractId, 
   calculateTotalHours, 
   formatMDY, 
-  getLecturerDepartment 
+  getLecturerDepartment,
+  isContractExpired
 } from '../../../utils/lecturerContractHelpers';
 
 /**
@@ -23,6 +24,15 @@ export default function PendingContractsCard({
     return null;
   }
 
+  const actionable = (pendingContracts || []).filter((c) => {
+    const st = String(c?.status || '').trim().toUpperCase().replace(/\s+/g, '_');
+    if (st === 'CONTRACT_ENDED') return false;
+    if (isContractExpired(c)) return false;
+    return true;
+  });
+
+  if (actionable.length === 0) return null;
+
   const toPositiveNumber = (value) => {
     if (value == null) return null;
     const n =
@@ -32,7 +42,7 @@ export default function PendingContractsCard({
     return Number.isFinite(n) && n > 0 ? n : null;
   };
 
-  const contract = pendingContracts[0];
+  const contract = actionable[0];
   const isAdvisor = String(contract?.contract_type || '').toUpperCase() === 'ADVISOR';
   const formattedId = formatContractId(contract);
   const hours = calculateTotalHours(contract);
@@ -57,7 +67,7 @@ export default function PendingContractsCard({
         <div className="flex items-center gap-2">
           <Clock className="w-5 h-5 text-amber-600" />
           <CardTitle>
-            Contracts Awaiting Your Signature ({pendingContracts.length})
+            Contracts Awaiting Your Signature ({actionable.length})
           </CardTitle>
         </div>
         <CardDescription>
