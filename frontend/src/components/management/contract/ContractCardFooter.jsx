@@ -26,7 +26,7 @@ export default function ContractCardFooter({
         <button
           onClick={(e) => {
             e.stopPropagation();
-            onPreview(contract.id);
+            onPreview(contract);
           }}
           className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 transition-all duration-200"
           title="View contract"

@@ -46,7 +46,7 @@ export default function ContractCard({
   const handleDownload = () => {
     const baseName = deriveLecturerBaseName(contract.lecturer);
     const filename = toSafePdfFilename(baseName, contract.id);
-    onDownload(contract.id, filename);
+    onDownload(contract, filename);
     setMenuOpen(false);
   };
 
@@ -85,7 +85,7 @@ export default function ContractCard({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  onPreview(contract.id);
+                  onPreview(contract);
                   setMenuOpen(false);
                 }}
                 className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 flex items-center gap-3 text-slate-700"

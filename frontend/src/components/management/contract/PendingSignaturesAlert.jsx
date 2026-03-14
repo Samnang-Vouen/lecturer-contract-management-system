@@ -59,7 +59,7 @@ export default function PendingSignaturesAlert({ contracts, onPreview, onSign, u
                   variant="outline"
                   className="cursor-pointer w-full sm:w-auto"
                   size="sm"
-                  onClick={() => onPreview(contract.id)}
+                  onClick={() => onPreview(contract)}
                 >
                   <Eye className="w-4 h-4 mr-1.5" />
                   Review

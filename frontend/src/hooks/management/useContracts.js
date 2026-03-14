@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { listContracts } from '../../services/contract.service';
+import { listAdvisorContracts } from '../../services/advisorContract.service';
 
 /**
  * Custom hook to manage contract fetching and filtering
@@ -13,17 +14,60 @@ export const useContracts = () => {
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('');
 
+  const normalizeAdvisorContract = (c) => {
+    const raw = c || {};
+    const statusRaw = String(raw.status || '').toUpperCase();
+    const hasAdvisorSig = !!raw?.advisor_signed_at;
+    const hasManagementSig = !!raw?.management_signed_at;
+    const derivedStatus = (() => {
+      if (statusRaw === 'REQUEST_REDO') return 'REQUEST_REDO';
+      if (statusRaw === 'COMPLETED' || (hasAdvisorSig && hasManagementSig)) return 'COMPLETED';
+      if (statusRaw === 'WAITING_MANAGEMENT' || (hasAdvisorSig && !hasManagementSig)) return 'WAITING_MANAGEMENT';
+      return 'DRAFT';
+    })();
+
+    return {
+      ...raw,
+      contract_type: 'ADVISOR',
+      status: derivedStatus,
+    };
+  };
+
   const fetchContracts = async () => {
     try {
       setLoading(true);
-      const res = await listContracts({ 
-        page, 
-        limit, 
-        q: q || undefined, 
-        status: status || undefined 
+      const [teachingResult, advisorResult] = await Promise.allSettled([
+        listContracts({
+          page,
+          limit,
+          q: q || undefined,
+          status: status || undefined,
+        }),
+        // Advisor listing supports q; status is normalized client-side.
+        listAdvisorContracts({
+          page,
+          limit,
+          q: q || undefined,
+        }),
+      ]);
+
+      const teachingRes = teachingResult.status === 'fulfilled' ? teachingResult.value : null;
+      const advisorRes = advisorResult.status === 'fulfilled' ? advisorResult.value : null;
+
+      const teachingRows = Array.isArray(teachingRes?.data) ? teachingRes.data : [];
+      const advisorRowsRaw = Array.isArray(advisorRes?.data) ? advisorRes.data : [];
+      const advisorRows = advisorRowsRaw.map(normalizeAdvisorContract);
+
+      const merged = [...teachingRows, ...advisorRows].sort((a, b) => {
+        const at = a?.created_at ? new Date(a.created_at).getTime() : 0;
+        const bt = b?.created_at ? new Date(b.created_at).getTime() : 0;
+        return bt - at;
       });
-      setContracts(res?.data || []);
-      setTotal(res?.total || 0);
+
+      setContracts(merged);
+      const teachingTotal = Number(teachingRes?.total || teachingRows.length || 0);
+      const advisorTotal = Number(advisorRes?.total || advisorRows.length || 0);
+      setTotal(teachingTotal + advisorTotal);
     } finally {
       setLoading(false);
     }
