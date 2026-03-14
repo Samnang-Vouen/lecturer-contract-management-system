@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { listContracts } from '../../services/contract.service';
+import { listAdvisorContracts } from '../../services/advisorContract.service';
 
 /**
  * Custom hook to manage contract fetching and filtering
@@ -13,17 +14,80 @@ export const useContracts = () => {
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('');
 
+  const normalizeAdvisorContract = (c) => {
+    const raw = c || {};
+    const statusRaw = String(raw.status || '')
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g, '_');
+    const hasAdvisorSig = !!raw?.advisor_signed_at;
+    const hasManagementSig = !!raw?.management_signed_at;
+
+    const end = raw?.end_date || raw?.endDate;
+    const isEndedByDate = (() => {
+      if (!end) return false;
+      try {
+        const d = new Date(end);
+        if (isNaN(d.getTime())) return false;
+        const today = new Date();
+        d.setHours(0, 0, 0, 0);
+        today.setHours(0, 0, 0, 0);
+        return d <= today;
+      } catch {
+        return false;
+      }
+    })();
+
+    const derivedStatus = (() => {
+      if (statusRaw === 'CONTRACT_ENDED' || isEndedByDate) return 'CONTRACT_ENDED';
+      if (statusRaw === 'REQUEST_REDO') return 'REQUEST_REDO';
+      if (statusRaw === 'COMPLETED' || (hasAdvisorSig && hasManagementSig)) return 'COMPLETED';
+      if (statusRaw === 'WAITING_MANAGEMENT' || (hasAdvisorSig && !hasManagementSig)) return 'WAITING_MANAGEMENT';
+      return 'DRAFT';
+    })();
+
+    return {
+      ...raw,
+      contract_type: 'ADVISOR',
+      status: derivedStatus,
+    };
+  };
+
   const fetchContracts = async () => {
     try {
       setLoading(true);
-      const res = await listContracts({ 
-        page, 
-        limit, 
-        q: q || undefined, 
-        status: status || undefined 
+      const [teachingResult, advisorResult] = await Promise.allSettled([
+        listContracts({
+          page,
+          limit,
+          q: q || undefined,
+          status: status || undefined,
+        }),
+        // Advisor listing supports q; status is normalized client-side.
+        listAdvisorContracts({
+          page,
+          limit,
+          q: q || undefined,
+        }),
+      ]);
+
+      const teachingRes = teachingResult.status === 'fulfilled' ? teachingResult.value : null;
+      const advisorRes = advisorResult.status === 'fulfilled' ? advisorResult.value : null;
+
+      const teachingRows = Array.isArray(teachingRes?.data) ? teachingRes.data : [];
+      const advisorRowsRaw = Array.isArray(advisorRes?.data) ? advisorRes.data : [];
+      const advisorRows = advisorRowsRaw.map(normalizeAdvisorContract);
+
+      const merged = [...teachingRows, ...advisorRows].sort((a, b) => {
+        const at = a?.created_at ? new Date(a.created_at).getTime() : 0;
+        const bt = b?.created_at ? new Date(b.created_at).getTime() : 0;
+        return bt - at;
       });
-      setContracts(res?.data || []);
-      setTotal(res?.total || 0);
+
+      setContracts(merged);
+      const teachingTotal = Number(teachingRes?.total || teachingRows.length || 0);
+      const advisorTotal = Number(advisorRes?.total || advisorRows.length || 0);
+      setTotal(teachingTotal + advisorTotal);
     } finally {
       setLoading(false);
     }
@@ -35,6 +99,7 @@ export const useContracts = () => {
 
   // Client-side search: dynamic, case-insensitive, starts-with on lecturer name only (ignore titles)
   const filteredContracts = useMemo(() => {
+    const normStatus = (s) => String(s || '').trim().toUpperCase().replace(/\s+/g, '_');
     const normalize = (s) => (s || '').toLowerCase().replace(/\./g, ' ').replace(/\s+/g, ' ').trim();
     const stripTitle = (s) => {
       const titles = '(mr|mrs|ms|miss|dr|prof|professor)';
@@ -46,7 +111,7 @@ export const useContracts = () => {
     // Start with server results and apply status filter again client-side for robustness
     const base = (contracts || []).filter(c => {
       if (!status) return true;
-      return c.status === status;
+      return normStatus(c.status) === normStatus(status);
     });
     
     if (!qName) return base;

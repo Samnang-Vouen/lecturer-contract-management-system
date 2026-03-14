@@ -30,23 +30,40 @@ export default function ContractCard({
   onViewDetail,
   onSign
 }) {
+  const toPositiveNumber = (value) => {
+    if (value == null) return null;
+    const n =
+      typeof value === 'number'
+        ? value
+        : parseFloat(String(value).replace(/[^0-9.]/g, ''));
+    return Number.isFinite(n) && n > 0 ? n : null;
+  };
+
   const isAdvisor = String(contract?.contract_type || '').toUpperCase() === 'ADVISOR';
   const formattedId = formatContractId(contract);
   const hours = calculateTotalHours(contract);
   const startDate = contract.start_date || contract.startDate || null;
   const endDate = contract.end_date || contract.endDate || null;
   const hasBothDates = !!(startDate && endDate);
+  const contractRate =
+    toPositiveNumber(contract?.hourly_rate) ??
+    toPositiveNumber(contract?.hourlyRateThisYear) ??
+    toPositiveNumber(contract?.hourlyRate);
+
   const rateForContract = isAdvisor
-    ? (Number(contract?.hourly_rate) || null)
-    : hourlyRate;
+    ? contractRate
+    : (contractRate ?? toPositiveNumber(hourlyRate));
   const totalValue = rateForContract != null ? rateForContract * hours : null;
   const displayStatus = getDisplayStatus(contract);
   const statusConfig = getStatusLabel(displayStatus);
+  const isEnded = String(displayStatus || '').trim().toUpperCase() === 'CONTRACT_ENDED';
   const canSign = isAdvisor
-    ? (String(contract?.status || '').toUpperCase() === 'DRAFT' && !contract?.advisor_signed_at)
+    ? (!isEnded && String(contract?.status || '').toUpperCase() === 'DRAFT' && !contract?.advisor_signed_at)
     : (
-        contract.status === 'MANAGEMENT_SIGNED' ||
-        contract.status === 'WAITING_LECTURER'
+        !isEnded && (
+          contract.status === 'MANAGEMENT_SIGNED' ||
+          contract.status === 'WAITING_LECTURER'
+        )
       );
   const deptDisplay = getLecturerDepartment(contract);
   const lecturerName = getLecturerName(contract, lecturerProfile, authUser);

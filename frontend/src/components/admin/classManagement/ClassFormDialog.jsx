@@ -25,9 +25,51 @@ export default function ClassFormDialog({ open, onOpenChange, onSubmit, classDat
     return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b));
   }, [specializationOptions]);
 
-  const currentSpecialization = String(
-    classData?.specialization ?? classData?.Specialization?.name ?? ''
-  ).trimStart();
+  const specializationIdToName = React.useMemo(() => {
+    const list = Array.isArray(specializationOptions) ? specializationOptions : [];
+    const map = new Map();
+    list.forEach((s) => {
+      const id = s?.id;
+      const name = String(s?.name || '').trim();
+      if (id != null && name) map.set(String(id), name);
+    });
+    return map;
+  }, [specializationOptions]);
+
+  const currentSpecialization = React.useMemo(() => {
+    const spec = classData?.specialization;
+
+    // If specialization comes as an id (number or numeric string), resolve to a name when possible
+    if (typeof spec === 'number' || (typeof spec === 'string' && /^\d+$/.test(spec.trim()))) {
+      const mapped = specializationIdToName.get(String(spec).trim());
+      if (mapped) return mapped.trimStart();
+    }
+
+    const joinedId = classData?.specialization_id ?? classData?.specializationId;
+    if (joinedId != null) {
+      const mapped = specializationIdToName.get(String(joinedId));
+      if (mapped) return mapped.trimStart();
+    }
+
+    if (spec && typeof spec === 'object') {
+      return String(spec?.name ?? spec?.name_en ?? spec?.title ?? '').trimStart();
+    }
+    return String(
+      spec
+      ?? classData?.Specialization?.name
+      ?? classData?.specialization_name
+      ?? classData?.specializationName
+      ?? ''
+    ).trimStart();
+  }, [
+    classData?.specialization,
+    classData?.Specialization?.name,
+    classData?.specialization_name,
+    classData?.specializationName,
+    classData?.specialization_id,
+    classData?.specializationId,
+    specializationIdToName,
+  ]);
 
   const [isCustomSpec, setIsCustomSpec] = React.useState(false);
 

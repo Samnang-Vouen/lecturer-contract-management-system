@@ -4,6 +4,40 @@ import { getLecturerDetail } from '../../../services/lecturer.service';
 import { getAdvisorDetail } from '../../../services/advisor.service';
 import { useMemo, useCallback } from 'react';
 
+const getRoleTokens = (obj) => {
+  const toToken = (r) => {
+    if (r === null || r === undefined) return '';
+    if (typeof r === 'string' || typeof r === 'number') return String(r);
+    if (typeof r === 'object') {
+      return r.role ?? r.name ?? r.code ?? r.type ?? r.value ?? '';
+    }
+    return String(r);
+  };
+
+  const rawValues = [obj?.role, obj?.roles, obj?.user?.role, obj?.user?.roles];
+  const flattened = [];
+  for (const v of rawValues) {
+    if (!v) continue;
+    if (Array.isArray(v)) {
+      for (const item of v) flattened.push(toToken(item));
+    } else {
+      flattened.push(toToken(v));
+    }
+  }
+
+  return flattened
+    .flatMap((s) => String(s ?? '').split(','))
+    .map((t) => t.trim().toLowerCase())
+    .filter(Boolean);
+};
+
+const isAdvisorOnly = (obj) => {
+  const tokens = getRoleTokens(obj);
+  const hasAdvisorRole = tokens.some((t) => t === 'advisor' || t.includes('advisor'));
+  const hasLecturerRole = tokens.some((t) => t === 'lecturer' || t === 'lecture' || t.includes('lectur'));
+  return hasAdvisorRole && !hasLecturerRole;
+};
+
 export function useLecturerDetail() {
   const [selectedLecturer, setSelectedLecturer] = useState(null);
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
@@ -95,12 +129,8 @@ export function useLecturerDetail() {
 
   const fetchAndOpenProfile = async (lecturer, readonly = false) => {
     try {
-      const roleLc = Array.isArray(lecturer?.role)
-        ? lecturer.role.map(r => String(r ?? '').trim().toLowerCase()).filter(Boolean).join(',')
-        : String(lecturer?.role || '').trim().toLowerCase();
-
-      // Only treat as advisor when the user actually has the advisor role.
-      const isAdvisor = roleLc === 'advisor' || roleLc.includes('advisor');
+      const isAdvisor = isAdvisorOnly(lecturer);
+      const initialRoleTokens = getRoleTokens(lecturer);
 
       const raw = (await (isAdvisor ? getAdvisorDetail(lecturer.id) : getLecturerDetail(lecturer.id))) || {};
       const detail = raw.data || raw.profile || raw.lecturer_profile || raw || {};
@@ -124,7 +154,11 @@ export function useLecturerDetail() {
       const enriched = {
         id: lecturer.id,
         name: lecturer.name || get('name', ''),
-        role: lecturer.role || get('role') || lecturer.user?.role || (Array.isArray(lecturer.roles) ? lecturer.roles[0] : ''),
+        role: Array.from(new Set([
+          ...initialRoleTokens,
+          ...getRoleTokens(detail),
+          ...getRoleTokens(raw)
+        ])).filter(Boolean),
         email: lecturer.email || get('email', ''),
         full_name_english: get('full_name_english', '') || get('fullNameEnglish', ''),
         full_name_khmer: get('full_name_khmer', '') || get('fullNameKhmer', ''),
@@ -148,6 +182,14 @@ export function useLecturerDetail() {
         cvFilePath: get('cvFilePath') || get('cv_file_path') || '',
         syllabusUploaded: get('syllabusUploaded') || false,
         syllabusFilePath: get('syllabusFilePath') || get('syllabus_file_path') || '',
+        courseSyllabusFiles:
+          get('courseSyllabusFiles') ||
+          get('course_syllabus_files') ||
+          [],
+        courseSyllabusFileNames:
+          get('courseSyllabusFileNames') ||
+          get('course_syllabus_file_names') ||
+          {},
         latest_degree: get('latest_degree', '') || '',
         degree_year: get('degree_year', '') || '',
         major: get('major', '') || '',

@@ -45,7 +45,19 @@ export function validateClassFields(classData) {
   if (!classData.name.trim()) {
     return "Class name is required";
   }
-  if (!String(classData?.specialization || '').trim()) {
+
+  const spec = classData?.specialization;
+  const specializationName = String(
+    (spec && typeof spec === 'object')
+      ? (spec?.name ?? spec?.name_en ?? spec?.title ?? '')
+      : (spec ?? '')
+    || classData?.Specialization?.name
+    || classData?.specialization_name
+    || classData?.specializationName
+    || ''
+  ).trim();
+
+  if (!specializationName) {
     return "Specialization is required";
   }
   if (!classData.term.trim()) {

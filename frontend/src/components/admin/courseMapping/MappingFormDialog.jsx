@@ -16,7 +16,6 @@ import StatusField from './mappingForm/StatusField.jsx';
 import ContactFields from './mappingForm/ContactFields.jsx';
 import ActionButtons from './mappingForm/ActionButtons.jsx';
 import ClientErrorsAlert from './mappingForm/ClientErrorsAlert.jsx';
-import RoomByGroupEditor from './mappingForm/RoomByGroupEditor.jsx';
 import SessionGroupsCard from './mappingForm/SessionGroupsCard.jsx';
 
 /**
@@ -164,11 +163,13 @@ export default function MappingFormDialog({
           groups={groupsForSelectedClass}
           selectedIds={form.theory_group_ids}
           onToggleGroup={toggleTheoryGroup}
-          roomByGroup={form.theory_room_by_group}
-          onRoomChange={setTheoryRoomForGroup}
+          roomByGroup={isEditMode ? undefined : form.theory_room_by_group}
+          onRoomChange={isEditMode ? undefined : setTheoryRoomForGroup}
           roomPlaceholder="A201"
         />
-        <p className="mt-2 text-xs text-gray-500">Select groups and enter the room for each selected theory group.</p>
+        {!isEditMode && (
+          <p className="mt-2 text-xs text-gray-500">Select groups and enter the room for each selected theory group.</p>
+        )}
       </>
     );
 
@@ -184,11 +185,13 @@ export default function MappingFormDialog({
           groups={groupsForSelectedClass}
           selectedIds={form.lab_group_ids}
           onToggleGroup={toggleLabGroup}
-          roomByGroup={form.lab_room_by_group}
-          onRoomChange={setLabRoomForGroup}
+          roomByGroup={isEditMode ? undefined : form.lab_room_by_group}
+          onRoomChange={isEditMode ? undefined : setLabRoomForGroup}
           roomPlaceholder="B105"
         />
-        <p className="mt-2 text-xs text-gray-500">Select groups and enter the room for each selected lab group.</p>
+        {!isEditMode && (
+          <p className="mt-2 text-xs text-gray-500">Select groups and enter the room for each selected lab group.</p>
+        )}
       </>
     );
 
@@ -258,20 +261,11 @@ export default function MappingFormDialog({
                 labContent={labContent}
               />
 
-              {isEditMode && groupsForSelectedClass.length > 0 && assignedGroupsForEdit.length > 0 && (
-                <RoomByGroupEditor
-                  assignedGroups={assignedGroupsForEdit}
-                  form={form}
-                  setTheoryRoomForGroup={setTheoryRoomForGroup}
-                  setLabRoomForGroup={setLabRoomForGroup}
-                />
-              )}
-
               <AvailabilityField {...availability} form={form} setForm={setForm} />
               <StatusField form={form} setForm={setForm} />
 
               {/* Theory/Lab Room (bulk edit for no-group/legacy rows) */}
-              {((isEditMode && assignedGroupsForEdit.length === 0) || (form.class_id && groupsForSelectedClass.length === 0)) && (
+              {(isEditMode || (form.class_id && groupsForSelectedClass.length === 0)) && (
                 <>
                   <div className="col-span-1 flex flex-col min-w-0">
                     <label htmlFor="mappingTheoryRoomNumber" className="block text-sm font-medium text-gray-700 mb-1">

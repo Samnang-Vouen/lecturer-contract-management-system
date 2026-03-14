@@ -9,6 +9,79 @@ import { findOrCreateResearchFields } from './researchField.controller.js';
 import { findOrCreateUniversities } from './university.controller.js';
 import { findOrCreateMajors } from './major.controller.js';
 
+const sanitizeDisplayName = (name) => {
+  const base = path.basename(String(name || '')).trim();
+  if (!base) return 'syllabus.pdf';
+  const cleaned = base
+    .replace(/[\u0000-\u001f\u007f]/g, '')
+    .replace(/\s+/g, ' ')
+    .slice(0, 120)
+    .trim();
+  return cleaned || 'syllabus.pdf';
+};
+
+const syllabusManifestPath = (folderSlug) =>
+  path.join(process.cwd(), 'uploads', 'lecturers', folderSlug, 'syllabus', '_manifest.json');
+
+const readSyllabusManifest = async (folderSlug) => {
+  if (!folderSlug) return { files: [] };
+  const manifestPath = syllabusManifestPath(folderSlug);
+  try {
+    const txt = await fs.promises.readFile(manifestPath, 'utf8');
+    const parsed = JSON.parse(txt);
+    if (!parsed || !Array.isArray(parsed.files)) return { files: [] };
+    return { files: parsed.files };
+  } catch {
+    return { files: [] };
+  }
+};
+
+const listSyllabusFilesWithNames = async (folderSlug, legacySinglePath = null) => {
+  const legacy = legacySinglePath ? String(legacySinglePath).replace(/\\/g, '/').replace(/^\//, '') : null;
+  if (!folderSlug) {
+    return {
+      files: legacy ? [legacy] : [],
+      file_names: legacy ? { [legacy]: sanitizeDisplayName(legacy) } : {},
+    };
+  }
+
+  const dir = path.join(process.cwd(), 'uploads', 'lecturers', folderSlug, 'syllabus');
+  const manifest = await readSyllabusManifest(folderSlug);
+  const originalByStored = new Map();
+  for (const f of manifest.files) {
+    if (!f || !f.stored) continue;
+    originalByStored.set(String(f.stored), sanitizeDisplayName(f.original || f.stored));
+  }
+
+  try {
+    const names = await fs.promises.readdir(dir);
+    const pdfs = names
+      .filter((n) => /\.pdf$/i.test(String(n)))
+      .map((n) => String(n))
+      .sort((a, b) => String(b).localeCompare(String(a)));
+
+    const files = pdfs.map((n) =>
+      path.join('uploads', 'lecturers', folderSlug, 'syllabus', n).replace(/\\/g, '/')
+    );
+    const file_names = {};
+    for (let i = 0; i < pdfs.length; i += 1) {
+      const stored = pdfs[i];
+      const p = files[i];
+      file_names[p] = originalByStored.get(stored) || sanitizeDisplayName(stored);
+    }
+
+    if (!files.length && legacy) {
+      return { files: [legacy], file_names: { [legacy]: sanitizeDisplayName(legacy) } };
+    }
+    return { files, file_names };
+  } catch {
+    return {
+      files: legacy ? [legacy] : [],
+      file_names: legacy ? { [legacy]: sanitizeDisplayName(legacy) } : {},
+    };
+  }
+};
+
 /**
  * GET /api/lecturers
  * Returns lecturers sourced directly from Lecturer_Profiles + joined User.
@@ -403,62 +476,61 @@ export const getLecturerDetail = async (req, res) => {
         ? req.user.department_name
         : profile.User?.department_name || 'General';
 
-    // Lookup candidate by email first (most reliable), fallback to name matching
+    // Prefer candidate_id linkage (reliable), fallback to email/name lookup (legacy)
     let candidateId = null;
     let hourlyRateThisYear = null;
     try {
       let cand = null;
-      
-      // Primary: Try email match first (most reliable)
-      if (profile.User?.email) {
-        cand = await Candidate.findOne({ 
-          where: { email: profile.User.email },
-          attributes: ['id', 'fullName', 'email', 'hourlyRate']
+
+      if (profile.candidate_id) {
+        cand = await Candidate.findByPk(profile.candidate_id, {
+          attributes: ['id', 'fullName', 'email', 'hourlyRate'],
         });
-        console.log(`[getLecturerDetail] Email lookup for ${profile.User.email}:`, cand ? `Found (id: ${cand.id}, hourlyRate: ${cand.hourlyRate})` : 'Not found');
       }
-      
-      // Fallback: Try name matching with title normalization
+
+      // Legacy fallback: try email match (useful for old data that didn't set candidate_id)
+      if (!cand && profile.User?.email) {
+        cand = await Candidate.findOne({
+          where: { email: profile.User.email },
+          attributes: ['id', 'fullName', 'email', 'hourlyRate'],
+        });
+      }
+
+      // Legacy fallback: try name match with title normalization
       if (!cand && (profile.full_name_english || profile.User?.display_name)) {
         const rawName = profile.full_name_english || profile.User?.display_name || '';
-        
         if (rawName) {
-          // Try exact match first (case-insensitive)
           cand = await Candidate.findOne({
             where: Sequelize.where(
               Sequelize.fn('LOWER', Sequelize.fn('TRIM', Sequelize.col('fullName'))),
               Sequelize.fn('LOWER', rawName.trim())
             ),
-            attributes: ['id', 'fullName', 'email', 'hourlyRate']
+            attributes: ['id', 'fullName', 'email', 'hourlyRate'],
           });
-          
-          // If no exact match, try fuzzy matching by removing titles from both sides
+
           if (!cand) {
             const allCandidates = await Candidate.findAll({
-              attributes: ['id', 'fullName', 'email', 'hourlyRate']
+              attributes: ['id', 'fullName', 'email', 'hourlyRate'],
             });
-            
+
             const titleRegex = /^(mr\.?|ms\.?|mrs\.?|dr\.?|prof\.?|professor|miss)\s+/i;
             const normalizeName = (s = '') =>
-              String(s).trim().replace(titleRegex, '').replace(/\s+/g, ' ').trim().toLowerCase();
-            
+              String(s)
+                .trim()
+                .replace(titleRegex, '')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .toLowerCase();
+
             const targetNormalized = normalizeName(rawName);
-            cand = allCandidates.find(c => normalizeName(c.fullName) === targetNormalized);
+            cand = allCandidates.find((c) => normalizeName(c.fullName) === targetNormalized);
           }
-          
-          console.log(`[getLecturerDetail] Name lookup for "${rawName}":`, cand ? `Found (id: ${cand.id}, hourlyRate: ${cand.hourlyRate})` : 'Not found');
         }
       }
-      
+
       if (cand) {
         candidateId = cand.id;
-        if (cand.hourlyRate != null) {
-          hourlyRateThisYear = String(cand.hourlyRate);
-        } else {
-          console.warn(`[getLecturerDetail] Candidate found but hourlyRate is null for user ${profile.User?.email}`);
-        }
-      } else {
-        console.warn(`[getLecturerDetail] No candidate record found for user ${profile.User?.email} / ${profile.full_name_english}`);
+        if (cand.hourlyRate != null) hourlyRateThisYear = String(cand.hourlyRate);
       }
     } catch (candErr) {
       console.error('[getLecturerDetail] candidate lookup failed:', candErr.message);
@@ -525,6 +597,18 @@ export const getLecturerDetail = async (req, res) => {
       syllabusFilePath: profile.course_syllabus
         ? String(profile.course_syllabus).replace(/\\/g, '/').replace(/^\//, '')
         : null,
+      ...(await (async () => {
+        const { files, file_names } = await listSyllabusFilesWithNames(
+          profile.storage_folder,
+          profile.course_syllabus
+            ? String(profile.course_syllabus).replace(/\\/g, '/').replace(/^\//, '')
+            : null
+        );
+        return {
+          course_syllabus_files: files,
+          course_syllabus_file_names: file_names,
+        };
+      })()),
       // Bank / payroll fields (read from Lecturer_Profiles)
       bank_name: profile.bank_name || null,
       account_name: profile.account_name || null,

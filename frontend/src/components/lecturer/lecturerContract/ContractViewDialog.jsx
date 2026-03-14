@@ -21,11 +21,24 @@ export default function ContractViewDialog({
 }) {
   if (!contract) return null;
 
+  const toPositiveNumber = (value) => {
+    if (value == null) return null;
+    const n =
+      typeof value === 'number'
+        ? value
+        : parseFloat(String(value).replace(/[^0-9.]/g, ''));
+    return Number.isFinite(n) && n > 0 ? n : null;
+  };
+
   const isAdvisor = String(contract?.contract_type || '').toUpperCase() === 'ADVISOR';
 
   const formattedId = formatContractId(contract);
   const totalHours = calculateTotalHours(contract);
-  const rate = contract?.hourly_rate ?? contract?.hourlyRate ?? hourlyRate;
+  const rate =
+    toPositiveNumber(contract?.hourly_rate) ??
+    toPositiveNumber(contract?.hourlyRateThisYear) ??
+    toPositiveNumber(contract?.hourlyRate) ??
+    toPositiveNumber(hourlyRate);
   const totalValue = rate != null ? Math.round(rate * totalHours) : null;
 
   const displayStatus = getDisplayStatus(contract);

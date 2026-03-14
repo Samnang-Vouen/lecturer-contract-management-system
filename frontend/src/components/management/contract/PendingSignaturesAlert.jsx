@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import Button from '../../ui/Button.jsx';
 import { Clock, Eye, PenTool } from 'lucide-react';
 import { formatContractId, getHourlyRate, calculateTotalHours, formatMDY } from '../../../utils/contractUtils.js';
@@ -8,12 +8,30 @@ import { formatContractId, getHourlyRate, calculateTotalHours, formatMDY } from 
  * Alert box showing contracts pending management signature
  */
 export default function PendingSignaturesAlert({ contracts, onPreview, onSign, uploading }) {
-  const pending = (contracts || []).filter(x => x.status === 'WAITING_MANAGEMENT');
+  const isEnded = (c) => {
+    const st = String(c?.status || '').trim().toUpperCase().replace(/\s+/g, '_');
+    if (st === 'CONTRACT_ENDED') return true;
+
+    const end = c?.end_date || c?.endDate;
+    if (!end) return false;
+    try {
+      const d = new Date(end);
+      if (isNaN(d.getTime())) return false;
+      const today = new Date();
+      d.setHours(0, 0, 0, 0);
+      today.setHours(0, 0, 0, 0);
+      return d <= today;
+    } catch {
+      return false;
+    }
+  };
+
+  const pending = (contracts || []).filter((x) => x.status === 'WAITING_MANAGEMENT' && !isEnded(x));
   
   if (!pending.length) return null;
 
   return (
-    <motion.div
+    <Motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: 0.1 }}
@@ -59,7 +77,7 @@ export default function PendingSignaturesAlert({ contracts, onPreview, onSign, u
                   variant="outline"
                   className="cursor-pointer w-full sm:w-auto"
                   size="sm"
-                  onClick={() => onPreview(contract.id)}
+                  onClick={() => onPreview(contract)}
                 >
                   <Eye className="w-4 h-4 mr-1.5" />
                   Review
@@ -78,6 +96,6 @@ export default function PendingSignaturesAlert({ contracts, onPreview, onSign, u
           );
         })}
       </div>
-    </motion.div>
+    </Motion.div>
   );
 }

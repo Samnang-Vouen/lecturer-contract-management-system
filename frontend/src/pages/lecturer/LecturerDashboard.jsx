@@ -16,6 +16,7 @@ import { QuickActions } from '../../components/lecturer/dashboard/QuickActions';
 
 export default function LecturerDashboard() {
   const { authUser } = useAuthStore();
+  const isAdvisorOnly = authUser?.role === 'advisor';
   const [selectedTimeRange, setSelectedTimeRange] = useState('30d');
   const [showNotifications, setShowNotifications] = useState(false);
   
@@ -146,14 +147,18 @@ export default function LecturerDashboard() {
         {/* Syllabus reminder */}
         <SyllabusReminder syllabusReminder={dashboardData.syllabusReminder} />
 
-        {/* Course Groups Table */}
-        <CourseGroupsTable courseMappings={dashboardData.courseMappings} />
+        {!isAdvisorOnly && (
+          <>
+            {/* Course Groups Table */}
+            <CourseGroupsTable courseMappings={dashboardData.courseMappings} />
 
-        {/* Charts */}
-        <div className='grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8'>
-          <SalaryAnalysisChart salaryAnalysis={salaryAnalysis} />
-          <CourseHoursChart courseHoursDist={dashboardData.courseHoursDist} />
-        </div>
+            {/* Charts */}
+            <div className='grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8'>
+              <SalaryAnalysisChart salaryAnalysis={salaryAnalysis} />
+              <CourseHoursChart courseHoursDist={dashboardData.courseHoursDist} />
+            </div>
+          </>
+        )}
 
         {/* Bottom section */}
         <div className='grid grid-cols-1 lg:grid-cols-2 gap-8'>

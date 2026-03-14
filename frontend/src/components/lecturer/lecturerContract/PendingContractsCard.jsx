@@ -6,7 +6,8 @@ import {
   formatContractId, 
   calculateTotalHours, 
   formatMDY, 
-  getLecturerDepartment 
+  getLecturerDepartment,
+  isContractExpired
 } from '../../../utils/lecturerContractHelpers';
 
 /**
@@ -23,7 +24,25 @@ export default function PendingContractsCard({
     return null;
   }
 
-  const contract = pendingContracts[0];
+  const actionable = (pendingContracts || []).filter((c) => {
+    const st = String(c?.status || '').trim().toUpperCase().replace(/\s+/g, '_');
+    if (st === 'CONTRACT_ENDED') return false;
+    if (isContractExpired(c)) return false;
+    return true;
+  });
+
+  if (actionable.length === 0) return null;
+
+  const toPositiveNumber = (value) => {
+    if (value == null) return null;
+    const n =
+      typeof value === 'number'
+        ? value
+        : parseFloat(String(value).replace(/[^0-9.]/g, ''));
+    return Number.isFinite(n) && n > 0 ? n : null;
+  };
+
+  const contract = actionable[0];
   const isAdvisor = String(contract?.contract_type || '').toUpperCase() === 'ADVISOR';
   const formattedId = formatContractId(contract);
   const hours = calculateTotalHours(contract);
@@ -32,7 +51,14 @@ export default function PendingContractsCard({
   const period = startDate && endDate 
     ? `${formatMDY(startDate)} - ${formatMDY(endDate)}` 
     : (contract.term ? `Term ${contract.term} • ${contract.academic_year}` : `Academic Year ${contract.academic_year}`);
-  const rateForContract = isAdvisor ? (Number(contract?.hourly_rate) || null) : hourlyRate;
+  const contractRate =
+    toPositiveNumber(contract?.hourly_rate) ??
+    toPositiveNumber(contract?.hourlyRateThisYear) ??
+    toPositiveNumber(contract?.hourlyRate);
+
+  const rateForContract = isAdvisor
+    ? contractRate
+    : (contractRate ?? toPositiveNumber(hourlyRate));
   const dept = getLecturerDepartment(contract);
 
   return (
@@ -41,7 +67,7 @@ export default function PendingContractsCard({
         <div className="flex items-center gap-2">
           <Clock className="w-5 h-5 text-amber-600" />
           <CardTitle>
-            Contracts Awaiting Your Signature ({pendingContracts.length})
+            Contracts Awaiting Your Signature ({actionable.length})
           </CardTitle>
         </div>
         <CardDescription>
@@ -86,14 +112,14 @@ export default function PendingContractsCard({
               variant="outline" 
               onClick={() => onPreview(contract.id, contract)} 
               title="Preview contract" 
-              className="border-amber-200"
+              className="border-amber-200 gap-2"
             >
               <Eye className="w-4 h-4" /> Review
             </Button>
             <Button 
               size="sm" 
               onClick={() => onSign(contract)} 
-              className="bg-amber-600 hover:bg-amber-700"
+              className="bg-amber-600 hover:bg-amber-700 gap-2"
             >
               <PenTool className="w-4 h-4" /> Sign Now
             </Button>
