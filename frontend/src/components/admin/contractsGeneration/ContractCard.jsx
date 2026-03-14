@@ -121,8 +121,9 @@ export default function ContractCard({
   };
 
   const advisorRate = toNum(contract.hourly_rate);
+  const enrichedRate = toNum(contract.hourlyRateThisYear);
   const teachingRate = ratesByLecturer?.[lecturerId];
-  const hourlyRate = advisorRate ?? (teachingRate ?? 0);
+  const hourlyRate = advisorRate ?? enrichedRate ?? (teachingRate ?? 0);
 
   const courseHours = Array.isArray(contract.courses)
     ? contract.courses.reduce((sum, c) => sum + (toNum(c?.hours) || 0), 0)

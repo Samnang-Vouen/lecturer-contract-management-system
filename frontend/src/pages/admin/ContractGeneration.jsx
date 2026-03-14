@@ -173,8 +173,7 @@ export default function ContractGeneration() {
       start_date: payload.start_date,
       end_date: payload.end_date,
       courses: cleanedCourses,
-      items: payload.items,
-      hourly_rate: payload.hourly_rate ?? null,
+      items: payload.items
     };
     console.log('Sending contract payload:', contractPayload);
     await contractActions.createContract(contractPayload);
