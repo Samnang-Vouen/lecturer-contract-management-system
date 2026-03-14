@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Zap, Settings, GraduationCap, BookOpen, FileText, CheckCircle, Info, ArrowUp } from 'lucide-react';
+import { Zap, Settings, GraduationCap, FileText, CheckCircle, Info, ArrowUp } from 'lucide-react';
 
 const normalizeBasePath = (p) => {
   const s = String(p || '').trim();
@@ -9,7 +9,6 @@ const normalizeBasePath = (p) => {
 };
 
 export const QuickActions = ({
-  assignedCoursesCount,
   totalContractsCount,
   signedContractsCount,
   waitingManagementCount,
@@ -104,9 +103,8 @@ export const QuickActions = ({
         transition={{ delay: 1 }} 
         className='mt-6 pt-6 border-t border-gray-200'
       >
-        <div className='grid grid-cols-1 sm:grid-cols-4 gap-4'>
+        <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
           {[
-            { label: 'Courses', value: assignedCoursesCount, icon: BookOpen, color: 'blue' },
             { label: 'Total Contracts', value: totalContractsCount, icon: FileText, color: 'indigo' },
             { label: 'Signed Contracts', value: signedContractsCount, icon: CheckCircle, color: 'green' },
             { label: 'Waiting Management', value: waitingManagementCount, icon: Info, color: 'amber' }
