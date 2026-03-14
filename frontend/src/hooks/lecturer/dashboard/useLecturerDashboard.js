@@ -47,6 +47,8 @@ export const useLecturerDashboard = (selectedTimeRange, lastViewedAtRef, showNot
 
   const { authUser } = useAuthStore();
 
+  const isAdvisorOnly = authUser?.role === 'advisor';
+
   useEffect(() => {
     if (!authUser?.id) return;
     const socket = getSocket();
@@ -71,8 +73,8 @@ export const useLecturerDashboard = (selectedTimeRange, lastViewedAtRef, showNot
         getLecturerDashboardSummary({ timeRange: selectedTimeRange }),
         getLecturerRealtime(),
         getLecturerActivities(),
-        getLecturerCourseMappings(),
-        getLecturerSalaryAnalysis()
+        isAdvisorOnly ? Promise.resolve([]) : getLecturerCourseMappings(),
+        isAdvisorOnly ? Promise.resolve(null) : getLecturerSalaryAnalysis()
       ]);
 
       const nextData = { ...dashboardData };
@@ -129,7 +131,8 @@ export const useLecturerDashboard = (selectedTimeRange, lastViewedAtRef, showNot
       nextData.gradeDistribution = gradeDistributionData(chartColors);
       setDashboardData(nextData);
       setLastUpdated(new Date());
-    } catch (e) {
+    } catch (error) {
+      console.error('Failed to fetch dashboard data', error);
       setDashboardData(prev => ({
         ...prev,
         assignedCourses: { count: 4, change: 1, trend: generateTrend(4) },
@@ -146,7 +149,7 @@ export const useLecturerDashboard = (selectedTimeRange, lastViewedAtRef, showNot
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [selectedTimeRange]);
+  }, [selectedTimeRange, isAdvisorOnly]);
 
   return {
     isLoading,
