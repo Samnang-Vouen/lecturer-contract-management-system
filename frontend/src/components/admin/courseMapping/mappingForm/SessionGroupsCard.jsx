@@ -10,7 +10,8 @@ export default function SessionGroupsCard({
   roomPlaceholder,
 }) {
   const selectedSet = useMemo(() => new Set((Array.isArray(selectedIds) ? selectedIds : []).map(String)), [selectedIds]);
-  const roomMap = roomByGroup && typeof roomByGroup === 'object' ? roomByGroup : {};
+  const showRoom = typeof onRoomChange === 'function';
+  const roomMap = showRoom && roomByGroup && typeof roomByGroup === 'object' ? roomByGroup : {};
 
   return (
     <div className="w-full rounded-lg border border-gray-200 bg-white">
@@ -39,16 +40,18 @@ export default function SessionGroupsCard({
                   Select
                 </label>
 
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-gray-500">Room</span>
-                  <input
-                    value={String(roomMap[gid] || '')}
-                    onChange={(e) => onRoomChange(gid, e.target.value)}
-                    disabled={!checked}
-                    className="h-8 w-24 rounded-md border border-gray-300 bg-white px-2 text-xs text-gray-800 disabled:bg-gray-50 disabled:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder={roomPlaceholder}
-                  />
-                </div>
+                {showRoom && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-gray-500">Room</span>
+                    <input
+                      value={String(roomMap[gid] || '')}
+                      onChange={(e) => onRoomChange(gid, e.target.value)}
+                      disabled={!checked}
+                      className="h-8 w-24 rounded-md border border-gray-300 bg-white px-2 text-xs text-gray-800 disabled:bg-gray-50 disabled:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder={roomPlaceholder}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           );
