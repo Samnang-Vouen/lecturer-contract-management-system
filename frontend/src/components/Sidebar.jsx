@@ -41,7 +41,7 @@ const sidebarHeadingFont = {
 };
 
 /**
- * @typedef {'superadmin' | 'admin' | 'lecturer' | 'management'} UserRole
+ * @typedef {'superadmin' | 'admin' | 'lecturer' | 'advisor' | 'management'} UserRole
  * 
  * @typedef {Object} NavItem
  * @property {string} title - The title of the navigation item
@@ -60,8 +60,8 @@ const navItems = [
     title: "Dashboard",
     href: "/dashboard",
     icon: LayoutDashboard,
-    roles: ["superadmin", "admin", "lecturer", "management"],
-    category: null,
+    roles: ["superadmin", "admin", "lecturer", "advisor", "management"],
+    category: null
   },
   {
     title: "Academic Management",
@@ -83,8 +83,8 @@ const navItems = [
     title: "My Contracts",
     href: "/lecturer/my-contracts",
     icon: Briefcase,
-    roles: ["lecturer"],
-    category: null,
+    roles: ["lecturer", "advisor"],
+    category: null
   },
   {
     title: "Contract Management",
@@ -113,7 +113,14 @@ const navItems = [
     icon: Shield,
     roles: ["superadmin"],
     category: "system",
-    hasSubmenu: true,
+    hasSubmenu: true
+  },
+  {
+    title: "Profile Settings",
+    href: "/superadmin/profile",
+    icon: Settings,
+    roles: ["superadmin"],
+    category: null
   },
   {
     title: "Profile Settings",
@@ -123,11 +130,11 @@ const navItems = [
     category: null,
   },
   {
-    title: "Account Settings",
+    title: "Profile Settings", 
     href: "/lecturer/profile",
     icon: Settings,
-    roles: ["lecturer"],
-    category: null,
+    roles: ["lecturer", "advisor"],
+    category: null
   },
 ];
 
@@ -180,6 +187,7 @@ export function Sidebar({ user: userProp, onLogout, mobileOpen = false, onClose 
       superadmin: '/superadmin',
       admin: '/admin',
       lecturer: '/lecturer',
+      advisor: '/advisor',
       management: '/management'
     }[user.role] || '/dashboard');
   }, [user.role]);
@@ -224,6 +232,7 @@ export function Sidebar({ user: userProp, onLogout, mobileOpen = false, onClose 
       superadmin: 'System Administrator',
       admin: 'Administrator',
       lecturer: 'Lecturer',
+      advisor: 'Advisor',
       management: 'Management'
     };
     return roleLabels[role] || role;
@@ -234,7 +243,8 @@ export function Sidebar({ user: userProp, onLogout, mobileOpen = false, onClose 
       superadmin: 'System Panel',
       admin: 'Admin Panel',
       management: 'Management Panel',
-      lecturer: 'Lecturer Panel'
+      lecturer: 'Lecturer Panel',
+      advisor: 'Advisor Panel'
     };
     return panel[role] || 'Panel';
   };
@@ -244,6 +254,11 @@ export function Sidebar({ user: userProp, onLogout, mobileOpen = false, onClose 
     let href = item.href;
     if (item.title === 'Dashboard') {
       href = roleRoot;
+    }
+    // Advisors reuse the lecturer-like sidebar but should navigate under /advisor
+    if (String(user.role || '').toLowerCase() === 'advisor') {
+      if (href.startsWith('/lecturer/')) href = href.replace('/lecturer/', '/advisor/');
+      if (href === '/lecturer') href = '/advisor';
     }
     const active = isActive(href, item.title);
     const isExpanded = expandedItems[item.title];
@@ -257,11 +272,11 @@ export function Sidebar({ user: userProp, onLogout, mobileOpen = false, onClose 
               e.stopPropagation?.();
               if (collapsed) {
                 // When collapsed, expand sidebar and open this submenu so child icons are visible
-                try { localStorage.setItem('sidebarCollapsed', 'false'); } catch {}
+                try { localStorage.setItem('sidebarCollapsed', 'false'); } catch { /* ignore */ }
                 setCollapsed(false);
                 setExpandedItems(prev => {
                   const next = { ...prev, [item.title]: true };
-                  try { localStorage.setItem('expandedItems', JSON.stringify(next)); } catch {}
+                  try { localStorage.setItem('expandedItems', JSON.stringify(next)); } catch { /* ignore */ }
                   return next;
                 });
                 return;

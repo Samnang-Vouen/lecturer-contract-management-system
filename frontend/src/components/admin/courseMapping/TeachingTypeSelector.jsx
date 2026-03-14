@@ -1,19 +1,17 @@
 import React from 'react';
 
 /**
- * TeachingTypeSelector - Dual selector for Theory (15h/30h) and Lab (30h) with group counts
+ * TeachingTypeSelector - Dual selector for Theory (15h/30h) and Lab (30h)
  */
 export default function TeachingTypeSelector({
   theorySelected,
   onTheorySelectedChange,
   theoryHour,
   onTheoryHourChange,
-  theoryGroups,
-  onTheoryGroupsChange,
   labSelected,
   onLabSelectedChange,
-  labGroups,
-  onLabGroupsChange,
+  theoryContent,
+  labContent,
 }) {
   return (
     <div className="col-span-1 sm:col-span-2 flex flex-col gap-4">
@@ -87,25 +85,8 @@ export default function TeachingTypeSelector({
             </div>
           </div>
         </div>
-        {theorySelected && (
-          <div className="px-3 sm:px-4 pb-3 sm:pb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Number of Theory groups</label>
-            <div className="relative">
-              <input
-                type="number"
-                inputMode="numeric"
-                min={1}
-                step={1}
-                value={theoryGroups}
-                onChange={(e) => onTheoryGroupsChange(e.target.value)}
-                className="block w-full h-10 border border-gray-300 rounded-md pl-3 pr-16 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="e.g. 2"
-              />
-              <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-xs text-gray-500">
-                groups
-              </span>
-            </div>
-          </div>
+        {theorySelected && theoryContent && (
+          <div className="px-3 sm:px-4 pb-3 sm:pb-4">{theoryContent}</div>
         )}
       </div>
 
@@ -148,24 +129,7 @@ export default function TeachingTypeSelector({
           </span>
         </div>
         {labSelected && (
-          <div className="px-3 sm:px-4 pb-3 sm:pb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Number of Lab groups</label>
-            <div className="relative">
-              <input
-                type="number"
-                inputMode="numeric"
-                min={1}
-                step={1}
-                value={labGroups}
-                onChange={(e) => onLabGroupsChange(e.target.value)}
-                className="block w-full h-10 border border-gray-300 rounded-md pl-3 pr-16 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="e.g. 1"
-              />
-              <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-xs text-gray-500">
-                groups
-              </span>
-            </div>
-          </div>
+          <div className="px-3 sm:px-4 pb-3 sm:pb-4">{labContent}</div>
         )}
       </div>
     </div>

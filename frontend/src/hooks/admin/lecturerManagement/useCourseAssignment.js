@@ -1,7 +1,37 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { updateLecturerCourses } from '../../../services/lecturer.service';
+import { updateAdvisorCourses } from '../../../services/advisor.service';
 import { getCatalogCourses } from '../../../services/catalog.service';
+
+const isAdvisorOnly = (target) => {
+  const toToken = (r) => {
+    if (r === null || r === undefined) return '';
+    if (typeof r === 'string' || typeof r === 'number') return String(r);
+    if (typeof r === 'object') return r.role ?? r.name ?? r.code ?? r.type ?? r.value ?? '';
+    return String(r);
+  };
+
+  const rawValues = [target?.role, target?.roles, target?.user?.role, target?.user?.roles];
+  const flattened = [];
+  for (const v of rawValues) {
+    if (!v) continue;
+    if (Array.isArray(v)) for (const item of v) flattened.push(toToken(item));
+    else flattened.push(toToken(v));
+  }
+  const tokens = flattened
+    .flatMap((s) => String(s ?? '').split(','))
+    .map((t) => t.trim().toLowerCase())
+    .filter(Boolean);
+
+  const hasAdvisorRole = tokens.some((t) => t === 'advisor' || t.includes('advisor'));
+  const hasLecturerRole = tokens.some((t) => t === 'lecturer' || t === 'lecture' || t.includes('lectur'));
+  if (hasLecturerRole) return false;
+  if (hasAdvisorRole) return true;
+
+  const positionLc = String(target?.position || '').trim().toLowerCase();
+  return positionLc === 'advisor';
+};
 
 export function useCourseAssignment(setLecturers) {
   const [assigning, setAssigning] = useState(null);
@@ -57,7 +87,8 @@ export function useCourseAssignment(setLecturers) {
       const course_ids = selectedCourses.map(code => map.get(code)).filter(Boolean);
       
       setAssignLoading(true);
-      await updateLecturerCourses(assigning.id, course_ids);
+      const updater = isAdvisorOnly(assigning) ? updateAdvisorCourses : updateLecturerCourses;
+      await updater(assigning.id, course_ids);
       
       toast.success('Courses updated');
       
@@ -69,9 +100,11 @@ export function useCourseAssignment(setLecturers) {
       ));
       
       setAssigning(null);
+      return true;
     } catch (e) {
       toast.error('Update failed');
       console.error(e);
+      return false;
     } finally {
       setAssignLoading(false);
     }

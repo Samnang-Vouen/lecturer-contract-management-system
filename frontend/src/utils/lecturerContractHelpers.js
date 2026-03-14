@@ -34,7 +34,9 @@ export const formatContractId = (contract) => {
   const createdYear = contract.created_at 
     ? new Date(contract.created_at).getFullYear() 
     : new Date().getFullYear();
-  return `CTR-${createdYear}-${String(contract.id).padStart(3, '0')}`;
+  const t = String(contract?.contract_type || '').toUpperCase();
+  const prefix = t === 'ADVISOR' ? 'AC' : 'LC';
+  return `${prefix}-${createdYear}-${String(contract.id).padStart(3, '0')}`;
 };
 
 /**
@@ -43,7 +45,40 @@ export const formatContractId = (contract) => {
  * @returns {number} Total hours
  */
 export const calculateTotalHours = (contract) => {
+  const t = String(contract?.contract_type || '').toUpperCase();
+  if (t === 'ADVISOR') {
+    const perStudentRaw =
+      contract?.hours_per_student ??
+      contract?.hoursPerStudent ??
+      contract?.hours_per_students ??
+      contract?.hoursPerStudents;
+    const perStudent = Number(perStudentRaw || 0) || 0;
+    const studentsCount = Array.isArray(contract?.students) ? contract.students.length : 0;
+    const judgingRaw =
+      contract?.join_judging_hours ??
+      contract?.joinJudgingHours ??
+      contract?.join_judging_hour ??
+      contract?.joinJudgingHour;
+    const judging = Number(judgingRaw || 0) || 0;
+    // Match backend/PDF logic: join judging hours are per-student
+    const totalHoursPerStudent = perStudent * studentsCount;
+    const totalJudgingHours = judging * studentsCount;
+    return totalHoursPerStudent + totalJudgingHours;
+  }
   return (contract.courses || []).reduce((acc, course) => acc + (course.hours || 0), 0);
+};
+
+const normalizeTitle = (rawTitle) => {
+  const t = String(rawTitle || '').replace(/\./g, '').trim();
+  if (!t) return '';
+  const key = t.toLowerCase();
+  if (key === 'mr') return 'Mr.';
+  if (key === 'ms') return 'Ms.';
+  if (key === 'mrs') return 'Mrs.';
+  if (key === 'dr') return 'Dr.';
+  if (key === 'prof' || key === 'professor') return 'Prof.';
+  // Fallback: keep original formatting
+  return rawTitle;
 };
 
 /**
@@ -54,15 +89,37 @@ export const calculateTotalHours = (contract) => {
  * @returns {string} Lecturer name
  */
 export const getLecturerName = (contract, lecturerProfile, authUser) => {
-  return (
+  const base = (
     contract?.lecturer_name ||
+    contract?.lecturerName ||
+    contract?.lecturer?.display_name ||
+    contract?.lecturer?.displayName ||
     contract?.lecturer?.fullName ||
+    lecturerProfile?.full_name_english ||
     lecturerProfile?.fullName ||
+    lecturerProfile?.user_display_name ||
+    lecturerProfile?.userDisplayName ||
     lecturerProfile?.name ||
+    authUser?.display_name ||
+    authUser?.displayName ||
     authUser?.fullName ||
     authUser?.name ||
+    contract?.lecturer?.email ||
+    authUser?.email ||
     ''
   );
+
+  const titleRaw =
+    contract?.lecturer?.LecturerProfile?.title ||
+    contract?.lecturer?.title ||
+    lecturerProfile?.title ||
+    authUser?.title ||
+    '';
+  const title = normalizeTitle(titleRaw);
+  if (!title) return base;
+
+  const hasTitleAlready = /^(mr|mrs|ms|miss|dr|prof|professor)\.?\s+/i.test(String(base || '').trim());
+  return hasTitleAlready ? base : `${title} ${String(base || '').trim()}`.trim();
 };
 
 /**
@@ -82,6 +139,13 @@ export const getLecturerEmail = (lecturerProfile, authUser) => {
  */
 export const getLecturerDepartment = (contract) => {
   const courses = contract?.courses || [];
+  const directDept =
+    contract?.lecturer?.department_name ||
+    contract?.lecturer?.departmentName ||
+    contract?.department_name ||
+    contract?.departmentName ||
+    '';
+
   const names = courses
     .map((cc) => (
       cc?.Course?.Department?.dept_name ||
@@ -100,7 +164,8 @@ export const getLecturerDepartment = (contract) => {
     .map((s) => (s || '').toString().trim())
     .filter(Boolean);
   
-  const unique = Array.from(new Set(names));
+  const merged = [...names, String(directDept || '').trim()].filter(Boolean);
+  const unique = Array.from(new Set(merged));
   return unique.join(', ');
 };
 
@@ -111,6 +176,12 @@ export const getLecturerDepartment = (contract) => {
  */
 export const getStatusLabel = (status) => {
   switch (status) {
+    case 'WAITING_ADVISOR':
+      return {
+        label: 'waiting advisor',
+        class: 'bg-amber-50 text-amber-700 border-amber-200',
+        icon: Clock,
+      };
     case 'WAITING_LECTURER':
       return { 
         label: 'waiting lecturer', 
@@ -161,7 +232,8 @@ export const isContractExpired = (contract) => {
     endD.setHours(0, 0, 0, 0);
     today.setHours(0, 0, 0, 0);
     
-    return endD < today;
+    // Ended when the calendar day reaches/passes end_date
+    return endD <= today;
   } catch { 
     return false; 
   }
@@ -173,7 +245,20 @@ export const isContractExpired = (contract) => {
  * @returns {string} Display status
  */
 export const getDisplayStatus = (contract) => {
+  const rawStatus = String(contract?.status || '').trim().toUpperCase().replace(/\s+/g, '_');
+  if (rawStatus === 'CONTRACT_ENDED') return 'CONTRACT_ENDED';
   if (isContractExpired(contract)) return 'CONTRACT_ENDED';
+
+  const t = String(contract?.contract_type || '').toUpperCase();
+  if (t === 'ADVISOR') {
+    if (String(contract?.status || '').toUpperCase() === 'COMPLETED') return 'COMPLETED';
+    const hasAdvisorSig = !!contract?.advisor_signed_at;
+    const hasManagementSig = !!contract?.management_signed_at;
+    if (hasAdvisorSig && hasManagementSig) return 'COMPLETED';
+    if (hasAdvisorSig && !hasManagementSig) return 'WAITING_MANAGEMENT';
+    // Default: waiting advisor signature
+    return 'WAITING_ADVISOR';
+  }
   
   switch (contract?.status) {
     case 'DRAFT':

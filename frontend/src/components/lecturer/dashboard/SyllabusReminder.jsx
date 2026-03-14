@@ -1,11 +1,18 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { AlertCircle } from 'lucide-react';
+import { useAuthStore } from '../../../store/useAuthStore';
 
 export const SyllabusReminder = ({ syllabusReminder }) => {
+  const { authUser } = useAuthStore();
+  const role = String(authUser?.role || '').toLowerCase();
+  if (role === 'advisor') return null;
+
   if (!syllabusReminder?.needed && syllabusReminder?.uploaded !== false) {
     return null;
   }
+
+  const profileHref = role === 'advisor' ? '/advisor/profile' : '/lecturer/profile';
 
   return (
     <div className='mb-4'>
@@ -22,7 +29,7 @@ export const SyllabusReminder = ({ syllabusReminder }) => {
             </p>
           </div>
           <button 
-            onClick={() => (window.location.href = '/lecturer/profile')} 
+            onClick={() => (window.location.href = profileHref)} 
             className='px-3 py-1 text-xs bg-yellow-600 text-white rounded-md hover:bg-yellow-700'
           >
             Upload

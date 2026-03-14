@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getAcceptedMappings } from '../../../services/courseMapping.service';
+import { getAcceptedMappings, listCourseMappings } from '../../../services/courseMapping.service';
 import { listLecturers } from '../../../services/lecturer.service';
 import { normId, lecturerDisplayFromMapping } from '../../../utils/contractHelpers';
 
@@ -21,11 +21,80 @@ export function useContractMappings(academicYear) {
     );
   }, [profileToUser]);
 
+  const resolveLecturerUserId = useCallback((lecturerKey) => {
+    const raw = String(lecturerKey || '').trim();
+    if (!raw) return null;
+    if (raw.startsWith('profile:')) {
+      const pid = raw.slice('profile:'.length);
+      return normId(profileToUser?.[pid] ?? profileToUser?.[Number(pid)] ?? null);
+    }
+    return normId(raw);
+  }, [profileToUser]);
+
   // Fetch mappings for current academic year
   useEffect(() => {
-    getAcceptedMappings({ academic_year: academicYear, limit: 100 })
-      .then(body => setMappings(body?.data || []))
-      .catch(() => {});
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const limit = 100;
+
+        const dedupePush = (out, seen, row) => {
+          const id = row?.id;
+          if (id == null) return;
+          const key = String(id);
+          if (seen.has(key)) return;
+          seen.add(key);
+          out.push(row);
+        };
+
+        const yearMatches = (m, year) => {
+          const y = String(year || '').trim();
+          const my = String(m?.academic_year || '').trim();
+          const cy = String(m?.class?.academic_year || '').trim();
+          return (my && my === y) || (!my && cy && cy === y);
+        };
+
+        const fetchAllPages = async (fetchPage) => {
+          let page = 1;
+          let totalPages = 1;
+          const out = [];
+          const seen = new Set();
+          do {
+            const body = await fetchPage(page);
+            const rows = Array.isArray(body?.data) ? body.data : [];
+            for (const r of rows) dedupePush(out, seen, r);
+
+            if (typeof body?.hasMore === 'boolean') {
+              if (!body.hasMore) break;
+            }
+            totalPages = body?.totalPages || totalPages;
+            if (page >= totalPages) break;
+            page += 1;
+          } while (page <= totalPages);
+          return out;
+        };
+
+        // Primary (fast) path: ask server for Accepted mappings of this academic year.
+        let collected = await fetchAllPages((page) => getAcceptedMappings({ academic_year: academicYear, limit, page }));
+
+        // Fallback: some records may have mapping.academic_year empty but class.academic_year set.
+        if (collected.length === 0) {
+          const allAccepted = await fetchAllPages((page) =>
+            listCourseMappings({ status: 'Accepted', limit: 200, page })
+          );
+          collected = allAccepted.filter((m) => yearMatches(m, academicYear));
+        }
+
+        if (!cancelled) setMappings(collected);
+      } catch {
+        if (!cancelled) setMappings([]);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [academicYear]);
 
   // Extract unique lecturers from mappings
@@ -35,9 +104,16 @@ export function useContractMappings(academicYear) {
       const st = String(m.status || '').toLowerCase();
       if (st !== 'accepted') continue;
       const uid = mappingUserId(m);
-      if (!uid) continue;
-      if (!map.has(uid)) {
-        map.set(uid, { id: uid, name: lecturerDisplayFromMapping(m) });
+      const pid = normId(m?.lecturer_profile_id ?? m?.lecturer?.id);
+      const key = uid || (pid ? `profile:${pid}` : null);
+      if (!key) continue;
+      if (!map.has(key)) {
+        map.set(key, {
+          id: key,
+          userId: uid || null,
+          profileId: pid || null,
+          name: lecturerDisplayFromMapping(m) || m?.lecturer?.name || '',
+        });
       }
     }
     setLecturers(Array.from(map.values()));
@@ -81,8 +157,48 @@ export function useContractMappings(academicYear) {
   const fetchMappingsForYear = useCallback(async (year) => {
     if (year in mappingsByYear) return;
     try {
-      const body = await getAcceptedMappings({ academic_year: year, limit: 100 });
-      setMappingsByYear(prev => ({ ...prev, [year]: body?.data || [] }));
+      const limit = 100;
+
+      const yearMatches = (m, yearVal) => {
+        const y = String(yearVal || '').trim();
+        const my = String(m?.academic_year || '').trim();
+        const cy = String(m?.class?.academic_year || '').trim();
+        return (my && my === y) || (!my && cy && cy === y);
+      };
+
+      const fetchAllPages = async (fetchPage) => {
+        let page = 1;
+        let totalPages = 1;
+        const out = [];
+        const seen = new Set();
+        do {
+          const body = await fetchPage(page);
+          const rows = Array.isArray(body?.data) ? body.data : [];
+          for (const r of rows) {
+            const id = r?.id;
+            if (id == null) continue;
+            const key = String(id);
+            if (seen.has(key)) continue;
+            seen.add(key);
+            out.push(r);
+          }
+          if (typeof body?.hasMore === 'boolean') {
+            if (!body.hasMore) break;
+          }
+          totalPages = body?.totalPages || totalPages;
+          if (page >= totalPages) break;
+          page += 1;
+        } while (page <= totalPages);
+        return out;
+      };
+
+      let collected = await fetchAllPages((page) => getAcceptedMappings({ academic_year: year, limit, page }));
+      if (collected.length === 0) {
+        const allAccepted = await fetchAllPages((page) => listCourseMappings({ status: 'Accepted', limit: 200, page }));
+        collected = allAccepted.filter((m) => yearMatches(m, year));
+      }
+
+      setMappingsByYear(prev => ({ ...prev, [year]: collected }));
     } catch {
       setMappingsByYear(prev => ({ ...prev, [year]: [] }));
     }
@@ -94,6 +210,7 @@ export function useContractMappings(academicYear) {
     mappingsByYear,
     setMappingsByYear,
     mappingUserId,
+    resolveLecturerUserId,
     fetchMappingsForYear,
   };
 }

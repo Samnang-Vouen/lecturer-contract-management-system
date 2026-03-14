@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { User } from '../model/index.js';
 import { HTTP_STATUS, JWT_COOKIE_NAME } from '../config/constants.js';
+import { getJwtSecret } from '../config/utils.js';
 
 export const protect = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -11,7 +12,7 @@ export const protect = async (req, res, next) => {
   if (!token) return res.status(HTTP_STATUS.UNAUTHORIZED).json({ message: 'Not authorized' });
 
   try {
-    const { userId, role, id } = jwt.verify(token, process.env.JWT_SECRET);
+    const { userId, role, id } = jwt.verify(token, getJwtSecret());
     const resolvedId = userId || id;
     // Fetch user to ensure still exists & active
     const user = await User.findByPk(resolvedId);

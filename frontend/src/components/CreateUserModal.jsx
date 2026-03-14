@@ -32,11 +32,11 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }) {
   const validateForm = () => {
     const newErrors = {};
     if (!formData.fullName.trim()) newErrors.fullName = "Full name is required";
-    if (!formData.email.trim()) {
+  /*   if (!formData.email.trim()) {
       newErrors.email = "Email is required";
     } else if (!/^[A-Z0-9._%+-]+@cadt\.edu\.kh$/i.test(formData.email)) {
       newErrors.email = "Must use CADT email (example@cadt.edu.kh)";
-    }
+    } */
     if (!formData.role) newErrors.role = "Role is required";
     if (!formData.department) newErrors.department = "Department is required";
     setErrors(newErrors);

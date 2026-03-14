@@ -13,13 +13,12 @@ import { notFound, errorHandler } from './middleware/error.middleware.js';
 import { CORS_ALLOWED_ORIGIN } from './config/constants.js';
 import { runSchemaBootstrapping } from './bootstrap/schema.js';
 import { runSeeds } from './bootstrap/seeds.js';
-import { initSocket } from './bootstrap/socket.js';
 import http from 'http';
+import { initSocket } from './socket/index.js';
+import { startContractExpiryScheduler } from './utils/contractExpiryScheduler.js';
 // Load env without noisy debug to avoid EPIPE when stdout is closed by parent
-dotenv.config();
 process.env.DOTENV_CONFIG_SILENT = 'true';
-
-
+dotenv.config();
 
 const app = express();
 
@@ -31,14 +30,19 @@ const ORIGIN = CORS_ALLOWED_ORIGIN;
 
 app.use(express.json());
 app.use(cookieParser());
+
 // Allow flexible localhost origins in development (Vite may pick a random port)
 const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true); // mobile apps / curl
+    if (!origin) return callback(null, true); // mobile apps / curl / local HTML files
     // Allow exact configured origin
     if (origin === ORIGIN) return callback(null, true);
-    // Allow any localhost:* during development
+    
     if (process.env.NODE_ENV !== 'production' && /^http:\/\/localhost:\d+$/i.test(origin)) {
+      return callback(null, true);
+    }
+    // Allow file:// protocol (local HTML files) in development
+    if (process.env.NODE_ENV !== 'production' && origin === 'null') {
       return callback(null, true);
     }
     // Prevent Node from crashing on EPIPE when parent process closes stdout/stderr pipes
@@ -60,6 +64,10 @@ app.use(cors(corsOptions));
 registerRoutes(app);
 // Serve uploaded lecturer files (CVs, syllabi)
 app.use('/uploads', express.static('uploads'));
+// Serve test HTML file for evaluation upload
+app.get('/test-upload', (_req, res) => {
+  res.sendFile(path.join(process.cwd(), 'test-upload.html'));
+});
 // Swagger/OpenAPI docs
 const openapiPath = path.join(process.cwd(), 'src', 'openapi.json');
 let openapiDoc = null;
@@ -105,7 +113,14 @@ app.use(errorHandler);
     if (MIGRATE_ON_START) await runSchemaBootstrapping(sequelize);
     if (SEED_ON_START) await runSeeds();
 
-    app.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
+    // Auto-expire contracts whose end_date is reached/passed.
+    // Runs once on startup + periodically (default: hourly).
+    startContractExpiryScheduler({
+      intervalMs: Number(process.env.CONTRACT_EXPIRY_INTERVAL_MS || 0) || undefined,
+      runOnStart: process.env.CONTRACT_EXPIRY_RUN_ON_START !== 'false',
+    });
+
+    server.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
   } catch (e) {
     console.error('Startup failure:', e.message);
     process.exit(1);

@@ -1,6 +1,22 @@
 import { axiosInstance } from '../lib/axios';
 
 export async function listLecturers(params) {
+  // Ensure array params (like role) become repeated keys: role=a&role=b
+  if (params && Array.isArray(params.role)) {
+    const sp = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === '') return;
+      if (key === 'role' && Array.isArray(value)) {
+        value.forEach((v) => sp.append('role', String(v)));
+        return;
+      }
+      sp.set(key, String(value));
+    });
+    const qs = sp.toString();
+    const res = await axiosInstance.get(qs ? `/lecturers?${qs}` : '/lecturers');
+    return res.data;
+  }
+
   const res = await axiosInstance.get('/lecturers', { params });
   return res.data;
 }

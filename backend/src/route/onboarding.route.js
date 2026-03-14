@@ -8,7 +8,7 @@ import {
 
 const router = express.Router();
 
-router.use(protect, authorizeRoles(['lecturer']));
+router.use(protect, authorizeRoles(['lecturer', 'advisor']));
 
 router.get('/status', checkOnboarding);
 

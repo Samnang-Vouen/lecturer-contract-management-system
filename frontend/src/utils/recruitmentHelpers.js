@@ -1,4 +1,4 @@
-import { CheckCircle, XCircle, MessageCircle, Clock, AlertCircle } from 'lucide-react';
+import { CheckCircle, XCircle, MessageCircle, Clock, AlertCircle, UserCheck } from 'lucide-react';
 
 export const normalizePhone = (val) => String(val || '').trim().replace(/[()\s-]/g, '');
 
@@ -107,24 +107,42 @@ export const formatFullNameInput = (input) => {
 };
 
 export const getStatusColor = (status) => {
-  switch (status) {
-    case 'accepted': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-    case 'rejected': return 'bg-red-100 text-red-800 border-red-200';
-    case 'discussion': return 'bg-blue-100 text-blue-800 border-blue-200';
-    case 'interview': return 'bg-amber-100 text-amber-800 border-amber-200';
-    case 'pending': return 'bg-gray-100 text-gray-800 border-gray-200';
-    default: return 'bg-gray-100 text-gray-800 border-gray-200';
+  const s = String(status || '').toLowerCase();
+  switch (s) {
+    case 'accepted':
+      return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+    case 'done':
+      return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+    case 'rejected':
+      return 'bg-red-100 text-red-800 border-red-200';
+    case 'discussion':
+      return 'bg-blue-100 text-blue-800 border-blue-200';
+    case 'interview':
+      return 'bg-amber-100 text-amber-800 border-amber-200';
+    case 'pending':
+      return 'bg-gray-100 text-gray-800 border-gray-200';
+    default:
+      return 'bg-gray-100 text-gray-800 border-gray-200';
   }
 };
 
 export const getStatusIconComponent = (status) => {
-  switch (status) {
-    case 'accepted': return CheckCircle;
-    case 'rejected': return XCircle;
-    case 'discussion': return MessageCircle;
-    case 'interview': return Clock;
-    case 'pending': return Clock;
-    default: return AlertCircle;
+  const s = String(status || '').toLowerCase();
+  switch (s) {
+    case 'accepted':
+      return CheckCircle;
+    case 'done':
+      return UserCheck;
+    case 'rejected':
+      return XCircle;
+    case 'discussion':
+      return MessageCircle;
+    case 'interview':
+      return Clock;
+    case 'pending':
+      return Clock;
+    default:
+      return AlertCircle;
   }
 };
 

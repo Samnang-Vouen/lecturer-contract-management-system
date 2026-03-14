@@ -38,6 +38,9 @@ const CourseMapping = sequelize.define(
       defaultValue: 'Pending',
     },
     contacted_by: { type: DataTypes.STRING(255), allowNull: true },
+    room_number: { type: DataTypes.STRING(50), allowNull: true },
+    theory_room_number: { type: DataTypes.STRING(50), allowNull: true },
+    lab_room_number: { type: DataTypes.STRING(50), allowNull: true },
     comment: { type: DataTypes.TEXT, allowNull: true },
   },
   {

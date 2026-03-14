@@ -5,12 +5,12 @@ import { useState } from 'react';
  */
 export const useUploadDialog = () => {
   const [showUploadDlg, setShowUploadDlg] = useState(false);
-  const [uploadContractId, setUploadContractId] = useState(null);
+  const [uploadContract, setUploadContract] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploadError, setUploadError] = useState('');
 
-  const openUploadDialog = (contractId) => {
-    setUploadContractId(contractId);
+  const openUploadDialog = (contract) => {
+    setUploadContract(contract || null);
     setSelectedFile(null);
     setUploadError('');
     setShowUploadDlg(true);
@@ -18,6 +18,7 @@ export const useUploadDialog = () => {
 
   const closeUploadDialog = () => {
     setShowUploadDlg(false);
+    setUploadContract(null);
     setSelectedFile(null);
     setUploadError('');
   };
@@ -30,7 +31,7 @@ export const useUploadDialog = () => {
   return {
     showUploadDlg,
     setShowUploadDlg,
-    uploadContractId,
+    uploadContract,
     selectedFile,
     setSelectedFile,
     uploadError,

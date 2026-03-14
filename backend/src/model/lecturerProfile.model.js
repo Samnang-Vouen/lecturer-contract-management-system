@@ -18,6 +18,14 @@ const LecturerProfile = sequelize.define(
       },
       field: 'user_id',
     },
+    candidate_id: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      allowNull: true,
+      references: {
+        model: 'Candidates',
+        key: 'id',
+      },
+    },
     employee_id: {
       type: DataTypes.STRING(255),
       allowNull: true,

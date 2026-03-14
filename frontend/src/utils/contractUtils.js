@@ -1,10 +1,15 @@
-import { Clock, CircleCheck } from 'lucide-react';
+import { Clock, CircleCheck, AlertCircle } from 'lucide-react';
 
 /**
  * Get status label, styling, and icon for contract status
  */
 export const getStatusLabel = (status) => {
-  switch (status) {
+  const st = String(status || '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '_');
+
+  switch (st) {
     case 'DRAFT':
       return { label: 'draft', class: 'bg-gray-100 text-gray-700 border-gray-200', icon: Clock };
     case 'WAITING_MANAGEMENT':
@@ -15,6 +20,8 @@ export const getStatusLabel = (status) => {
       return { label: 'waiting lecturer', class: 'bg-amber-50 text-amber-700 border-amber-200', icon: Clock };
     case 'COMPLETED':
       return { label: 'completed', class: 'bg-green-50 text-green-700 border-green-200', icon: CircleCheck };
+    case 'CONTRACT_ENDED':
+      return { label: 'contract ended', class: 'bg-gray-100 text-red-700 border-red-200', icon: AlertCircle };
     default:
       return { label: 'draft', class: 'bg-gray-100 text-gray-700 border-gray-200', icon: Clock };
   }
@@ -137,13 +144,40 @@ export const toSafePdfFilename = (baseName, id) => {
  */
 export const formatContractId = (contract) => {
   const createdYear = contract.created_at ? new Date(contract.created_at).getFullYear() : new Date().getFullYear();
-  return `CTR-${createdYear}-${String(contract.id).padStart(3, '0')}`;
+  const type = String(contract?.contract_type || 'TEACHING').toUpperCase();
+  const prefix = type === 'ADVISOR' ? 'AC' : 'LC';
+  return `${prefix}-${createdYear}-${String(contract.id).padStart(3, '0')}`;
 };
 
 /**
  * Calculate total hours from contract courses
  */
 export const calculateTotalHours = (contract) => {
+  const type = String(contract?.contract_type || 'TEACHING').toUpperCase();
+  if (type === 'ADVISOR') {
+    const perStudentRaw =
+      contract?.hours_per_student ??
+      contract?.hoursPerStudent ??
+      contract?.hours_per_students ??
+      contract?.hoursPerStudents;
+    const perStudent = Number(perStudentRaw || 0) || 0;
+
+    const studentsCount = Array.isArray(contract?.students)
+      ? contract.students.length
+      : Number(contract?.studentsCount ?? contract?.student_count ?? contract?.studentCount ?? 0) || 0;
+
+    const judgingRaw =
+      contract?.join_judging_hours ??
+      contract?.joinJudgingHours ??
+      contract?.join_judging_hour ??
+      contract?.joinJudgingHour;
+    const judging = Number(judgingRaw || 0) || 0;
+
+    // Match backend/PDF logic: join judging hours are per-student
+    const totalHoursPerStudent = perStudent * studentsCount;
+    const totalJudgingHours = judging * studentsCount;
+    return totalHoursPerStudent + totalJudgingHours;
+  }
   return (contract.courses || []).reduce((acc, course) => acc + (course.hours || 0), 0);
 };
 
@@ -151,7 +185,7 @@ export const calculateTotalHours = (contract) => {
  * Get hourly rate from contract
  */
 export const getHourlyRate = (contract) => {
-  const rate = contract.hourlyRateThisYear;
+  const rate = contract?.hourlyRateThisYear ?? contract?.hourly_rate;
   const num = rate != null && rate !== '' ? Number(rate) : null;
   return Number.isFinite(num) ? num : null;
 };

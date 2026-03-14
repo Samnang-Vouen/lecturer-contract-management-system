@@ -73,6 +73,7 @@ export default function ContractsListCard({
                   buttonClassName="h-11 text-base"
                 >
                   <SelectItem value="ALL">All statuses</SelectItem>
+                  <SelectItem value="WAITING_ADVISOR">Waiting Advisor</SelectItem>
                   <SelectItem value="WAITING_LECTURER">Waiting Lecturer</SelectItem>
                   <SelectItem value="WAITING_MANAGEMENT">Waiting Management</SelectItem>
                   <SelectItem value="COMPLETED">Completed</SelectItem>
@@ -102,7 +103,7 @@ export default function ContractsListCard({
                 authUser={authUser}
                 menuOpenId={menuOpenId}
                 onMenuToggle={handleMenuToggle}
-                onPreview={() => handleAction(onPreview, contract.id)}
+                onPreview={() => handleAction(onPreview, contract.id, contract)}
                 onDownload={() => handleAction(onDownload, contract)}
                 onViewDetail={() => handleAction(onViewDetail, contract)}
                 onSign={() => handleAction(onSign, contract)}

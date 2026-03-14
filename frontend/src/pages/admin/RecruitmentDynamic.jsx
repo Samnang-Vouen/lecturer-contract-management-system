@@ -174,9 +174,10 @@ export default function RecruitmentDynamic() {
   // Handlers
   const handleSelectCandidate = (candidate) => {
     setSelectedCandidate(candidate);
-    if (candidate.status === 'pending' || candidate.status === 'interview') setActiveStep('interview');
-    else if (candidate.status === 'discussion') setActiveStep('discussion');
-    else if (['accepted', 'rejected'].includes(candidate.status)) setActiveStep('final');
+    const status = String(candidate?.status || '').toLowerCase();
+    if (status === 'pending' || status === 'interview') setActiveStep('interview');
+    else if (status === 'discussion') setActiveStep('discussion');
+    else if (['accepted', 'rejected', 'done'].includes(status)) setActiveStep('final');
   };
 
   const handleCandidateSubmit = async () => {

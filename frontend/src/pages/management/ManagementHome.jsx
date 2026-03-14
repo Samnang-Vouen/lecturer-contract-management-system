@@ -23,7 +23,6 @@ export default function ManagementHome() {
     realTimeStats,
     signedLecturersCount,
     expiredCount,
-    contracts,
     fetchDashboardData
   } = useManagementDashboard(selectedTimeRange);
 
@@ -34,7 +33,7 @@ export default function ManagementHome() {
     showNotifications,
     setShowNotifications,
     notifContainerRef
-  } = useNotifications(contracts);
+  } = useNotifications();
 
   const statTrends = useMemo(() => 
     buildStatTrends(dashboard.monthly, dashboard.totals), 
@@ -71,6 +70,7 @@ export default function ManagementHome() {
               show={showNotifications}
               notifications={notifications}
               lastViewedAt={lastViewedAt}
+              setShowNotifications={setShowNotifications}
             />
           }
         />

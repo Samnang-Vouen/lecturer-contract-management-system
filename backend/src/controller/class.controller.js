@@ -30,7 +30,14 @@ async function resolveSpecializationIdFromPayload(payload, deptId) {
   // Find-or-create within department scope when available
   const where = deptId ? { name, dept_id: deptId } : { name };
   const defaults = deptId ? { name, dept_id: deptId } : { name };
-  const [spec] = await Specialization.findOrCreate({ where, defaults });
+  const [spec, created] = await Specialization.findOrCreate({ where, defaults });
+  if (created) {
+    // Log creation to make unintended specializations (e.g., from typos) more visible
+    console.warn('resolveSpecializationIdFromPayload: created new specialization', {
+      name,
+      deptId,
+    });
+  }
   return spec?.id ?? null;
 }
 

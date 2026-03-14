@@ -6,7 +6,7 @@ const router = express.Router();
 
 router.use(protect);
 // Allow admins and superadmins for now (extend if other roles need profile page)
-router.use(authorizeRoles(['admin', 'superadmin', 'lecturer', 'management']));
+router.use(authorizeRoles(['admin', 'superadmin', 'lecturer', 'advisor', 'management']));
 
 router.get('/me', getMyProfile);
 router.get('/activity', getMyActivity);

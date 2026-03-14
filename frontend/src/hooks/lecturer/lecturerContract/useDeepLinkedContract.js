@@ -25,10 +25,14 @@ export const useDeepLinkedContract = (contracts, openViewDialog, openSignDialog)
   // Auto-open contract when found
   useEffect(() => {
     if (openContract) {
-      const canSign = 
-        openContract.status === 'DRAFT' || 
-        openContract.status === 'MANAGEMENT_SIGNED' || 
-        openContract.status === 'WAITING_LECTURER';
+      const isAdvisor = String(openContract?.contract_type || '').toUpperCase() === 'ADVISOR';
+      const canSign = isAdvisor
+        ? (String(openContract?.status || '').toUpperCase() === 'DRAFT' && !openContract?.advisor_signed_at)
+        : (
+            openContract.status === 'DRAFT' ||
+            openContract.status === 'MANAGEMENT_SIGNED' ||
+            openContract.status === 'WAITING_LECTURER'
+          );
       
       if (canSign) {
         openSignDialog(openContract);

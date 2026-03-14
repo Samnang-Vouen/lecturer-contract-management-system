@@ -1,7 +1,42 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { getLecturerDetail } from '../../../services/lecturer.service';
+import { getAdvisorDetail } from '../../../services/advisor.service';
 import { useMemo, useCallback } from 'react';
+
+const getRoleTokens = (obj) => {
+  const toToken = (r) => {
+    if (r === null || r === undefined) return '';
+    if (typeof r === 'string' || typeof r === 'number') return String(r);
+    if (typeof r === 'object') {
+      return r.role ?? r.name ?? r.code ?? r.type ?? r.value ?? '';
+    }
+    return String(r);
+  };
+
+  const rawValues = [obj?.role, obj?.roles, obj?.user?.role, obj?.user?.roles];
+  const flattened = [];
+  for (const v of rawValues) {
+    if (!v) continue;
+    if (Array.isArray(v)) {
+      for (const item of v) flattened.push(toToken(item));
+    } else {
+      flattened.push(toToken(v));
+    }
+  }
+
+  return flattened
+    .flatMap((s) => String(s ?? '').split(','))
+    .map((t) => t.trim().toLowerCase())
+    .filter(Boolean);
+};
+
+const isAdvisorOnly = (obj) => {
+  const tokens = getRoleTokens(obj);
+  const hasAdvisorRole = tokens.some((t) => t === 'advisor' || t.includes('advisor'));
+  const hasLecturerRole = tokens.some((t) => t === 'lecturer' || t === 'lecture' || t.includes('lectur'));
+  return hasAdvisorRole && !hasLecturerRole;
+};
 
 export function useLecturerDetail() {
   const [selectedLecturer, setSelectedLecturer] = useState(null);
@@ -94,32 +129,71 @@ export function useLecturerDetail() {
 
   const fetchAndOpenProfile = async (lecturer, readonly = false) => {
     try {
-      const raw = (await getLecturerDetail(lecturer.id)) || {};
+      const isAdvisor = isAdvisorOnly(lecturer);
+      const initialRoleTokens = getRoleTokens(lecturer);
+
+      const raw = (await (isAdvisor ? getAdvisorDetail(lecturer.id) : getLecturerDetail(lecturer.id))) || {};
       const detail = raw.data || raw.profile || raw.lecturer_profile || raw || {};
       
       const get = (k, alt) => 
         detail[k] ?? raw[k] ?? raw.data?.[k] ?? raw.profile?.[k] ?? raw.lecturer_profile?.[k] ?? alt;
       
-      const prefilledBio = get('short_bio') || extractBio(raw);
+      const prefilledBio = get('short_bio') || get('shortBio') || extractBio(raw);
+
+      const researchFieldsRaw =
+        get('researchFields') ?? get('research_fields') ?? lecturer.researchFields ?? [];
+      const researchFields = Array.isArray(researchFieldsRaw)
+        ? researchFieldsRaw
+        : typeof researchFieldsRaw === 'string'
+          ? researchFieldsRaw
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean)
+          : [];
       
       const enriched = {
         id: lecturer.id,
         name: lecturer.name || get('name', ''),
+        role: Array.from(new Set([
+          ...initialRoleTokens,
+          ...getRoleTokens(detail),
+          ...getRoleTokens(raw)
+        ])).filter(Boolean),
         email: lecturer.email || get('email', ''),
+        full_name_english: get('full_name_english', '') || get('fullNameEnglish', ''),
+        full_name_khmer: get('full_name_khmer', '') || get('fullNameKhmer', ''),
+        personal_email: get('personal_email', '') || get('personalEmail', ''),
+        country: get('country', '') || '',
         department: lecturer.department || get('department', ''),
+        departments: get('departments', []) || [],
         position: lecturer.position || get('position', 'Lecturer'),
         status: lecturer.status || get('status', 'active'),
         occupation: get('occupation', '') || '',
         place: get('place', '') || '',
         phone: get('phone') || get('phone_number') || '',
         bio: prefilledBio,
-        specialization: get('researchFields') || get('research_fields') || lecturer.researchFields || [],
+        qualifications: get('qualifications', '') || '',
+        specialization: researchFields,
+        courses: get('courses', []) || [],
+        coursesCount: get('coursesCount', null),
         education: get('education') || [],
         experience: get('experience') || [],
         cvUploaded: get('cvUploaded') || false,
         cvFilePath: get('cvFilePath') || get('cv_file_path') || '',
         syllabusUploaded: get('syllabusUploaded') || false,
         syllabusFilePath: get('syllabusFilePath') || get('syllabus_file_path') || '',
+        courseSyllabusFiles:
+          get('courseSyllabusFiles') ||
+          get('course_syllabus_files') ||
+          [],
+        courseSyllabusFileNames:
+          get('courseSyllabusFileNames') ||
+          get('course_syllabus_file_names') ||
+          {},
+        latest_degree: get('latest_degree', '') || '',
+        degree_year: get('degree_year', '') || '',
+        major: get('major', '') || '',
+        university: get('university', '') || '',
         bank_name: get('bank_name', '') || get('bankName', ''),
         account_name: get('account_name', '') || get('accountName', ''),
         account_number: get('account_number', '') || get('accountNumber', ''),

@@ -8,7 +8,7 @@ import { Op } from 'sequelize';
 // ============================================================================
 const desiredDepartments = [
   'Computer Science',
-  'Telecommunications and Network',
+  'Telecommunications and Networking',
   'Digital Business',
   'Foundation'
 ];

@@ -14,6 +14,10 @@ const Department = sequelize.define(
       allowNull: false,
       field: 'name',
     },
+    dept_name_khmer: {
+      type: DataTypes.STRING,
+      allowNull: true
+    }
   },
   {
     tableName: 'departments',

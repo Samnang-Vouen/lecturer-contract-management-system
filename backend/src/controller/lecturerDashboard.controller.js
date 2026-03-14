@@ -20,13 +20,15 @@ async function getLatestPeriod(lecturerUserId) {
 export async function getLecturerDashboardSummary(req, res) {
   try {
     const role = req.user?.role?.toLowerCase();
-    if (!['lecturer', 'admin', 'management', 'superadmin'].includes(role)) {
+    if (!['lecturer', 'advisor', 'admin', 'management', 'superadmin'].includes(role)) {
       return res.status(403).json({ message: 'Forbidden' });
     }
 
     // Scope to current lecturer by default; admins can pass ?userId=. Management is restricted to own dept only.
     let lecturerUserId =
-      role === 'lecturer' ? req.user.id : parseInt(req.query.userId, 10) || req.user.id;
+      role === 'lecturer' || role === 'advisor'
+        ? req.user.id
+        : parseInt(req.query.userId, 10) || req.user.id;
     if (role === 'management') {
       // If a different userId is requested, ensure it belongs to same department
       if (lecturerUserId !== req.user.id) {
@@ -67,11 +69,14 @@ export async function getLecturerDashboardSummary(req, res) {
       attributes: ['id', 'upload_syllabus', 'course_syllabus', 'full_name_english'],
     });
     const syllabusUploaded = Boolean(profile?.upload_syllabus) || Boolean(profile?.course_syllabus);
-    const syllabusReminder = {
-      needed: !syllabusUploaded,
-      uploaded: syllabusUploaded,
-      message: syllabusUploaded ? 'Syllabus uploaded' : 'Please upload your course syllabus',
-    };
+    const syllabusReminder =
+      role === 'advisor'
+        ? { needed: false, uploaded: true, message: null }
+        : {
+            needed: !syllabusUploaded,
+            uploaded: syllabusUploaded,
+            message: syllabusUploaded ? 'Syllabus uploaded' : 'Please upload your course syllabus',
+          };
 
     // Determine current period filters
     let { term, academic_year, year_level } = req.query;
@@ -142,12 +147,14 @@ export async function getLecturerDashboardSummary(req, res) {
 export async function getLecturerRealtime(req, res) {
   try {
     const role = req.user?.role?.toLowerCase();
-    if (!['lecturer', 'admin', 'management', 'superadmin'].includes(role)) {
+    if (!['lecturer', 'advisor', 'admin', 'management', 'superadmin'].includes(role)) {
       return res.status(403).json({ message: 'Forbidden' });
     }
     // Scope to current lecturer by default; admins can pass ?userId=
     let lecturerUserId =
-      role === 'lecturer' ? req.user.id : parseInt(req.query.userId, 10) || req.user.id;
+      role === 'lecturer' || role === 'advisor'
+        ? req.user.id
+        : parseInt(req.query.userId, 10) || req.user.id;
     if (role === 'management') {
       if (lecturerUserId !== req.user.id) {
         const target = await User.findByPk(lecturerUserId, {
@@ -200,11 +207,13 @@ export async function getLecturerRealtime(req, res) {
 export async function getLecturerActivities(req, res) {
   try {
     const role = req.user?.role?.toLowerCase();
-    if (!['lecturer', 'admin', 'management', 'superadmin'].includes(role)) {
+    if (!['lecturer', 'advisor', 'admin', 'management', 'superadmin'].includes(role)) {
       return res.status(403).json({ message: 'Forbidden' });
     }
     let lecturerUserId =
-      role === 'lecturer' ? req.user.id : parseInt(req.query.userId, 10) || req.user.id;
+      role === 'lecturer' || role === 'advisor'
+        ? req.user.id
+        : parseInt(req.query.userId, 10) || req.user.id;
     if (role === 'management') {
       if (lecturerUserId !== req.user.id) {
         const target = await User.findByPk(lecturerUserId, {
@@ -246,11 +255,13 @@ export async function getLecturerActivities(req, res) {
 export async function getLecturerSalaryAnalysis(req, res) {
   try {
     const role = req.user?.role?.toLowerCase();
-    if (!['lecturer', 'admin', 'management', 'superadmin'].includes(role)) {
+    if (!['lecturer', 'advisor', 'admin', 'management', 'superadmin'].includes(role)) {
       return res.status(403).json({ message: 'Forbidden' });
     }
     const lecturerUserId =
-      role === 'lecturer' ? req.user.id : parseInt(req.query.userId, 10) || req.user.id;
+      role === 'lecturer' || role === 'advisor'
+        ? req.user.id
+        : parseInt(req.query.userId, 10) || req.user.id;
 
     // Fetch lecturer user to determine email/name for hourly rate lookup
     const lecturerUser = await User.findByPk(lecturerUserId, {
@@ -291,7 +302,7 @@ export async function getLecturerSalaryAnalysis(req, res) {
     // Fetch contracts with their courses to sum hours
     const contracts = await TeachingContract.findAll({
       where: { lecturer_user_id: lecturerUserId },
-      include: [{ model: TeachingContractCourse, as: 'courses', attributes: ['hours'] }],
+      include: [{ model: TeachingContractCourse, as: 'contractCourses', attributes: ['hours'] }],
       order: [['created_at', 'DESC']],
     });
 
@@ -319,7 +330,7 @@ export async function getLecturerSalaryAnalysis(req, res) {
     };
 
     for (const c of contracts) {
-      const hours = (c.courses || []).reduce(
+      const hours = (c.contractCourses || []).reduce(
         (a, cur) => a + (Number.isFinite(+cur.hours) ? +cur.hours : 0),
         0
       );

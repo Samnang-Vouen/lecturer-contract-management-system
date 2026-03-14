@@ -1,13 +1,86 @@
 import { Op, Sequelize } from 'sequelize';
 import fs from 'fs';
 import path from 'path';
-import { LecturerProfile, User, Department } from '../model/index.js';
+import { LecturerProfile, User, Department, Role } from '../model/index.js';
 import Candidate from '../model/candidate.model.js';
 import LecturerCourse from '../model/lecturerCourse.model.js';
 import Course from '../model/course.model.js';
 import { findOrCreateResearchFields } from './researchField.controller.js';
 import { findOrCreateUniversities } from './university.controller.js';
 import { findOrCreateMajors } from './major.controller.js';
+
+const sanitizeDisplayName = (name) => {
+  const base = path.basename(String(name || '')).trim();
+  if (!base) return 'syllabus.pdf';
+  const cleaned = base
+    .replace(/[\u0000-\u001f\u007f]/g, '')
+    .replace(/\s+/g, ' ')
+    .slice(0, 120)
+    .trim();
+  return cleaned || 'syllabus.pdf';
+};
+
+const syllabusManifestPath = (folderSlug) =>
+  path.join(process.cwd(), 'uploads', 'lecturers', folderSlug, 'syllabus', '_manifest.json');
+
+const readSyllabusManifest = async (folderSlug) => {
+  if (!folderSlug) return { files: [] };
+  const manifestPath = syllabusManifestPath(folderSlug);
+  try {
+    const txt = await fs.promises.readFile(manifestPath, 'utf8');
+    const parsed = JSON.parse(txt);
+    if (!parsed || !Array.isArray(parsed.files)) return { files: [] };
+    return { files: parsed.files };
+  } catch {
+    return { files: [] };
+  }
+};
+
+const listSyllabusFilesWithNames = async (folderSlug, legacySinglePath = null) => {
+  const legacy = legacySinglePath ? String(legacySinglePath).replace(/\\/g, '/').replace(/^\//, '') : null;
+  if (!folderSlug) {
+    return {
+      files: legacy ? [legacy] : [],
+      file_names: legacy ? { [legacy]: sanitizeDisplayName(legacy) } : {},
+    };
+  }
+
+  const dir = path.join(process.cwd(), 'uploads', 'lecturers', folderSlug, 'syllabus');
+  const manifest = await readSyllabusManifest(folderSlug);
+  const originalByStored = new Map();
+  for (const f of manifest.files) {
+    if (!f || !f.stored) continue;
+    originalByStored.set(String(f.stored), sanitizeDisplayName(f.original || f.stored));
+  }
+
+  try {
+    const names = await fs.promises.readdir(dir);
+    const pdfs = names
+      .filter((n) => /\.pdf$/i.test(String(n)))
+      .map((n) => String(n))
+      .sort((a, b) => String(b).localeCompare(String(a)));
+
+    const files = pdfs.map((n) =>
+      path.join('uploads', 'lecturers', folderSlug, 'syllabus', n).replace(/\\/g, '/')
+    );
+    const file_names = {};
+    for (let i = 0; i < pdfs.length; i += 1) {
+      const stored = pdfs[i];
+      const p = files[i];
+      file_names[p] = originalByStored.get(stored) || sanitizeDisplayName(stored);
+    }
+
+    if (!files.length && legacy) {
+      return { files: [legacy], file_names: { [legacy]: sanitizeDisplayName(legacy) } };
+    }
+    return { files, file_names };
+  } catch {
+    return {
+      files: legacy ? [legacy] : [],
+      file_names: legacy ? { [legacy]: sanitizeDisplayName(legacy) } : {},
+    };
+  }
+};
 
 /**
  * GET /api/lecturers
@@ -22,11 +95,22 @@ export const getLecturers = async (req, res) => {
     const search = (req.query.search || '').trim();
     const statusFilter = (req.query.status || '').trim();
     const departmentFilter = (req.query.department || '').trim();
+    // Position filtering removed (UI no longer supports it).
+    const roleQuery = req.query.role;
+    const roleFilters = (Array.isArray(roleQuery)
+      ? roleQuery
+      : typeof roleQuery === 'string'
+        ? roleQuery.split(',')
+        : [])
+      .map((r) => String(r || '').trim().toLowerCase())
+      .filter((r) => ['advisor', 'lecturer'].includes(r));
 
-    let where = undefined;
+    // Build LecturerProfile where conditions safely (avoid spreading Sequelize.where objects).
+    const profileAnd = [];
+
     if (search) {
       const like = `%${search}%`;
-      where = {
+      profileAnd.push({
         [Op.or]: [
           // search stored full-name fields on LecturerProfile
           { full_name_english: { [Op.like]: like } },
@@ -35,13 +119,32 @@ export const getLecturers = async (req, res) => {
           Sequelize.where(Sequelize.col('User.display_name'), { [Op.like]: like }),
           Sequelize.where(Sequelize.col('User.email'), { [Op.like]: like }),
         ],
-      };
+      });
     }
+
+    void departmentFilter;
+
+    const where = profileAnd.length
+      ? profileAnd.length === 1
+        ? profileAnd[0]
+        : { [Op.and]: profileAnd }
+      : undefined;
 
     // Filters that apply to User (status)
     const userWhere = {};
     if (statusFilter && ['active', 'inactive'].includes(statusFilter))
       userWhere.status = statusFilter;
+
+    // Role filter is stored in user_roles + roles (not users table)
+    const roleExistsLiteral = roleFilters.length
+      ? Sequelize.literal(`EXISTS (
+          SELECT 1
+          FROM user_roles ur
+          INNER JOIN roles r ON ur.role_id = r.id
+          WHERE ur.user_id = User.id
+          AND r.name IN (${roleFilters.map((r) => `'${r}'`).join(', ')})
+        )`)
+      : null;
 
     // For department admins, we'll add a where condition that checks if the lecturer
     // teaches any courses in the admin's department using EXISTS subquery
@@ -49,11 +152,10 @@ export const getLecturers = async (req, res) => {
     if (req.user?.role === 'admin' && req.user.department_name) {
       const dept = await Department.findOne({ where: { dept_name: req.user.department_name } });
       if (dept) {
-        // Add a condition to only show lecturers who teach courses in this department
-        profileWhere = {
-          ...where,
-          [Op.and]: [
-            where || {},
+        // Add a condition to only show lecturers who teach courses in this department.
+        // Also include advisors who belong to this department (they may not have courses).
+        const deptScopeCondition = {
+          [Op.or]: [
             Sequelize.literal(`EXISTS (
               SELECT 1 
               FROM Lecturer_Courses lc 
@@ -61,9 +163,33 @@ export const getLecturers = async (req, res) => {
               WHERE lc.lecturer_profile_id = LecturerProfile.id 
               AND c.dept_id = ${parseInt(dept.id)}
             )`),
+            Sequelize.and(
+              Sequelize.literal(`EXISTS (
+                SELECT 1
+                FROM user_roles ur
+                INNER JOIN roles r ON ur.role_id = r.id
+                WHERE ur.user_id = User.id
+                AND r.name = 'advisor'
+              )`),
+              Sequelize.where(Sequelize.col('User.department_name'), req.user.department_name)
+            ),
           ],
         };
+
+        profileWhere = profileWhere
+          ? { [Op.and]: [profileWhere, deptScopeCondition] }
+          : deptScopeCondition;
       }
+    }
+
+    // Apply role filter last so it composes with search + department scoping.
+    if (roleExistsLiteral) {
+      const existingAnd = profileWhere?.[Op.and]
+        ? profileWhere[Op.and]
+        : profileWhere
+          ? [profileWhere]
+          : [];
+      profileWhere = { [Op.and]: [...existingAnd, roleExistsLiteral] };
     }
 
     const { rows, count } = await LecturerProfile.findAndCountAll({
@@ -83,9 +209,26 @@ export const getLecturers = async (req, res) => {
       include: [
         {
           model: User,
-          attributes: ['id', 'email', 'status', 'last_login', 'department_name', 'created_at'],
+          attributes: [
+            'id',
+            'email',
+            'status',
+            'last_login',
+            'department_name',
+            'display_name',
+            'created_at',
+          ],
           where: Object.keys(userWhere).length ? userWhere : undefined,
           required: true,
+          include: [
+            {
+              model: Role,
+              as: 'Roles',
+              attributes: ['role_type'],
+              through: { attributes: [] },
+              required: false,
+            },
+          ],
         },
       ],
       where: profileWhere,
@@ -184,6 +327,22 @@ export const getLecturers = async (req, res) => {
         lp.full_name_khmer ||
         lp.User?.display_name ||
         (lp.User?.email ? lp.User.email.split('@')[0].replace(/\./g, ' ') : 'Unknown');
+
+      const roleTypes = Array.isArray(lp.User?.Roles)
+        ? lp.User.Roles.map((r) => r?.role_type).filter(Boolean)
+        : [];
+
+      // Keep role filtering inclusive: a dual-role user should still appear for either filter.
+      // For UX, if a single role filter is active (?role=lecturer), reflect that in the returned `role`.
+      const singleRoleFilter = roleFilters.length === 1 ? roleFilters[0] : null;
+      const role =
+        singleRoleFilter && roleTypes.includes(singleRoleFilter)
+          ? singleRoleFilter
+          : roleTypes.includes('advisor')
+            ? 'advisor'
+            : roleTypes.includes('lecturer')
+              ? 'lecturer'
+              : roleTypes[0] || 'lecturer';
       // For department admins, show their department instead of lecturer's original department
       const displayDepartment =
         req.user?.role === 'admin' && req.user.department_name
@@ -206,7 +365,8 @@ export const getLecturers = async (req, res) => {
         lecturerProfileId: lp.id,
         name,
         email: lp.User?.email,
-        role: 'lecturer',
+        role,
+        roles: roleTypes,
         department: displayDepartment,
         status: lp.User?.status || 'active',
         lastLogin: lp.User?.last_login || 'Never',
@@ -244,6 +404,10 @@ export const getLecturerDetail = async (req, res) => {
     const userId = parseInt(req.params.id, 10);
     if (!userId) return res.status(400).json({ message: 'Invalid id' });
 
+    // Some admin-only routes (e.g. advisor management) reuse this controller but should not
+    // apply the course-based department access restriction.
+    const skipDeptCourseAccessCheck = Boolean(req.skipDeptCourseAccessCheck);
+
     // Build course include with department filtering for admins
     let lecturerCourseInclude = [
       {
@@ -253,7 +417,7 @@ export const getLecturerDetail = async (req, res) => {
     ];
 
     // For department admins, filter courses to only show courses from their department
-    if (req.user?.role === 'admin' && req.user.department_name) {
+    if (!skipDeptCourseAccessCheck && req.user?.role === 'admin' && req.user.department_name) {
       const dept = await Department.findOne({ where: { dept_name: req.user.department_name } });
       if (dept) {
         lecturerCourseInclude[0].where = { dept_id: dept.id };
@@ -272,7 +436,7 @@ export const getLecturerDetail = async (req, res) => {
     if (!profile) return res.status(404).json({ message: 'Lecturer not found' });
 
     // Updated access control: admin can view lecturers who teach courses in their department
-    if (req.user?.role === 'admin' && req.user.department_name) {
+    if (!skipDeptCourseAccessCheck && req.user?.role === 'admin' && req.user.department_name) {
       const dept = await Department.findOne({ where: { dept_name: req.user.department_name } });
       if (dept) {
         // Check if this lecturer teaches any courses in the admin's department
@@ -312,62 +476,61 @@ export const getLecturerDetail = async (req, res) => {
         ? req.user.department_name
         : profile.User?.department_name || 'General';
 
-    // Lookup candidate by email first (most reliable), fallback to name matching
+    // Prefer candidate_id linkage (reliable), fallback to email/name lookup (legacy)
     let candidateId = null;
     let hourlyRateThisYear = null;
     try {
       let cand = null;
-      
-      // Primary: Try email match first (most reliable)
-      if (profile.User?.email) {
-        cand = await Candidate.findOne({ 
-          where: { email: profile.User.email },
-          attributes: ['id', 'fullName', 'email', 'hourlyRate']
+
+      if (profile.candidate_id) {
+        cand = await Candidate.findByPk(profile.candidate_id, {
+          attributes: ['id', 'fullName', 'email', 'hourlyRate'],
         });
-        console.log(`[getLecturerDetail] Email lookup for ${profile.User.email}:`, cand ? `Found (id: ${cand.id}, hourlyRate: ${cand.hourlyRate})` : 'Not found');
       }
-      
-      // Fallback: Try name matching with title normalization
+
+      // Legacy fallback: try email match (useful for old data that didn't set candidate_id)
+      if (!cand && profile.User?.email) {
+        cand = await Candidate.findOne({
+          where: { email: profile.User.email },
+          attributes: ['id', 'fullName', 'email', 'hourlyRate'],
+        });
+      }
+
+      // Legacy fallback: try name match with title normalization
       if (!cand && (profile.full_name_english || profile.User?.display_name)) {
         const rawName = profile.full_name_english || profile.User?.display_name || '';
-        
         if (rawName) {
-          // Try exact match first (case-insensitive)
           cand = await Candidate.findOne({
             where: Sequelize.where(
               Sequelize.fn('LOWER', Sequelize.fn('TRIM', Sequelize.col('fullName'))),
               Sequelize.fn('LOWER', rawName.trim())
             ),
-            attributes: ['id', 'fullName', 'email', 'hourlyRate']
+            attributes: ['id', 'fullName', 'email', 'hourlyRate'],
           });
-          
-          // If no exact match, try fuzzy matching by removing titles from both sides
+
           if (!cand) {
             const allCandidates = await Candidate.findAll({
-              attributes: ['id', 'fullName', 'email', 'hourlyRate']
+              attributes: ['id', 'fullName', 'email', 'hourlyRate'],
             });
-            
+
             const titleRegex = /^(mr\.?|ms\.?|mrs\.?|dr\.?|prof\.?|professor|miss)\s+/i;
             const normalizeName = (s = '') =>
-              String(s).trim().replace(titleRegex, '').replace(/\s+/g, ' ').trim().toLowerCase();
-            
+              String(s)
+                .trim()
+                .replace(titleRegex, '')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .toLowerCase();
+
             const targetNormalized = normalizeName(rawName);
-            cand = allCandidates.find(c => normalizeName(c.fullName) === targetNormalized);
+            cand = allCandidates.find((c) => normalizeName(c.fullName) === targetNormalized);
           }
-          
-          console.log(`[getLecturerDetail] Name lookup for "${rawName}":`, cand ? `Found (id: ${cand.id}, hourlyRate: ${cand.hourlyRate})` : 'Not found');
         }
       }
-      
+
       if (cand) {
         candidateId = cand.id;
-        if (cand.hourlyRate != null) {
-          hourlyRateThisYear = String(cand.hourlyRate);
-        } else {
-          console.warn(`[getLecturerDetail] Candidate found but hourlyRate is null for user ${profile.User?.email}`);
-        }
-      } else {
-        console.warn(`[getLecturerDetail] No candidate record found for user ${profile.User?.email} / ${profile.full_name_english}`);
+        if (cand.hourlyRate != null) hourlyRateThisYear = String(cand.hourlyRate);
       }
     } catch (candErr) {
       console.error('[getLecturerDetail] candidate lookup failed:', candErr.message);
@@ -381,6 +544,10 @@ export const getLecturerDetail = async (req, res) => {
         profile.full_name_khmer ||
         profile.User?.display_name ||
         'Unknown',
+      // Onboarding fields (return raw values so admin can view everything a user submitted)
+      full_name_english: profile.full_name_english || null,
+      full_name_khmer: profile.full_name_khmer || null,
+      personal_email: profile.personal_email || null,
       email: profile.User?.email,
       status: profile.User?.status,
       department: displayDepartment,
@@ -389,6 +556,11 @@ export const getLecturerDetail = async (req, res) => {
       place: profile.place || null,
       phone: profile.phone_number || null,
       short_bio: profile.short_bio || null,
+      country: profile.country || null,
+      latest_degree: profile.latest_degree || null,
+      degree_year: profile.degree_year || null,
+      major: profile.major || null,
+      university: profile.university || null,
       departments,
       courses,
       coursesCount: courses.length,
@@ -425,6 +597,18 @@ export const getLecturerDetail = async (req, res) => {
       syllabusFilePath: profile.course_syllabus
         ? String(profile.course_syllabus).replace(/\\/g, '/').replace(/^\//, '')
         : null,
+      ...(await (async () => {
+        const { files, file_names } = await listSyllabusFilesWithNames(
+          profile.storage_folder,
+          profile.course_syllabus
+            ? String(profile.course_syllabus).replace(/\\/g, '/').replace(/^\//, '')
+            : null
+        );
+        return {
+          course_syllabus_files: files,
+          course_syllabus_file_names: file_names,
+        };
+      })()),
       // Bank / payroll fields (read from Lecturer_Profiles)
       bank_name: profile.bank_name || null,
       account_name: profile.account_name || null,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, Download, User, Building2, Calendar, DollarSign, Clock, CheckCircle, AlertCircle, FileText, MoreVertical } from 'lucide-react';
+import { Eye, Download, SquarePen, User, Building2, Calendar, DollarSign, Clock, CheckCircle, AlertCircle, FileText, MoreVertical } from 'lucide-react';
 import Badge from '../../ui/Badge.jsx';
 import Button from '../../ui/Button.jsx';
 
@@ -8,21 +8,41 @@ import Button from '../../ui/Button.jsx';
  */
 export default function ContractCard({ 
   contract, 
-  mappingsByYear, 
   ratesByLecturer, 
-  onMenuOpen, 
   onPreview, 
-  onDownload 
+  onDownload,
+  onEdit
 }) {
   // Map backend status to display status
   const getStatusDisplay = () => {
-    const status = (contract.status || '').toUpperCase();
+    const status = String(contract.status || '')
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g, '_');
     
     // WAITING_LECTURER: Admin created, awaiting lecturer signature
     if (status === 'WAITING_LECTURER') {
       return { 
         label: 'waiting lecturer', 
         variant: 'warning', 
+        color: 'bg-yellow-50 text-yellow-700 border border-yellow-200',
+        icon: Clock
+      };
+    }
+    // WAITING_ADVISOR: Advisor contracts awaiting advisor acceptance/signature
+    if (status === 'WAITING_ADVISOR') {
+      return {
+        label: 'waiting advisor',
+        variant: 'warning',
+        color: 'bg-yellow-50 text-yellow-700 border border-yellow-200',
+        icon: Clock
+      };
+    }
+    // AdvisorContract model uses DRAFT; treat as waiting advisor in admin UI
+    if (status === 'DRAFT') {
+      return {
+        label: 'waiting advisor',
+        variant: 'warning',
         color: 'bg-yellow-50 text-yellow-700 border border-yellow-200',
         icon: Clock
       };
@@ -48,10 +68,19 @@ export default function ContractCard({
     // REQUEST_REDO: Management requests revisions
     if (status === 'REQUEST_REDO') {
       return { 
-        label: 'revision requested', 
+        label: 'request redo', 
         variant: 'danger', 
         color: 'bg-red-50 text-red-700 border border-red-200',
         icon: AlertCircle
+      };
+    }
+
+    if (status === 'CONTRACT_ENDED') {
+      return {
+        label: 'contract ended',
+        variant: 'secondary',
+        color: 'bg-gray-50 text-gray-700 border border-gray-200',
+        icon: FileText,
       };
     }
     
@@ -65,6 +94,13 @@ export default function ContractCard({
 
   const statusDisplay = getStatusDisplay();
   const StatusIcon = statusDisplay.icon;
+  const statusRaw = String(contract?.status || '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '_');
+  const contractType = String(contract.contract_type || '').toUpperCase();
+  const isRequestRedo = statusRaw === 'REQUEST_REDO';
+  const canEdit = isRequestRedo;
 
   // Get lecturer display name
   const lecturerProfile = contract.lecturer?.LecturerProfile || {};
@@ -75,20 +111,50 @@ export default function ContractCard({
                        'Unknown Lecturer';
   const lecturerEmail = lecturerUser.email || '';
   const lecturerTitle = lecturerProfile.title || '';
-  const displayName = lecturerTitle ? `${lecturerTitle}. ${lecturerName}` : lecturerName;
+  const normalizeTitle = (t) => String(t || '').trim().replace(/\.+$/, '');
+  const normalizedTitle = normalizeTitle(lecturerTitle);
+  const nameStr = String(lecturerName || '').trim();
+  const titleAlreadyInName = (() => {
+    if (!normalizedTitle || !nameStr) return false;
+    const esc = normalizedTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`^${esc}\\.?\\s+`, 'i').test(nameStr);
+  })();
+  const displayName = normalizedTitle && !titleAlreadyInName ? `${normalizedTitle}. ${nameStr}` : nameStr;
 
   // Get department
   const department = lecturerUser.department_name || 'General';
 
   // Format contract ID
   const year = contract.academic_year?.split('-')[0] || new Date().getFullYear();
-  const contractId = `CTR-${year}-${String(contract.id).padStart(3, '0')}`;
+  const prefix = contractType === 'ADVISOR' ? 'AC' : 'LC';
+  const contractId = `${prefix}-${year}-${String(contract.id).padStart(3, '0')}`;
 
   // Calculate financial details
   const lecturerId = contract.lecturer_user_id;
-  const hourlyRate = ratesByLecturer[lecturerId] || 0;
-  const totalHours = (contract.courses || []).reduce((sum, c) => sum + (c.hours || 0), 0);
-  const totalAmount = hourlyRate * totalHours;
+  const toNum = (v) => {
+    if (v === null || v === undefined || v === '') return null;
+    const n = parseFloat(String(v).replace(/[^0-9.-]/g, ''));
+    return Number.isFinite(n) ? n : null;
+  };
+
+  const contractHourlyRate = toNum(contract.hourly_rate);
+  const contractHourlyRateThisYear = toNum(contract.hourlyRateThisYear);
+  const teachingRate = toNum(ratesByLecturer?.[lecturerId]);
+  const hourlyRate = contractHourlyRate ?? contractHourlyRateThisYear ?? (teachingRate ?? 0);
+
+  const courseHours = Array.isArray(contract.courses)
+    ? contract.courses.reduce((sum, c) => sum + (toNum(c?.hours) || 0), 0)
+    : 0;
+
+  const studentsCount = Array.isArray(contract.students) ? contract.students.length : 0;
+  const hoursPerStudent = toNum(contract.hours_per_student) || 0;
+  const judgingHours = toNum(contract.join_judging_hours) || 0;
+  const totalHoursPerStudent = hoursPerStudent * studentsCount;
+  const totalJudgingHours = judgingHours * studentsCount;
+  const advisorHours = totalHoursPerStudent + totalJudgingHours;
+
+  const totalHours = courseHours > 0 ? courseHours : advisorHours;
+  const totalAmount = (toNum(hourlyRate) || 0) * (toNum(totalHours) || 0);
 
   // Format dates
   const formatDate = (dateStr) => {
@@ -99,17 +165,28 @@ export default function ContractCard({
 
   const handlePreview = (e) => {
     e.stopPropagation();
-    onPreview?.(contract.id);
+    onPreview?.(contract);
   };
 
   const handleDownload = (e) => {
     e.stopPropagation();
-    onDownload?.(contract.id);
+    onDownload?.(contract);
+  };
+
+  const handleEdit = (e) => {
+    e.stopPropagation();
+    onEdit?.(contract);
   };
 
   return (
     <div className="h-full">
-      <div className="rounded-2xl border-2 border-slate-200 bg-white p-4 shadow-sm flex flex-col h-full relative group transition-all duration-300 hover:shadow-lg hover:border-slate-300">
+      <div
+        className={`rounded-2xl border-2 bg-white p-4 shadow-sm flex flex-col h-full relative group transition-all duration-300 hover:shadow-lg ${
+          isRequestRedo
+            ? 'border-red-300 hover:border-red-300'
+            : 'border-gray-200 hover:border-blue-300'
+        }`}
+      >
         <div className="flex-1 flex flex-col space-y-4">
           {/* Contract ID Header */}
           <div className="flex items-center gap-3">
@@ -178,20 +255,31 @@ export default function ContractCard({
               <span className="whitespace-nowrap">{statusDisplay.label}</span>
             </div>
             <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
+              {canEdit && (
+                <button
+                  onClick={handleEdit}
+                  className="p-2 rounded-lg bg-white border border-red-200 hover:border-red-300 hover:bg-red-50 text-red-600 hover:text-red-700 transition-all duration-200 shadow-sm"
+                  title="Edit contract (redo requested)"
+                >
+                  <SquarePen className="w-4 h-4" />
+                </button>
+              )}
               <button
                 onClick={handlePreview}
-                className="p-2 rounded-lg bg-white border border-gray-200 hover:border-blue-300 hover:bg-blue-50 text-gray-600 hover:text-blue-600 transition-all duration-200 shadow-sm"
+                className="p-2 rounded-lg bg-white border border-gray-200 hover:border-slate-300 hover:bg-slate-50 text-gray-600 hover:text-gray-800 transition-all duration-200 shadow-sm"
                 title="View contract PDF"
               >
                 <Eye className="w-4 h-4" />
               </button>
-              <button
-                onClick={handleDownload}
-                className="p-2 rounded-lg bg-white border border-gray-200 hover:border-green-300 hover:bg-green-50 text-gray-600 hover:text-green-600 transition-all duration-200 shadow-sm"
-                title="Download contract PDF"
-              >
-                <Download className="w-4 h-4" />
-              </button>
+              {!isRequestRedo && (
+                <button
+                  onClick={handleDownload}
+                  className="p-2 rounded-lg bg-white border border-gray-200 hover:border-slate-300 hover:bg-slate-50 text-gray-600 hover:text-gray-800 transition-all duration-200 shadow-sm"
+                  title="Download contract PDF"
+                >
+                  <Download className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
         </div>

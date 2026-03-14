@@ -32,17 +32,41 @@ export default function ContractCard({
   onSign,
   onRedo,
 }) {
+  const toPositiveNumber = (value) => {
+    if (value == null) return null;
+    const n =
+      typeof value === 'number'
+        ? value
+        : parseFloat(String(value).replace(/[^0-9.]/g, ''));
+    return Number.isFinite(n) && n > 0 ? n : null;
+  };
+
+  const isAdvisor = String(contract?.contract_type || '').toUpperCase() === 'ADVISOR';
   const formattedId = formatContractId(contract);
   const hours = calculateTotalHours(contract);
   const startDate = contract.start_date || contract.startDate || null;
   const endDate = contract.end_date || contract.endDate || null;
   const hasBothDates = !!(startDate && endDate);
-  const totalValue = hourlyRate != null ? hourlyRate * hours : null;
+  const contractRate =
+    toPositiveNumber(contract?.hourly_rate) ??
+    toPositiveNumber(contract?.hourlyRateThisYear) ??
+    toPositiveNumber(contract?.hourlyRate);
+
+  const rateForContract = isAdvisor
+    ? contractRate
+    : (contractRate ?? toPositiveNumber(hourlyRate));
+  const totalValue = rateForContract != null ? rateForContract * hours : null;
   const displayStatus = getDisplayStatus(contract);
   const statusConfig = getStatusLabel(displayStatus);
-  const canSign = 
-    contract.status === 'MANAGEMENT_SIGNED' || 
-    contract.status === 'WAITING_LECTURER';
+  const isEnded = String(displayStatus || '').trim().toUpperCase() === 'CONTRACT_ENDED';
+  const canSign = isAdvisor
+    ? (!isEnded && String(contract?.status || '').toUpperCase() === 'DRAFT' && !contract?.advisor_signed_at)
+    : (
+        !isEnded && (
+          contract.status === 'MANAGEMENT_SIGNED' ||
+          contract.status === 'WAITING_LECTURER'
+        )
+      );
   const deptDisplay = getLecturerDepartment(contract);
   const lecturerName = getLecturerName(contract, lecturerProfile, authUser);
   const lecturerEmail = getLecturerEmail(lecturerProfile, authUser);
@@ -153,7 +177,9 @@ export default function ContractCard({
                   <div>{formatMDY(endDate)}</div>
                 </div>
               ) : (
-                <span>{`Term ${contract.term} • ${contract.academic_year}`}</span>
+                <span>
+                  {contract.term ? `Term ${contract.term} • ${contract.academic_year}` : `Academic Year ${contract.academic_year}`}
+                </span>
               )}
             </div>
           </div>
@@ -170,7 +196,7 @@ export default function ContractCard({
               <div className="flex items-center justify-between">
                 <span className="text-gray-700">Rate:</span>
                 <span className="font-medium">
-                  {hourlyRate != null ? `$${hourlyRate}/hr` : "-"}
+                  {rateForContract != null ? `$${rateForContract}/hr` : '-'}
                 </span>
               </div>
               <div className="flex items-center justify-between">

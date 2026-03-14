@@ -1,6 +1,22 @@
 // Schema bootstrapping moved from server.js for single-responsibility startup
 
 export async function runSchemaBootstrapping(sequelize) {
+  // Ensure lecturer_profiles has candidate_id column (used to link hourly rates reliably)
+  try {
+    const table = 'lecturer_profiles';
+    const [rows] = await sequelize.query(
+      `SHOW COLUMNS FROM \`${table}\` LIKE 'candidate_id'`
+    );
+    if (!rows.length) {
+      console.log(`[schema] Adding missing column ${table}.candidate_id`);
+      await sequelize.query(
+        `ALTER TABLE \`${table}\` ADD COLUMN \`candidate_id\` BIGINT UNSIGNED NULL AFTER \`user_id\``
+      );
+    }
+  } catch (e) {
+    console.warn('[schema] ensure lecturer_profiles candidate_id failed:', e.message);
+  }
+
   // Ensure Course_Mappings has dual theory/lab columns (non-destructive add-if-missing)
   try {
     const table = 'Course_Mappings';
@@ -30,6 +46,20 @@ export async function runSchemaBootstrapping(sequelize) {
     await addIfMissing(
       'theory_15h_combined',
       'ALTER TABLE `Course_Mappings` ADD COLUMN `theory_15h_combined` TINYINT(1) NULL DEFAULT 0 AFTER `theory_groups`'
+    );
+
+    await addIfMissing(
+      'room_number',
+      'ALTER TABLE `Course_Mappings` ADD COLUMN `room_number` VARCHAR(50) NULL AFTER `contacted_by`'
+    );
+
+    await addIfMissing(
+      'theory_room_number',
+      'ALTER TABLE `Course_Mappings` ADD COLUMN `theory_room_number` VARCHAR(50) NULL AFTER `room_number`'
+    );
+    await addIfMissing(
+      'lab_room_number',
+      'ALTER TABLE `Course_Mappings` ADD COLUMN `lab_room_number` VARCHAR(50) NULL AFTER `theory_room_number`'
     );
   } catch (e) {
     console.warn('[schema] ensure Course_Mappings theory/lab columns failed:', e.message);
@@ -80,6 +110,11 @@ export async function runSchemaBootstrapping(sequelize) {
         'ALTER TABLE `Teaching_Contracts` ADD COLUMN `items` TEXT NULL AFTER `pdf_path`'
       );
 
+      await addIfMissing(
+        'management_remarks',
+        'ALTER TABLE `Teaching_Contracts` ADD COLUMN `management_remarks` TEXT NULL AFTER `items`'
+      );
+
       // Migrate legacy statuses to new WAITING_* values and update ENUM
       try {
         const [rows] = await sequelize.query(
@@ -104,9 +139,9 @@ export async function runSchemaBootstrapping(sequelize) {
               "UPDATE `Teaching_Contracts` SET `status`='WAITING_LECTURER' WHERE `status`='MANAGEMENT_SIGNED'"
             );
           } catch {}
-          // Now ensure enum is the new triplet
+          // Now ensure enum supports the current contract lifecycle
           await sequelize.query(
-            "ALTER TABLE `Teaching_Contracts` MODIFY COLUMN `status` ENUM('WAITING_LECTURER','WAITING_MANAGEMENT','COMPLETED') NOT NULL DEFAULT 'WAITING_LECTURER'"
+            "ALTER TABLE `Teaching_Contracts` MODIFY COLUMN `status` ENUM('WAITING_LECTURER','WAITING_ADVISOR','WAITING_MANAGEMENT','REQUEST_REDO','COMPLETED','CONTRACT ENDED') NOT NULL DEFAULT 'WAITING_LECTURER'"
           );
         }
       } catch (e) {
@@ -117,6 +152,49 @@ export async function runSchemaBootstrapping(sequelize) {
     }
   }
   await ensureTeachingContractColumns();
+
+  // Ensure new columns exist on Advisor_Contracts table (signature paths for PDF output)
+  async function ensureAdvisorContractColumns() {
+    try {
+      const table = 'Advisor_Contracts';
+      const addIfMissing = async (col, ddl) => {
+        const [rows] = await sequelize.query(`SHOW COLUMNS FROM \`${table}\` LIKE '${col}'`);
+        if (!rows.length) {
+          console.log(`[schema] Adding missing column ${table}.${col}`);
+          await sequelize.query(ddl);
+        }
+      };
+
+      // Ensure enum supports redo lifecycle
+      try {
+        await sequelize.query(
+          "ALTER TABLE `Advisor_Contracts` MODIFY COLUMN `status` ENUM('DRAFT','WAITING_MANAGEMENT','REQUEST_REDO','COMPLETED','CONTRACT_ENDED') NOT NULL DEFAULT 'DRAFT'"
+        );
+      } catch (e) {
+        console.warn('[schema] migrate Advisor_Contracts.status failed:', e.message);
+      }
+
+      await addIfMissing(
+        'advisor_signature_path',
+        'ALTER TABLE `Advisor_Contracts` ADD COLUMN `advisor_signature_path` VARCHAR(512) NULL AFTER `status`'
+      );
+      await addIfMissing(
+        'management_signature_path',
+        'ALTER TABLE `Advisor_Contracts` ADD COLUMN `management_signature_path` VARCHAR(512) NULL AFTER `advisor_signature_path`'
+      );
+      await addIfMissing(
+        'advisor_signed_at',
+        'ALTER TABLE `Advisor_Contracts` ADD COLUMN `advisor_signed_at` DATETIME NULL AFTER `management_signature_path`'
+      );
+      await addIfMissing(
+        'management_signed_at',
+        'ALTER TABLE `Advisor_Contracts` ADD COLUMN `management_signed_at` DATETIME NULL AFTER `advisor_signed_at`'
+      );
+    } catch (e) {
+      console.error('[schema] ensureAdvisorContractColumns failed:', e.message);
+    }
+  }
+  await ensureAdvisorContractColumns();
 
   // Ensure lecturer_profiles has title & gender columns (non-destructive add-if-missing)
   try {
@@ -149,6 +227,26 @@ export async function runSchemaBootstrapping(sequelize) {
         await sequelize.query(ddl);
       }
     };
+
+    await ensureTable(
+      'contract_redo_requests',
+      `
+        CREATE TABLE contract_redo_requests (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          contract_id INT UNSIGNED NOT NULL,
+          requester_user_id INT UNSIGNED NOT NULL,
+          requester_role ENUM('LECTURER','MANAGEMENT') NOT NULL,
+          message TEXT NOT NULL,
+          resolved_at DATETIME NULL,
+          resolved_by_user_id INT UNSIGNED NULL,
+          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          CONSTRAINT fk_redo_requests_contract FOREIGN KEY (contract_id) REFERENCES Teaching_Contracts(id) ON DELETE CASCADE,
+          CONSTRAINT fk_redo_requests_requester FOREIGN KEY (requester_user_id) REFERENCES Users(id) ON DELETE RESTRICT,
+          CONSTRAINT fk_redo_requests_resolver FOREIGN KEY (resolved_by_user_id) REFERENCES Users(id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+      `
+    );
     await ensureTable(
       'contract_items',
       `
@@ -244,6 +342,27 @@ export async function runSchemaBootstrapping(sequelize) {
     }
   } catch (e) {
     console.warn('[schema] ensure contract_items table failed:', e.message);
+  }
+
+  // Ensure users table has reset_token columns for forgot-password flow
+  try {
+    const usersAddIfMissing = async (col, ddl) => {
+      const [rows] = await sequelize.query(`SHOW COLUMNS FROM \`users\` LIKE '${col}'`);
+      if (!rows.length) {
+        console.log(`[schema] Adding missing column users.${col}`);
+        await sequelize.query(ddl);
+      }
+    };
+    await usersAddIfMissing(
+      'reset_token',
+      'ALTER TABLE `users` ADD COLUMN `reset_token` VARCHAR(255) NULL'
+    );
+    await usersAddIfMissing(
+      'reset_token_expires',
+      'ALTER TABLE `users` ADD COLUMN `reset_token_expires` DATETIME NULL'
+    );
+  } catch (e) {
+    console.warn('[schema] ensure users reset_token columns failed:', e.message);
   }
 
   // Ensure Candidates.status enum includes 'done' (attempt auto-alter for MySQL)

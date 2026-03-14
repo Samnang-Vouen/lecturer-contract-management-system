@@ -21,14 +21,17 @@ import { sendPresence } from "../services/system.service";
  */
 export function DashboardLayout({ children }) {
     const navigate = useNavigate();
-    const { authUser, isCheckingAuth, logout } = useAuthStore();
+    const authUser = useAuthStore((s) => s.authUser);
+    const isCheckingAuth = useAuthStore((s) => s.isCheckingAuth);
+    const logout = useAuthStore((s) => s.logout);
     const [mobileOpen, setMobileOpen] = useState(false);
     
     useEffect(() => {
         // Redirect lecturer on first login to onboarding
-        if (!isCheckingAuth && authUser?.isFirstLogin && authUser.role === "lecturer") {
-        navigate("/onboarding");
-        }
+                if (!isCheckingAuth && authUser?.isFirstLogin) {
+                    const r = String(authUser.role || '').toLowerCase();
+                    if (r === 'lecturer' || r === 'advisor') navigate('/onboarding');
+                }
     }, [authUser, isCheckingAuth, navigate]);
 
     // Show loading spinner
@@ -70,7 +73,7 @@ export function DashboardLayout({ children }) {
 export default DashboardLayout;
 
 function PresenceHeartbeat() {
-    const { authUser } = useAuthStore();
+    const authUser = useAuthStore((s) => s.authUser);
     const dept = authUser?.department_name;
     useEffect(() => {
         let stopped = false;

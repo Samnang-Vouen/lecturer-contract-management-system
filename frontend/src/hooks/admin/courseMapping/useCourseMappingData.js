@@ -104,16 +104,32 @@ export function useCourseMappingData() {
       };
 
       // Compute hoursNeeded per subject (course): groups × subject_hours
-      const perCourseGroups = new Map();
+      const perCourse = new Map();
       for (const e of entries) {
         const cid = e.course_id ?? e.course?.id;
         if (!cid) continue;
-        const thG = getTheoryGroups(e);
-        const lbG = getLabGroups(e);
-        let candidate = Math.max(thG, lbG);
-        if (!candidate) candidate = Math.max(0, e?.group_count || 0);
-        const prev = perCourseGroups.get(cid) || 0;
-        if (candidate > prev) perCourseGroups.set(cid, candidate);
+        if (!perCourse.has(cid)) perCourse.set(cid, []);
+        perCourse.get(cid).push(e);
+      }
+
+      const perCourseGroups = new Map();
+      for (const [cid, list] of perCourse.entries()) {
+        // Prefer unique group_id count when data is per-group rows
+        const unionGroupIds = new Set(list.map((x) => x.group_id).filter(Boolean).map(String));
+        if (unionGroupIds.size) {
+          perCourseGroups.set(cid, unionGroupIds.size);
+          continue;
+        }
+        // Legacy fallback: use the maximum groups hinted by the entries
+        let maxGroups = 0;
+        for (const e of list) {
+          const thG = getTheoryGroups(e);
+          const lbG = getLabGroups(e);
+          let candidate = Math.max(thG, lbG);
+          if (!candidate) candidate = Math.max(0, e?.group_count || 0);
+          if (candidate > maxGroups) maxGroups = candidate;
+        }
+        perCourseGroups.set(cid, maxGroups);
       }
 
       let hoursNeeded = 0;
@@ -125,25 +141,64 @@ export function useCourseMappingData() {
       }
 
       // Compute hoursAssigned from Accepted entries only
-      const hoursAssigned = entries.reduce((sum, e) => {
-        if (String(e.status) !== 'Accepted') return sum;
-        const theoryGroups = getTheoryGroups(e);
-        const labGroups = getLabGroups(e);
-        let add = 0;
-        if (theoryGroups > 0) {
-          const perGroup = getTheoryPerGroup(e);
-          add += theoryGroups * perGroup;
+      let hoursAssigned = 0;
+      for (const [_cid, list] of perCourse.entries()) {
+        const accepted = list.filter((e) => String(e.status) === 'Accepted');
+        if (!accepted.length) continue;
+
+        const hasGroupIds = accepted.some((e) => !!e.group_id);
+        if (hasGroupIds) {
+          const theory15 = new Set();
+          const theory30 = new Set();
+          const lab = new Set();
+
+          for (const e of accepted) {
+            const gid = e.group_id ? String(e.group_id) : null;
+            if (!gid) continue;
+            const thG = getTheoryGroups(e);
+            const lbG = getLabGroups(e);
+            if (thG > 0) {
+              const per = getTheoryPerGroup(e);
+              if (per === 15) theory15.add(gid);
+              else theory30.add(gid);
+            }
+            if (lbG > 0) lab.add(gid);
+          }
+
+          hoursAssigned += theory15.size * 15 + theory30.size * 30 + lab.size * 30;
+        } else {
+          // Legacy aggregate row without group_id
+          const e = accepted[0];
+          const theoryGroups = getTheoryGroups(e);
+          const labGroups = getLabGroups(e);
+          if (theoryGroups > 0) hoursAssigned += theoryGroups * getTheoryPerGroup(e);
+          if (labGroups > 0) hoursAssigned += labGroups * 30;
         }
-        if (labGroups > 0) {
-          add += labGroups * 30; // Lab always 30h per group
-        }
-        return sum + add;
-      }, 0);
+      }
+
+      // Stats per course (not per mapping row) to avoid inflated counts in per-group mode.
+      const totalCourses = perCourse.size;
+      let pendingCourses = 0;
+      let assignedCourses = 0;
+      let acceptedCourses = 0;
+      for (const list of perCourse.values()) {
+        const anyPending = list.some((e) => String(e.status) === 'Pending');
+        if (anyPending) pendingCourses += 1;
+        const anyAcceptedAssigned = list.some(
+          (e) => String(e.status) === 'Accepted' && !!e.lecturer_profile_id
+        );
+        if (anyAcceptedAssigned) assignedCourses += 1;
+
+        // Course is considered Accepted only if all its mapping rows are Accepted.
+        const allAccepted = list.length > 0 && list.every((e) => String(e.status) === 'Accepted');
+        if (allAccepted) acceptedCourses += 1;
+      }
 
       const stats = {
-        total: entries.length,
-        pending: entries.filter((e) => e.status === 'Pending').length,
-        assigned: entries.filter((e) => e.status === 'Accepted' && e.lecturer_profile_id).length,
+        total: totalCourses,
+        pending: pendingCourses,
+        assigned: assignedCourses,
+        accepted: acceptedCourses,
         hoursAssigned,
         hoursNeeded,
       };
@@ -277,7 +332,6 @@ export function useCourseMappingData() {
 
     observer.observe(el);
     return () => observer.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasMore, loading, page, academicYearFilter]);
 
   const createMapping = async (payload) => {
@@ -285,13 +339,27 @@ export function useCourseMappingData() {
     await loadData(true);
   };
 
-  const updateMapping = async (id, payload) => {
-    await updateCourseMapping(id, payload);
+  const updateMapping = async (idOrIds, payload) => {
+    if (Array.isArray(idOrIds)) {
+      const ids = idOrIds.map((x) => parseInt(String(x), 10)).filter((n) => Number.isInteger(n) && n > 0);
+      if (!ids.length) return;
+      await updateCourseMapping(ids[0], { ...payload, ids });
+      await loadData(true);
+      return;
+    }
+    await updateCourseMapping(idOrIds, payload);
     await loadData(true);
   };
 
-  const deleteMapping = async (id) => {
-    await deleteCourseMapping(id);
+  const deleteMapping = async (idOrIds) => {
+    if (Array.isArray(idOrIds)) {
+      const ids = idOrIds.map((x) => parseInt(String(x), 10)).filter((n) => Number.isInteger(n) && n > 0);
+      if (!ids.length) return;
+      await deleteCourseMapping(ids[0], { ids });
+      await loadData(true);
+      return;
+    }
+    await deleteCourseMapping(idOrIds);
     await loadData(true);
   };
 

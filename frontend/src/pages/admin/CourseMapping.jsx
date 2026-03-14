@@ -49,6 +49,11 @@ export default function CourseMappingPage() {
 
   const [form, setForm] = useState({
     class_id: '',
+    group_ids: [],
+    theory_group_ids: [],
+    lab_group_ids: [],
+    theory_room_by_group: {},
+    lab_room_by_group: {},
     course_id: '',
     lecturer_profile_id: '',
     academic_year: '',
@@ -60,12 +65,20 @@ export default function CourseMappingPage() {
     status: 'Pending',
     contacted_by: '',
     contactedBy: '',
+    room_number: '',
+    theory_room_number: '',
+    lab_room_number: '',
     comment: '',
   });
 
   const startAdd = () => {
     setForm({
       class_id: '',
+      group_ids: [],
+      theory_group_ids: [],
+      lab_group_ids: [],
+      theory_room_by_group: {},
+      lab_room_by_group: {},
       course_id: '',
       lecturer_profile_id: '',
       academic_year: '',
@@ -77,6 +90,9 @@ export default function CourseMappingPage() {
       status: 'Pending',
       contacted_by: '',
       contactedBy: '',
+      room_number: '',
+      theory_room_number: '',
+      lab_room_number: '',
       comment: '',
     });
     teachingTypeAdd.reset();
@@ -94,6 +110,22 @@ export default function CourseMappingPage() {
       if (!form.year_level) requiredErrors.push('Year Level');
       if (!form.term) requiredErrors.push('Term');
       if (!form.class_id) requiredErrors.push('Class');
+      const selectedClass =
+        (classMap && form.class_id && classMap[form.class_id]) ||
+        classes.find((c) => String(c.id) === String(form.class_id));
+      const classGroups = Array.isArray(selectedClass?.Groups)
+        ? selectedClass.Groups
+        : Array.isArray(selectedClass?.groups)
+        ? selectedClass.groups
+        : [];
+      const theoryGroupIds = Array.isArray(form.theory_group_ids) ? form.theory_group_ids : [];
+      const labGroupIds = Array.isArray(form.lab_group_ids) ? form.lab_group_ids : [];
+      const theoryRoomByGroupRaw =
+        form.theory_room_by_group && typeof form.theory_room_by_group === 'object'
+          ? form.theory_room_by_group
+          : {};
+      const labRoomByGroupRaw =
+        form.lab_room_by_group && typeof form.lab_room_by_group === 'object' ? form.lab_room_by_group : {};
       if (!form.course_id) requiredErrors.push('Course');
       if (!form.lecturer_profile_id) requiredErrors.push('Lecturer');
       if (!form.availability) requiredErrors.push('Availability');
@@ -109,12 +141,81 @@ export default function CourseMappingPage() {
         return;
       }
 
+      // If the selected class has groups, require selecting the specific groups per teaching type.
+      if (form.class_id && classGroups.length) {
+        const thCount = parseInt(String(teachingPayload.theory_groups ?? 0), 10) || 0;
+        const lbCount = parseInt(String(teachingPayload.lab_groups ?? 0), 10) || 0;
+        const thSelected = thCount > 0;
+        const lbSelected = lbCount > 0;
+
+        if (thSelected && theoryGroupIds.length !== thCount) {
+          setAddError(`Please select exactly ${thCount} Theory group(s).`);
+          return;
+        }
+        if (lbSelected && labGroupIds.length !== lbCount) {
+          setAddError(`Please select exactly ${lbCount} Lab group(s).`);
+          return;
+        }
+        if ((thSelected || lbSelected) && theoryGroupIds.length + labGroupIds.length === 0) {
+          setAddError('Please select Group(s) for Theory and/or Lab.');
+          return;
+        }
+      }
+
       const payload = {
         ...form,
         ...teachingPayload,
+        theory_group_ids: (Array.isArray(form.theory_group_ids) ? form.theory_group_ids : [])
+          .map((x) => parseInt(String(x), 10))
+          .filter((n) => Number.isInteger(n) && n > 0),
+        lab_group_ids: (Array.isArray(form.lab_group_ids) ? form.lab_group_ids : [])
+          .map((x) => parseInt(String(x), 10))
+          .filter((n) => Number.isInteger(n) && n > 0),
+        // keep legacy group_ids for backward compatibility (union)
+        group_ids: Array.from(
+          new Set(
+            [...(Array.isArray(form.theory_group_ids) ? form.theory_group_ids : []), ...(Array.isArray(form.lab_group_ids) ? form.lab_group_ids : [])]
+              .map((x) => parseInt(String(x), 10))
+              .filter((n) => Number.isInteger(n) && n > 0)
+          )
+        ),
+        // per-group room mappings: { [group_id]: 'A201' }
+        theory_room_by_group: (() => {
+          const selected = new Set(
+            theoryGroupIds
+              .map((x) => parseInt(String(x), 10))
+              .filter((n) => Number.isInteger(n) && n > 0)
+              .map(String)
+          );
+          const out = {};
+          for (const gid of selected) {
+            const v = theoryRoomByGroupRaw[gid];
+            const san = String(v || '').trim().slice(0, 50).toUpperCase();
+            if (san) out[gid] = san;
+          }
+          return out;
+        })(),
+        lab_room_by_group: (() => {
+          const selected = new Set(
+            labGroupIds
+              .map((x) => parseInt(String(x), 10))
+              .filter((n) => Number.isInteger(n) && n > 0)
+              .map(String)
+          );
+          const out = {};
+          for (const gid of selected) {
+            const v = labRoomByGroupRaw[gid];
+            const san = String(v || '').trim().slice(0, 50).toUpperCase();
+            if (san) out[gid] = san;
+          }
+          return out;
+        })(),
         course_id: form.course_id ? parseInt(form.course_id, 10) : '',
         comment: (form.comment || '').slice(0, 160),
         contacted_by: form.contactedBy || form.contacted_by || '',
+        room_number: (form.room_number || '').toUpperCase(),
+        theory_room_number: (form.theory_room_number || '').toUpperCase(),
+        lab_room_number: (form.lab_room_number || '').toUpperCase(),
       };
       delete payload.contactedBy;
 
@@ -131,8 +232,55 @@ export default function CourseMappingPage() {
 
   const startEdit = (m) => {
     setEditing(m);
+
+    const rowsForEdit = Array.isArray(m?._rowsForEdit) ? m._rowsForEdit : [];
+    const hasGroupRows = rowsForEdit.some((r) => r?.group_id);
+    const theoryGroupIds = [];
+    const labGroupIds = [];
+    const theoryRoomByGroup = {};
+    const labRoomByGroup = {};
+
+    if (hasGroupRows) {
+      for (const r of rowsForEdit) {
+        const gid = r?.group_id ? String(r.group_id) : null;
+        if (!gid) continue;
+        const th = parseInt(String(r?.theory_groups ?? 0), 10) || 0;
+        const lb = parseInt(String(r?.lab_groups ?? 0), 10) || 0;
+
+        if (th > 0) {
+          theoryGroupIds.push(gid);
+          theoryRoomByGroup[gid] = String(r?.theory_room_number || r?.room_number || r?.roomNumber || '').toUpperCase();
+        }
+        if (lb > 0) {
+          labGroupIds.push(gid);
+          labRoomByGroup[gid] = String(r?.lab_room_number || r?.room_number || r?.roomNumber || '').toUpperCase();
+        }
+      }
+    }
+
+    const uniq = (arr) => Array.from(new Set((Array.isArray(arr) ? arr : []).map(String)));
+    const thUniq = uniq(theoryGroupIds);
+    const lbUniq = uniq(labGroupIds);
+
     setForm({
       class_id: m.class_id,
+      group_ids: hasGroupRows
+        ? Array.from(new Set([...thUniq, ...lbUniq]))
+        : m.group_id
+        ? [String(m.group_id)]
+        : [],
+      theory_group_ids: hasGroupRows ? thUniq : m.theory_groups > 0 && m.group_id ? [String(m.group_id)] : [],
+      lab_group_ids: hasGroupRows ? lbUniq : m.lab_groups > 0 && m.group_id ? [String(m.group_id)] : [],
+      theory_room_by_group: hasGroupRows
+        ? theoryRoomByGroup
+        : m.group_id
+        ? { [String(m.group_id)]: String(m.theory_room_number || m.room_number || m.roomNumber || '').toUpperCase() }
+        : {},
+      lab_room_by_group: hasGroupRows
+        ? labRoomByGroup
+        : m.group_id
+        ? { [String(m.group_id)]: String(m.lab_room_number || m.room_number || m.roomNumber || '').toUpperCase() }
+        : {},
       course_id: m.course_id,
       lecturer_profile_id: m.lecturer_profile_id || '',
       academic_year: m.academic_year,
@@ -147,9 +295,18 @@ export default function CourseMappingPage() {
       availability: m.availability || '',
       status: m.status,
       contacted_by: m.contacted_by || '',
+      room_number: m.room_number || m.roomNumber || '',
+      theory_room_number: m.theory_room_number || '',
+      lab_room_number: m.lab_room_number || '',
       comment: m.comment || '',
     });
-    teachingTypeEdit.initializeFromMapping(m);
+    // If this is an aggregated row, prefer the collapsed counts
+    teachingTypeEdit.initializeFromMapping({
+      ...m,
+      theory_groups: Number.isFinite(m?._theoryCount) ? m._theoryCount : m.theory_groups,
+      lab_groups: Number.isFinite(m?._labCount) ? m._labCount : m.lab_groups,
+      theory_hours: m?._theoryHour || m.theory_hours,
+    });
     setEditError('');
     setEditOpen(true);
   };
@@ -167,11 +324,18 @@ export default function CourseMappingPage() {
         availability: form.availability,
         status: form.status,
         contacted_by: form.contacted_by,
+        room_number: (form.room_number || '').toUpperCase(),
+        theory_room_number: (form.theory_room_number || '').toUpperCase(),
+        lab_room_number: (form.lab_room_number || '').toUpperCase(),
         comment: (form.comment || '').slice(0, 160),
         ...teachingPayload,
       };
 
-      await updateMapping(editing.id, payload);
+      if (Array.isArray(editing?.ids) && editing.ids.length) {
+        await updateMapping(editing.ids, payload);
+      } else {
+        await updateMapping(editing.id, payload);
+      }
       setEditOpen(false);
       setEditing(null);
     } catch (e) {
@@ -181,7 +345,11 @@ export default function CourseMappingPage() {
 
   const remove = async (m) => {
     try {
-      await deleteMapping(m.id);
+      if (Array.isArray(m?.ids) && m.ids.length) {
+        await deleteMapping(m.ids);
+      } else {
+        await deleteMapping(m.id);
+      }
     } catch (e) {
       console.error('Delete failed:', e);
     }
@@ -258,9 +426,6 @@ export default function CourseMappingPage() {
                   ? 'Try adjusting your filters or add a new course assignment.'
                   : 'Get started by adding your first course assignment.'}
               </p>
-              <Button onClick={startAdd} className="bg-blue-600 hover:bg-blue-700 text-white">
-                <Plus className="h-4 w-4 mr-2" /> Add Course Assignment
-              </Button>
             </div>
           )}
           {grouped.length > 0 && (

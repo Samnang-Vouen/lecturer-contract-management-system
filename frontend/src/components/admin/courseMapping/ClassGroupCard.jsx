@@ -6,9 +6,16 @@ import CourseMappingTable from './CourseMappingTable.jsx';
  * ClassGroupCard - Displays a class group with its course mappings
  */
 export default function ClassGroupCard({ group, courseMap, onEdit, onDelete }) {
-  const { key, class: classData, entries, stats } = group;
-  const completion = stats.total ? Math.round((stats.assigned / stats.total) * 100) : 0;
+  const { class: classData, entries, stats } = group;
+  const acceptedCount = Number.isFinite(stats?.accepted) ? stats.accepted : 0;
+  const completion = stats.total ? Math.round((acceptedCount / stats.total) * 100) : 0;
   const academicYear = classData?.academic_year || entries[0]?.academic_year;
+  const specializationName =
+    classData?.specialization?.name ||
+    classData?.Specialization?.name ||
+    classData?.specialization_name ||
+    classData?.specializationName ||
+    '';
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
@@ -23,6 +30,9 @@ export default function ClassGroupCard({ group, courseMap, onEdit, onDelete }) {
                 <h2 className="font-semibold text-gray-900 text-lg">
                   {classData?.name || 'Class'}{' '}
                   {classData?.term && <span className="text-gray-500 font-normal">{classData.term}</span>}{' '}
+                  {specializationName && (
+                    <span className="text-gray-500 font-normal">{specializationName}</span>
+                  )}{' '}
                   {classData?.year_level && (
                     <span className="text-gray-500 font-normal">
                       Year{' '}
@@ -39,7 +49,7 @@ export default function ClassGroupCard({ group, courseMap, onEdit, onDelete }) {
                 )}
               </div>
               <p className="text-xs text-gray-600 mt-1">
-                {stats.assigned} of {stats.total} course{stats.total !== 1 && 's'} assigned •{' '}
+                {acceptedCount} of {stats.total} course{stats.total !== 1 && 's'} accepted •{' '}
                 {stats.hoursAssigned}h of {stats.hoursNeeded}h covered
               </p>
             </div>
@@ -50,7 +60,7 @@ export default function ClassGroupCard({ group, courseMap, onEdit, onDelete }) {
                 <AlertTriangle className="h-3 w-3" /> {stats.pending} Pending
               </span>
             )}
-            {stats.pending === 0 && stats.total > 0 && (
+            {acceptedCount === stats.total && stats.total > 0 && (
               <span className="inline-flex items-center gap-1 rounded bg-green-50 text-green-700 text-xs font-medium px-2 py-1">
                 <CheckCircle className="h-3 w-3" /> Complete
               </span>

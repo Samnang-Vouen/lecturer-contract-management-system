@@ -1,10 +1,26 @@
-import EvaluationQuestion from '../model/evaluationQuestion.model.js';
+import EvaluationQuestion from '../model/evaluation/evaluationQuestion.model.js';
 
 const evaluationQuestionsData = [
-  { question_text: "How would you rate the clarity and organization of the course content and materials? (well-organized, understandable, need to improve)", order_no: 1 },
-  { question_text: "Do you feel the instructor effectively engages students through various teaching techniques?", order_no: 2 },
-  { question_text: "Do you feel comfortable asking questions or seeking clarification from the instructor?", order_no: 3 },
-  { question_text: "Do you receive timely and constructive feedback on your assignments and assessments?", order_no: 4 },
+  {
+    question_text:
+      'How would you rate the clarity and organization of the course content and materials? (Well-organized, understandable, need to improve)',
+    order_no: 1,
+  },
+  {
+    question_text:
+      'Do you feel the instructor effectively engages students through various teaching techniques?',
+    order_no: 2,
+  },
+  {
+    question_text:
+      'Do you feel comfortable asking questions or seeking clarification from the instructor?',
+    order_no: 3,
+  },
+  {
+    question_text:
+      'Do you receive timely and constructive feedback on your assignments and assessments?',
+    order_no: 4,
+  },
   { question_text: "Are the lecturer's teaching methods effective?", order_no: 5 },
   // Add more evaluation questions here
 ];

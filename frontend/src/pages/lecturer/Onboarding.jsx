@@ -27,17 +27,32 @@ import {
   ChevronRight
 } from 'lucide-react';
 
-const steps = [
-  { id: 1, title: "Basic Information", icon: User, description: "Personal and banking details" },
-  { id: 2, title: "Academic Info", icon: GraduationCap, description: "Course and research information" },
-  { id: 3, title: "Education", icon: GraduationCap, description: "Educational background" },
-  { id: 4, title: "Professional", icon: Briefcase, description: "Work experience" },
-  { id: 5, title: "Contact", icon: Phone, description: "Contact information" },
+const lecturerSteps = [
+  { id: 1, key: 'basic', title: 'Basic Information', icon: User, description: 'Personal and banking details' },
+  {
+    id: 2,
+    key: 'academic',
+    title: 'Academic Info',
+    icon: GraduationCap,
+    description: 'Course and research information',
+  },
+  { id: 3, key: 'education', title: 'Education', icon: GraduationCap, description: 'Educational background' },
+  { id: 4, key: 'professional', title: 'Professional', icon: Briefcase, description: 'Work experience' },
+  { id: 5, key: 'contact', title: 'Contact', icon: Phone, description: 'Contact information' },
+];
+
+const advisorSteps = [
+  { id: 1, key: 'basic', title: 'Basic Information', icon: User, description: 'Personal and banking details' },
+  { id: 2, key: 'education', title: 'Education', icon: GraduationCap, description: 'Educational background' },
+  { id: 3, key: 'professional', title: 'Professional', icon: Briefcase, description: 'Work experience' },
+  { id: 4, key: 'contact', title: 'Contact', icon: Phone, description: 'Contact information' },
 ];
 
 export default function Onboarding() {
   const { authUser } = useAuthStore();
   const navigate = useNavigate();
+  const isAdvisor = String(authUser?.role || '').toLowerCase() === 'advisor';
+  const steps = useMemo(() => (isAdvisor ? advisorSteps : lecturerSteps), [isAdvisor]);
   
   // Custom hooks
   const { formData, setFormData, files, researchFields, setResearchFields, updateForm, handleFileUpload } = useOnboardingForm();
@@ -116,99 +131,106 @@ export default function Onboarding() {
   const handleSubmit = async () => {
     try {
       setIsSubmitting(true);
+
+      const goToStep = (key) => {
+        const idx = steps.findIndex((s) => s.key === key);
+        if (idx >= 0) setCurrentStep(idx + 1);
+      };
       
       // Step 1: Basic info validations
       if (!String(formData.englishName || '').trim()) {
         toast.error('Please enter your English name');
-        setCurrentStep(1);
+        goToStep('basic');
         setIsSubmitting(false);
         return;
       }
       if (!String(formData.khmerName || '').trim()) {
         toast.error('Please enter your Khmer name');
-        setCurrentStep(1);
+        goToStep('basic');
         setIsSubmitting(false);
         return;
       }
       if (!String(formData.accountHolderName || '').trim()) {
         toast.error('Please enter the account holder name');
-        setCurrentStep(1);
+        goToStep('basic');
         setIsSubmitting(false);
         return;
       }
       if (!String(formData.bankName || '').trim()) {
         toast.error('Please select your bank');
-        setCurrentStep(1);
+        goToStep('basic');
         setIsSubmitting(false);
         return;
       }
       if (!files.payrollFile) {
         toast.error('Please upload your payroll document');
-        setCurrentStep(1);
+        goToStep('basic');
         setIsSubmitting(false);
         return;
       }
       if (!validateAccountNumber(formData.accountName)) {
         toast.error('Account number must contain exactly 16 digits');
-        setCurrentStep(1);
+        goToStep('basic');
         setIsSubmitting(false);
         return;
       }
 
-      // Step 2: Academic info validations
-      if (!formData.departments || formData.departments.length === 0) {
-        toast.error('Please select at least one department');
-        setCurrentStep(2);
-        setIsSubmitting(false);
-        return;
-      }
-      if (!formData.courses || formData.courses.length === 0) {
-        toast.error('Please select at least one course');
-        setCurrentStep(2);
-        setIsSubmitting(false);
-        return;
-      }
-      if (!String(formData.shortBio || '').trim()) {
-        toast.error('Please enter a short bio');
-        setCurrentStep(2);
-        setIsSubmitting(false);
-        return;
-      }
-      if (!files.updatedCvFile) {
-        toast.error('Please upload your updated CV');
-        setCurrentStep(2);
-        setIsSubmitting(false);
-        return;
+      // Step 2: Academic info validations (lecturer only)
+      if (!isAdvisor) {
+        if (!formData.departments || formData.departments.length === 0) {
+          toast.error('Please select at least one department');
+          goToStep('academic');
+          setIsSubmitting(false);
+          return;
+        }
+        if (!formData.courses || formData.courses.length === 0) {
+          toast.error('Please select at least one course');
+          goToStep('academic');
+          setIsSubmitting(false);
+          return;
+        }
+        if (!String(formData.shortBio || '').trim()) {
+          toast.error('Please enter a short bio');
+          goToStep('academic');
+          setIsSubmitting(false);
+          return;
+        }
+        if (!files.updatedCvFile) {
+          toast.error('Please upload your updated CV');
+          goToStep('academic');
+          setIsSubmitting(false);
+          return;
+        }
       }
 
       // Step 3: Education validations
       if (!String(formData.universityName || '').trim()) {
         toast.error('Please enter your university name');
-        setCurrentStep(3);
+        goToStep('education');
         setIsSubmitting(false);
         return;
       }
       if (!String(formData.country || '').trim()) {
         toast.error('Please enter your country');
-        setCurrentStep(3);
+        goToStep('education');
         setIsSubmitting(false);
         return;
       }
       if (!String(formData.majorName || '').trim()) {
         toast.error('Please enter your major');
-        setCurrentStep(3);
+        goToStep('education');
         setIsSubmitting(false);
         return;
       }
       if (!String(formData.graduationYear || '').trim()) {
         toast.error('Please select your graduation year');
-        setCurrentStep(3);
+        goToStep('education');
         setIsSubmitting(false);
         return;
       }
       if (!String(formData.latestDegree || '').trim()) {
         toast.error('Please select your latest degree');
-        setCurrentStep(3);
+        goToStep('education');
         setIsSubmitting(false);
         return;
       }
@@ -216,13 +238,13 @@ export default function Onboarding() {
       // Step 4: Professional validations
       if (!String(formData.occupation || '').trim()) {
         toast.error('Please enter your current occupation');
-        setCurrentStep(4);
+        goToStep('professional');
         setIsSubmitting(false);
         return;
       }
       if (!String(formData.placeOfWork || '').trim()) {
         toast.error('Please enter your place of work');
-        setCurrentStep(4);
+        goToStep('professional');
         setIsSubmitting(false);
         return;
       }
@@ -230,7 +252,7 @@ export default function Onboarding() {
       // Step 5: Contact validations
       if (!String(formData.schoolEmail || authUser?.email || '').trim()) {
         toast.error('Missing school email');
-        setCurrentStep(5);
+        goToStep('contact');
         setIsSubmitting(false);
         return;
       }
@@ -238,14 +260,14 @@ export default function Onboarding() {
       const phoneValidation = validatePhone();
       if (!phoneValidation.valid) {
         toast.error(phoneValidation.error);
-        setCurrentStep(5);
+        goToStep('contact');
         setIsSubmitting(false);
         return;
       }
       
       if (!validateEmail(formData.personalEmail)) {
         toast.error('Please enter a valid personal email (must include @)');
-        setCurrentStep(5);
+        goToStep('contact');
         setIsSubmitting(false);
         return;
       }
@@ -258,7 +280,7 @@ export default function Onboarding() {
       fd.append('bank_name', formData.bankName || '');
       fd.append('account_name', formData.accountHolderName || '');
       fd.append('account_number', formData.accountName || '');
-      fd.append('short_bio', formData.shortBio || '');
+      if (!isAdvisor) fd.append('short_bio', formData.shortBio || '');
       fd.append('university', formData.universityName || '');
       fd.append('country', formData.country || '');
       fd.append('major', formData.majorName || '');
@@ -269,17 +291,21 @@ export default function Onboarding() {
       fd.append('phone_number', phoneE164 || formData.phoneNumber || '');
       fd.append('personal_email', formData.personalEmail || '');
       
-      fd.append('research_fields', researchFields.join(', '));
+      if (!isAdvisor) fd.append('research_fields', researchFields.join(', '));
       
-      if (formData.departments.length) fd.append('departments', formData.departments.join(', '));
-      if (formData.courses.length) {
-        fd.append('courses', formData.courses.join(', '));
-        const selectedIds = getCourseIds(formData.courses);
-        if (selectedIds.length) fd.append('course_ids', selectedIds.join(','));
+      if (!isAdvisor) {
+        if (formData.departments.length) fd.append('departments', formData.departments.join(', '));
+        if (formData.courses.length) {
+          fd.append('courses', formData.courses.join(', '));
+          const selectedIds = getCourseIds(formData.courses);
+          if (selectedIds.length) fd.append('course_ids', selectedIds.join(','));
+        }
       }
       
-      if (files.updatedCvFile) fd.append('cv', files.updatedCvFile);
-      if (files.courseSyllabusFile) fd.append('syllabus', files.courseSyllabusFile);
+      if (!isAdvisor) {
+        if (files.updatedCvFile) fd.append('cv', files.updatedCvFile);
+        if (files.courseSyllabusFile) fd.append('syllabus', files.courseSyllabusFile);
+      }
       if (files.payrollFile) fd.append('payroll', files.payrollFile);
       
       const res = await submitLecturerOnboarding(fd);
@@ -324,8 +350,11 @@ export default function Onboarding() {
 
   // Render step content
   const renderStepContent = () => {
-    switch (currentStep) {
-      case 1:
+    const step = steps[currentStep - 1];
+    if (!step) return null;
+
+    switch (step.key) {
+      case 'basic':
         return (
           <OnboardingBasicInfo
             formData={formData}
@@ -335,7 +364,7 @@ export default function Onboarding() {
           />
         );
 
-      case 2:
+      case 'academic':
         return (
           <OnboardingAcademicInfo
             formData={formData}
@@ -352,7 +381,7 @@ export default function Onboarding() {
           />
         );
 
-      case 3:
+      case 'education':
         return (
           <OnboardingEducation
             formData={formData}
@@ -362,15 +391,10 @@ export default function Onboarding() {
           />
         );
 
-      case 4:
-        return (
-          <OnboardingProfessional
-            formData={formData}
-            updateForm={updateForm}
-          />
-        );
+      case 'professional':
+        return <OnboardingProfessional formData={formData} updateForm={updateForm} />;
 
-      case 5:
+      case 'contact':
         return (
           <OnboardingContact
             formData={formData}

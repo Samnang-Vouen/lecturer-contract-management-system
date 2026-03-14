@@ -134,7 +134,9 @@ export const lecturerFilename = (lecturer) => {
 
 export const formatContractId = (contract) => {
   const createdYear = contract.created_at ? new Date(contract.created_at).getFullYear() : new Date().getFullYear();
-  return `CTR-${createdYear}-${String(contract.id).padStart(3, '0')}`;
+  const t = String(contract?.contract_type || '').toUpperCase();
+  const prefix = t === 'ADVISOR' ? 'AC' : 'LC';
+  return `${prefix}-${createdYear}-${String(contract.id).padStart(3, '0')}`;
 };
 
 export const getLecturerName = (lecturer) => {
@@ -153,12 +155,18 @@ export const getContractPeriod = (contract) => {
 };
 
 export const getContractStatus = (status) => {
+  const st = String(status || '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '_');
+
   const statusMap = {
     WAITING_MANAGEMENT: { label: 'Waiting Management', class: 'bg-blue-50 text-blue-700 border-blue-200', icon: 'Info' },
     WAITING_LECTURER: { label: 'Waiting Lecturer', class: 'bg-amber-50 text-amber-700 border-amber-200', icon: 'Clock' },
     MANAGEMENT_SIGNED: { label: 'Waiting Lecturer', class: 'bg-amber-50 text-amber-700 border-amber-200', icon: 'Clock' },
     LECTURER_SIGNED: { label: 'Waiting Management', class: 'bg-blue-50 text-blue-700 border-blue-200', icon: 'Info' },
     COMPLETED: { label: 'Completed', class: 'bg-green-50 text-green-700 border-green-200', icon: 'CheckCircle2' },
+    CONTRACT_ENDED: { label: 'Contract Ended', class: 'bg-gray-100 text-red-700 border-red-200', icon: 'AlertCircle' },
   };
-  return statusMap[status] || { label: String(status||'').toLowerCase(), class: 'bg-gray-100 text-gray-700 border-gray-200' };
+  return statusMap[st] || { label: String(status||'').toLowerCase(), class: 'bg-gray-100 text-gray-700 border-gray-200' };
 };

@@ -31,6 +31,8 @@ export default function FinalDecisionStep({
     );
   }
 
+  const normalizedStatus = String(candidate.status || '').toLowerCase();
+
   return (
     <div className="p-8">
       <div className="flex items-center gap-4 mb-8">
@@ -104,7 +106,7 @@ export default function FinalDecisionStep({
               </div>
             )}
           </div>
-        ) : candidate.status === 'accepted' ? (
+        ) : ['accepted', 'done'].includes(normalizedStatus) ? (
           /* Accepted candidate - Read-only view */
           <div className="bg-gradient-to-r from-emerald-50 to-emerald-100 rounded-2xl border border-emerald-200/50 p-8">
             <div className="text-center mb-6">
@@ -149,7 +151,7 @@ export default function FinalDecisionStep({
               )}
             </div>
           </div>
-        ) : candidate.status === 'rejected' ? (
+        ) : normalizedStatus === 'rejected' ? (
           /* Manually rejected candidate - Read-only view */
           <div className="bg-gradient-to-r from-red-50 to-red-100 rounded-2xl border border-red-200/50 p-8">
             <div className="text-center mb-6">

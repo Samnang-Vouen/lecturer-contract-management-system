@@ -1,9 +1,19 @@
 import express from 'express';
 import { protect, authorizeRoles } from '../middleware/auth.middleware.js';
 import { validate } from '../middleware/validate.middleware.js';
-import { ContractCreateSchema, ContractStatusUpdateSchema } from '../validators/teachingContract.validators.js';
+import {
+  ContractCreateSchema,
+  ContractEditSchema,
+  ContractStatusUpdateSchema,
+  RedoRequestCreateSchema,
+  RedoRequestStatusSchema,
+} from '../validators/teachingContract.validators.js';
 import {
   createDraftContract,
+  editContract,
+  createRedoRequest,
+  listRedoRequests,
+  updateRedoRequestStatus,
   getContract,
   generatePdf,
   updateStatus,
@@ -45,6 +55,35 @@ router.patch(
   authorizeRoles(['admin', 'lecturer', 'management', 'superadmin']),
   validate(ContractStatusUpdateSchema, 'body'),
   updateStatus
+);
+
+// Edit contract details (only allowed when REQUEST_REDO)
+router.patch(
+  '/:id',
+  authorizeRoles(['admin']),
+  validate(ContractEditSchema, 'body'),
+  editContract
+);
+
+// Redo request messages + tracking
+router.get(
+  '/:id/redo-requests',
+  authorizeRoles(['admin', 'lecturer', 'management', 'superadmin']),
+  listRedoRequests
+);
+
+router.post(
+  '/:id/redo-requests',
+  authorizeRoles(['lecturer', 'management']),
+  validate(RedoRequestCreateSchema, 'body'),
+  createRedoRequest
+);
+
+router.patch(
+  '/:id/redo-requests/:requestId',
+  authorizeRoles(['admin', 'management', 'superadmin']),
+  validate(RedoRequestStatusSchema, 'body'),
+  updateRedoRequestStatus
 );
 
 // Upload e-signature (who=lecturer|management)

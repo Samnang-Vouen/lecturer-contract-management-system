@@ -39,7 +39,7 @@ async function countContractsViaCourses(where, deptIds) {
     include: [
       {
         model: TeachingContractCourse,
-        as: 'courses',
+        as: 'contractCourses',
         required: true,
         attributes: [],
         include: [
@@ -53,7 +53,6 @@ async function countContractsViaCourses(where, deptIds) {
       },
     ],
     distinct: true,
-    col: 'TeachingContract.id',
   });
 }
 

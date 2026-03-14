@@ -12,7 +12,7 @@ import {
 
 const router = express.Router();
 
-router.use(protect, authorizeRoles(['lecturer', 'admin', 'superadmin']));
+router.use(protect, authorizeRoles(['lecturer', 'advisor', 'admin', 'superadmin']));
 
 router.get('/me', getMyLecturerProfile);
 router.put('/me', updateMyLecturerProfile);
@@ -27,7 +27,7 @@ router.post(
   '/me/files',
   upload.fields([
     { name: 'cv', maxCount: 1 },
-    { name: 'syllabus', maxCount: 1 },
+    { name: 'syllabus', maxCount: 10 },
   ]),
   uploadLecturerFiles
 );

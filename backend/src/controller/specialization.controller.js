@@ -32,6 +32,7 @@ const SpecializationController = {
 
       res.json(rows);
     } catch (err) {
+      console.error('Failed to fetch specializations:', err);
       res.status(500).json({ error: 'Failed to fetch specializations.' });
     }
   },

@@ -35,7 +35,7 @@ export default function ManagementContracts() {
   const {
     showUploadDlg,
     setShowUploadDlg,
-    uploadContractId,
+    uploadContract,
     selectedFile,
     setSelectedFile,
     uploadError,
@@ -50,7 +50,7 @@ export default function ManagementContracts() {
 
   // Handlers
   const handleSignClick = (contract) => {
-    openUploadDialog(contract.id);
+    openUploadDialog(contract);
   };
 
   const handleFileChange = (e) => {
@@ -60,12 +60,12 @@ export default function ManagementContracts() {
   };
 
   const handleUpload = async () => {
-    if (!selectedFile || !uploadContractId) {
+    if (!selectedFile || !uploadContract?.id) {
       setUploadError('Please choose an image.');
       return;
     }
     try {
-      await uploadManagementSignature(uploadContractId, selectedFile);
+      await uploadManagementSignature(uploadContract, selectedFile);
       closeUploadDialog();
     } catch (e) {
       setUploadError('Failed to upload. Please try again.');

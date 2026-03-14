@@ -7,6 +7,7 @@ import PaginationControls from './PaginationControls';
 export default function LecturerTable({ 
   lecturers, 
   isLoading, 
+  isUpdating,
   totalLecturers,
   page,
   setPage,
@@ -14,7 +15,7 @@ export default function LecturerTable({
   onOpenMenu,
   onOpenCoursesPopover
 }) {
-  if (isLoading) {
+  if (isLoading && lecturers.length === 0) {
     return (
       <Card>
         <CardContent>
@@ -28,15 +29,17 @@ export default function LecturerTable({
   }
 
   if (lecturers.length === 0) {
+    const emptyMessage = 'No lecturers or advisors found.';
+
     return (
       <Card>
         <CardHeader>
           <CardTitle className='flex items-center gap-2'>
-            <Users className='w-5 h-5'/> Lecturers (0)
+            <Users className='w-5 h-5'/> Lecturers & Advisors (0)
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className='p-8 text-center text-gray-600'>No lecturers found.</div>
+          <div className='p-8 text-center text-gray-600'>{emptyMessage}</div>
         </CardContent>
       </Card>
     );
@@ -45,10 +48,18 @@ export default function LecturerTable({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className='flex items-center gap-2'>
-          <Users className='w-5 h-5'/> Lecturers ({totalLecturers})
+        <CardTitle className='flex items-center justify-between gap-3'>
+          <span className='flex items-center gap-2'>
+            <Users className='w-5 h-5'/> Lecturers & Advisors ({totalLecturers})
+          </span>
+          {isUpdating && (
+            <span className='inline-flex items-center gap-2 text-xs text-gray-500'>
+              <span className='h-3 w-3 rounded-full border-b-2 border-blue-600 animate-spin' />
+              Updating…
+            </span>
+          )}
         </CardTitle>
-        <CardDescription>All lecturer accounts</CardDescription>
+        <CardDescription>All lecturer and advisor accounts</CardDescription>
       </CardHeader>
       <CardContent>
         <div className='bg-white rounded-lg shadow-sm overflow-hidden border border-gray-100'>

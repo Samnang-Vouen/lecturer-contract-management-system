@@ -149,10 +149,17 @@ export function useDepartments() {
 
 export function useOnboardingListener(refreshLecturers) {
   useEffect(() => {
+    const callRefresh = () => {
+      try {
+        if (typeof refreshLecturers === 'function') return refreshLecturers();
+        if (refreshLecturers?.current) return refreshLecturers.current();
+      } catch {}
+    };
+
     const handleMessage = (evt) => {
       const data = evt?.data || evt;
       if (data && data.type === 'onboarding_complete') {
-        refreshLecturers.current && refreshLecturers.current();
+        callRefresh();
       }
     };
 

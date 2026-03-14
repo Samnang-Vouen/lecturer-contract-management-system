@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import {
   TeachingContract,
   TeachingContractCourse,
+  ContractRedoRequest,
   User,
   LecturerProfile,
   ClassModel,
@@ -21,6 +22,7 @@ import {
   PAGINATION_MAX_LIMIT,
   CONTRACT_STATUS_ALIAS_MAP,
 } from '../config/constants.js';
+import { getNotificationSocket } from '../socket/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -119,6 +121,8 @@ export async function createDraftContract(req, res) {
     const { lecturer_user_id, academic_year, term, year_level, start_date, end_date } = req.body;
     const coursesIn = Array.isArray(req.body?.courses) ? req.body.courses : [];
     const normalizedItems = normalizeItems(req.body?.items);
+    const rawRate = req.body?.hourly_rate;
+    const hourly_rate = rawRate != null ? (Number.isFinite(Number(rawRate)) ? Number(rawRate) : null) : null;
 
     // Basic validation
     const errors = [];
@@ -195,6 +199,8 @@ export async function createDraftContract(req, res) {
       const contract = await TeachingContract.create(
         {
           lecturer_user_id: parsedLecturerId,
+          // This endpoint is for lecturer teaching contracts.
+          contract_type: 'TEACHING',
           academic_year,
           term,
           year_level: year_level || null,
@@ -202,6 +208,7 @@ export async function createDraftContract(req, res) {
           end_date: toDateOnly(end_date),
           created_by: req.user.id,
           items: normalizedItems,
+          hourly_rate,
         },
         { transaction: tx }
       );
@@ -237,8 +244,23 @@ export async function createDraftContract(req, res) {
         const rows = normalizedItems.map((text) => ({ contract_id: contract.id, duties: text }));
         await ContractItem.bulkCreate(rows, { transaction: tx });
       }
+      
 
       await tx.commit();
+
+      try {
+        const notificationSocket = getNotificationSocket();
+        await notificationSocket.contractStatusChanged({
+            contractId: contract.id,
+            newStatus: "WAITING_LECTURER",
+            recipient: parsedLecturerId,
+        });
+        notificationSocket.broadcastToRole({ role: 'management', type: 'status_change', message: `Contract #${contract.id} created, awaiting lecturer signature`, contractId: contract.id });
+        notificationSocket.broadcastToRole({ role: 'admin', type: 'status_change', message: `Contract #${contract.id} created, awaiting lecturer signature`, contractId: contract.id });
+      } catch (error) {
+        console.error('error status for socket', error);
+      }
+
       return res.status(HTTP_STATUS.CREATED).json({ id: contract.id });
     } catch (innerErr) {
       try {
@@ -273,7 +295,7 @@ export async function getContract(req, res) {
       include: [
         { 
           model: TeachingContractCourse, 
-          as: 'courses',
+          as: 'contractCourses',
           include: [
             {
               model: Course,
@@ -319,6 +341,13 @@ export async function listContracts(req, res) {
     const { academic_year, term, status, q } = req.query;
 
     const where = {};
+
+    // This controller backs /api/teaching-contracts (lecturer contracts). Keep it scoped to TEACHING
+    // so advisor contracts (handled by /api/advisor-contracts) don't interfere with list/search.
+    // If a client explicitly provides ?contract_type=ADVISOR, we'll honor it.
+    const requestedType = String(req.query.contract_type || 'TEACHING').toUpperCase();
+    where.contract_type = requestedType === 'ADVISOR' ? 'ADVISOR' : 'TEACHING';
+
     if (academic_year) where.academic_year = academic_year;
     if (term) where.term = term;
     if (status) {
@@ -338,7 +367,7 @@ export async function listContracts(req, res) {
     const include = [
       {
         model: TeachingContractCourse,
-        as: 'courses',
+        as: 'contractCourses',
         include: [
           {
             model: Course,
@@ -352,7 +381,13 @@ export async function listContracts(req, res) {
         model: User,
         as: 'lecturer',
         attributes: ['id', 'email', 'display_name', 'department_name'],
-        include: [{ model: LecturerProfile, attributes: ['title', 'full_name_english', 'full_name_khmer', 'position'], required: false }],
+        include: [
+          {
+            model: LecturerProfile,
+            attributes: ['candidate_id', 'title', 'full_name_english', 'full_name_khmer', 'position'],
+            required: false,
+          },
+        ],
       },
     ];
 
@@ -364,7 +399,7 @@ export async function listContracts(req, res) {
       }
       include[0] = {
         model: TeachingContractCourse,
-        as: 'courses',
+        as: 'contractCourses',
         required: true,
         include: [
           {
@@ -380,20 +415,16 @@ export async function listContracts(req, res) {
 
     // Basic text search on lecturer fields
     if (q) {
-      // Keep lecturer include optional and apply where via literal on joined alias to avoid subquery complications
-      include[1].required = false;
+      // Filter against the already-joined lecturer (users) table to avoid raw SQL + table-name issues
+      // (some DBs use `lecturer_profiles` and are case/identifier sensitive).
       const like = `%${q}%`;
-      where[Sequelize.Op.and] = [
-        ...(where[Sequelize.Op.and] || []),
-        Sequelize.literal(`(
-          EXISTS (
-            SELECT 1 FROM Users AS lecturer
-            JOIN LecturerProfiles AS LecturerProfile ON LecturerProfile.user_id = lecturer.id
-            WHERE lecturer.id = Teaching_Contracts.lecturer_user_id
-              AND (lecturer.display_name LIKE ${sequelize.escape(like)} OR lecturer.email LIKE ${sequelize.escape(like)})
-          )
-        )`),
-      ];
+      include[1].required = true;
+      include[1].where = {
+        [Sequelize.Op.or]: [
+          { display_name: { [Sequelize.Op.like]: like } },
+          { email: { [Sequelize.Op.like]: like } },
+        ],
+      };
     }
 
     // When using required includes, count can be inflated; use distinct
@@ -429,6 +460,22 @@ export async function listContracts(req, res) {
           // If no rate in contract, try to find from Candidate profile
           if (hourlyRateUsd === null) {
             try {
+              const candidateId = plain?.lecturer?.LecturerProfile?.candidate_id;
+              if (candidateId) {
+                const candById = await Candidate.findByPk(candidateId);
+                if (candById && candById.hourlyRate != null) {
+                  const parsed = parseFloat(String(candById.hourlyRate).replace(/[^0-9.\-]/g, ''));
+                  hourlyRateUsd = Number.isFinite(parsed) ? parsed : null;
+                }
+              }
+
+              // If still missing, fall back to legacy name/email matching
+              if (hourlyRateUsd !== null) {
+                plain.hourlyRateThisYear = hourlyRateUsd;
+                enriched.push(plain);
+                continue;
+              }
+
               const displayName = plain?.lecturer?.display_name || '';
               let cand = null;
               console.log(`[listContracts enrichment] Looking up rate for: "${displayName}"`);
@@ -501,7 +548,7 @@ export async function generatePdf(req, res) {
       include: [
         {
           model: TeachingContractCourse,
-          as: 'courses',
+          as: 'contractCourses',
           include: [{ model: ClassModel, attributes: ['name', 'year_level'], required: false }],
         },
         {
@@ -576,8 +623,8 @@ export async function generatePdf(req, res) {
     const startDate = (contract.start_date ? new Date(contract.start_date) : new Date())
       .toISOString()
       .slice(0, 10);
-    const subject = contract.courses[0]?.course_name || 'Course';
-    const hours = contract.courses.reduce((a, c) => a + (c.hours || 0), 0) || 0;
+    const subject = contract.contractCourses[0]?.course_name || 'Course';
+    const hours = contract.contractCourses.reduce((a, c) => a + (c.hours || 0), 0) || 0;
 
     // Lookup hourly rate (USD) from Candidate profile by name or email
     let hourlyRateUsd = 0;
@@ -616,7 +663,7 @@ export async function generatePdf(req, res) {
     const monthlyKhr = Math.round(totalKhr / 3);
 
     // Build generation/class string: "Class Name (Year Level)"
-    const firstCourse = contract.courses?.find((c) => c?.Class) || contract.courses?.[0] || null;
+    const firstCourse = contract.contractCourses?.find((c) => c?.Class) || contract.contractCourses?.[0] || null;
     const className = firstCourse?.Class?.name || '';
     const yearLevel =
       firstCourse?.year_level || firstCourse?.Class?.year_level || contract.year_level || '';
@@ -747,19 +794,427 @@ export async function generatePdf(req, res) {
 export async function updateStatus(req, res) {
   try {
     const id = parseInt(req.params.id, 10);
-    const { status } = req.body;
+    const body = req.validated?.body || req.body || {};
+    const { remarks } = body;
+    const statusRaw = body.status;
+    const status =
+      CONTRACT_STATUS_ALIAS_MAP[String(statusRaw || '').trim().toUpperCase()] ||
+      String(statusRaw || '').trim();
     // Validation handled by middleware; status is already safe
     const contract = await TeachingContract.findByPk(id);
     if (!contract) return res.status(HTTP_STATUS.NOT_FOUND).json({ message: 'Not found' });
+    const role = String(req.user?.role || '').toLowerCase();
+    if (role === 'lecturer' && contract.lecturer_user_id !== req.user.id) {
+      return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied' });
+    }
     if (['admin', 'management'].includes(String(req.user?.role).toLowerCase())) {
       const ok = await isContractInManagerDept(contract.id, req);
       if (!ok) return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied' });
     }
+
+    // Completed contracts are immutable status-wise
+    if (contract.status === 'COMPLETED' && status !== 'COMPLETED') {
+      return res
+        .status(HTTP_STATUS.BAD_REQUEST)
+        .json({ message: 'Completed contracts cannot change status' });
+    }
+
+    // REQUEST_REDO can be requested by the lecturer (own contract) or management-side roles
+    if (status === 'REQUEST_REDO') {
+      const canRequestRedo =
+        role === 'lecturer' || role === 'management';
+      if (!canRequestRedo) {
+        return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied' });
+      }
+      if (!String(remarks || '').trim()) {
+        return res
+          .status(HTTP_STATUS.BAD_REQUEST)
+          .json({ message: 'remarks is required when requesting redo' });
+      }
+      if (!['WAITING_LECTURER', 'WAITING_MANAGEMENT', 'REQUEST_REDO'].includes(contract.status)) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({ message: 'Invalid status transition' });
+      }
+
+      const tx = await sequelize.transaction();
+      try {
+        await ContractRedoRequest.create(
+          {
+            contract_id: contract.id,
+            requester_user_id: req.user.id,
+            requester_role: role === 'lecturer' ? 'LECTURER' : 'MANAGEMENT',
+            message: String(remarks).trim(),
+          },
+          { transaction: tx }
+        );
+
+        await contract.update(
+          {
+            status: 'REQUEST_REDO',
+            management_remarks: String(remarks).trim(),
+            // Force re-sign + re-generate PDF after edits
+            lecturer_signature_path: null,
+            management_signature_path: null,
+            lecturer_signed_at: null,
+            management_signed_at: null,
+            pdf_path: null,
+          },
+          { transaction: tx }
+        );
+
+        await tx.commit();
+        return res.json({ message: 'Updated', status: 'REQUEST_REDO' });
+      } catch (innerErr) {
+        try {
+          await tx.rollback();
+        } catch {}
+        return res
+          .status(HTTP_STATUS.BAD_REQUEST)
+          .json({ message: 'Failed to request redo', error: innerErr?.message || 'Unknown error' });
+      }
+    }
+
+    // Guardrails for manual status updates
+    if (status === 'WAITING_MANAGEMENT' && !contract.lecturer_signed_at) {
+      return res
+        .status(HTTP_STATUS.BAD_REQUEST)
+        .json({ message: 'Lecturer signature is required before waiting management' });
+    }
+    if (status === 'COMPLETED' && (!contract.lecturer_signed_at || !contract.management_signed_at)) {
+      return res
+        .status(HTTP_STATUS.BAD_REQUEST)
+        .json({ message: 'Both signatures are required before completing' });
+    }
+
     await contract.update({ status });
+
+    try {
+      const notificationSocket = getNotificationSocket();
+      if (status === 'REQUEST_REDO') {
+        notificationSocket.broadcastToRole({ role: 'admin', type: 'status_change', message: `Contract #${contract.id} redo requested by lecturer`, contractId: contract.id });
+        notificationSocket.broadcastToRole({ role: 'management', type: 'status_change', message: `Contract #${contract.id} redo requested by lecturer`, contractId: contract.id });
+      } else {
+        await notificationSocket.contractStatusChanged({
+          contractId: contract.id,
+          newStatus: status,
+          recipient: contract.lecturer_user_id,
+          changedBy: req.user?.id || null,
+        });
+      }
+    } catch (notifErr) {
+      console.error('[updateStatus] notification failed:', notifErr);
+    }
+
     return res.json({ message: 'Updated' });
   } catch (e) {
     console.error('[updateStatus]', e);
     return res.status(HTTP_STATUS.SERVER_ERROR).json({ message: 'Failed to update status', error: e.message });
+  }
+}
+
+export async function listRedoRequests(req, res) {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const contract = await TeachingContract.findByPk(id);
+    if (!contract) return res.status(HTTP_STATUS.NOT_FOUND).json({ message: 'Not found' });
+
+    const role = String(req.user?.role || '').toLowerCase();
+    if (role === 'lecturer' && contract.lecturer_user_id !== req.user.id) {
+      return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied' });
+    }
+    if (['admin', 'management'].includes(role)) {
+      const ok = await isContractInManagerDept(contract.id, req);
+      if (!ok) return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied' });
+    }
+
+    const rows = await ContractRedoRequest.findAll({
+      where: { contract_id: id },
+      include: [{ model: User, as: 'requester', attributes: ['id', 'email', 'display_name'] }],
+      order: [['created_at', 'DESC']],
+    });
+    return res.json({ data: rows });
+  } catch (e) {
+    console.error('[listRedoRequests]', e);
+    return res
+      .status(HTTP_STATUS.SERVER_ERROR)
+      .json({ message: 'Failed to list redo requests', error: e.message });
+  }
+}
+
+export async function createRedoRequest(req, res) {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const body = req.validated?.body || req.body || {};
+    const message = String(body.message || '').trim();
+
+    const contract = await TeachingContract.findByPk(id);
+    if (!contract) return res.status(HTTP_STATUS.NOT_FOUND).json({ message: 'Not found' });
+
+    const role = String(req.user?.role || '').toLowerCase();
+    if (role === 'lecturer' && contract.lecturer_user_id !== req.user.id) {
+      return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied' });
+    }
+    if (role === 'management' || role === 'admin') {
+      const ok = await isContractInManagerDept(contract.id, req);
+      if (!ok) return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied' });
+    }
+
+    const requesterRole = role === 'lecturer' ? 'LECTURER' : 'MANAGEMENT';
+
+    const tx = await sequelize.transaction();
+    try {
+      const reqRow = await ContractRedoRequest.create(
+        {
+          contract_id: id,
+          requester_user_id: req.user.id,
+          requester_role: requesterRole,
+          message,
+        },
+        { transaction: tx }
+      );
+
+      await contract.update(
+        {
+          status: 'REQUEST_REDO',
+          // Keep legacy field populated for UI compatibility
+          management_remarks: message || null,
+          lecturer_signature_path: null,
+          management_signature_path: null,
+          lecturer_signed_at: null,
+          management_signed_at: null,
+          pdf_path: null,
+        },
+        { transaction: tx }
+      );
+
+      await tx.commit();
+      return res.status(HTTP_STATUS.CREATED).json({ id: reqRow.id });
+    } catch (innerErr) {
+      try {
+        await tx.rollback();
+      } catch {}
+      return res
+        .status(HTTP_STATUS.BAD_REQUEST)
+        .json({ message: 'Failed to create redo request', error: innerErr?.message || 'Unknown error' });
+    }
+  } catch (e) {
+    console.error('[createRedoRequest]', e);
+    return res
+      .status(HTTP_STATUS.SERVER_ERROR)
+      .json({ message: 'Failed to create redo request', error: e.message });
+  }
+}
+
+export async function updateRedoRequestStatus(req, res) {
+  try {
+    const contractId = parseInt(req.params.id, 10);
+    const requestId = parseInt(req.params.requestId, 10);
+    const body = req.validated?.body || req.body || {};
+    const { resolved } = body;
+
+    const contract = await TeachingContract.findByPk(contractId);
+    if (!contract) return res.status(HTTP_STATUS.NOT_FOUND).json({ message: 'Not found' });
+
+    const role = String(req.user?.role || '').toLowerCase();
+    if (role === 'lecturer') {
+      return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied' });
+    }
+    if (['admin', 'management'].includes(role)) {
+      const ok = await isContractInManagerDept(contract.id, req);
+      if (!ok) return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied' });
+    }
+
+    const row = await ContractRedoRequest.findOne({
+      where: { id: requestId, contract_id: contractId },
+    });
+    if (!row) return res.status(HTTP_STATUS.NOT_FOUND).json({ message: 'Redo request not found' });
+
+    await row.update({
+      resolved_at: resolved ? new Date() : null,
+      resolved_by_user_id: resolved ? req.user.id : null,
+    });
+    return res.json({ message: 'Updated', resolved: !!resolved });
+  } catch (e) {
+    console.error('[updateRedoRequestStatus]', e);
+    return res
+      .status(HTTP_STATUS.SERVER_ERROR)
+      .json({ message: 'Failed to update redo request', error: e.message });
+  }
+}
+
+// Edit contract details. Allowed only when status=REQUEST_REDO.
+// Editing resets signatures and moves the contract back to WAITING_LECTURER.
+export async function editContract(req, res) {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const body = req.validated?.body || req.body || {};
+
+    const contract = await TeachingContract.findByPk(id);
+    if (!contract) return res.status(HTTP_STATUS.NOT_FOUND).json({ message: 'Not found' });
+
+    const role = String(req.user?.role || '').toLowerCase();
+    if (role !== 'admin') {
+      return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied' });
+    }
+    if (role === 'lecturer' && contract.lecturer_user_id !== req.user.id) {
+      return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied' });
+    }
+    if (['admin', 'management'].includes(role)) {
+      const ok = await isContractInManagerDept(contract.id, req);
+      if (!ok) return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied' });
+    }
+
+    if (contract.status !== 'REQUEST_REDO') {
+      return res
+        .status(HTTP_STATUS.CONFLICT)
+        .json({ message: 'Contract can only be edited when status is REQUEST_REDO' });
+    }
+
+    const toDateOnly = (v) => {
+      if (v === null || v === undefined || v === '') return null;
+      try {
+        const d = new Date(v);
+        if (isNaN(d.getTime())) return null;
+        return d.toISOString().slice(0, 10);
+      } catch {
+        return null;
+      }
+    };
+
+    const normalizedItems = Object.prototype.hasOwnProperty.call(body, 'items')
+      ? normalizeItems(body.items)
+      : null;
+
+    const coursesIn = Array.isArray(body?.courses) ? body.courses : null;
+
+    // If admin, ensure any provided courses belong to their department
+    if (coursesIn && role === 'admin') {
+      const deptId = await resolveManagerDeptId(req);
+      if (!deptId) {
+        return res
+          .status(HTTP_STATUS.FORBIDDEN)
+          .json({ message: 'Access denied: department not set for your account' });
+      }
+      const ids = Array.from(
+        new Set(
+          coursesIn
+            .map((c) => parseInt(c?.course_id, 10))
+            .filter((n) => Number.isInteger(n) && n > 0)
+        )
+      );
+      if (!ids.length) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          message: 'Validation error',
+          errors: ['courses must reference valid course_id values'],
+        });
+      }
+      const okCount = await Course.count({ where: { id: ids, dept_id: deptId } });
+      if (okCount !== ids.length) {
+        return res
+          .status(HTTP_STATUS.FORBIDDEN)
+          .json({ message: 'You can only use courses from your department' });
+      }
+    }
+
+    const tx = await sequelize.transaction();
+    try {
+      const updatePayload = {
+        // After any edit, require fresh signatures and PDF
+        status: 'WAITING_LECTURER',
+        lecturer_signature_path: null,
+        management_signature_path: null,
+        lecturer_signed_at: null,
+        management_signed_at: null,
+        pdf_path: null,
+      };
+
+      if (body.academic_year !== undefined) updatePayload.academic_year = body.academic_year;
+      if (body.term !== undefined) updatePayload.term = String(body.term);
+      if (Object.prototype.hasOwnProperty.call(body, 'year_level')) {
+        updatePayload.year_level = body.year_level ?? null;
+      }
+      if (Object.prototype.hasOwnProperty.call(body, 'start_date')) {
+        updatePayload.start_date = toDateOnly(body.start_date);
+      }
+      if (Object.prototype.hasOwnProperty.call(body, 'end_date')) {
+        updatePayload.end_date = toDateOnly(body.end_date);
+      }
+      if (normalizedItems !== null) updatePayload.items = normalizedItems;
+
+      await contract.update(updatePayload, { transaction: tx });
+
+      if (coursesIn) {
+        const termFallback = body.term !== undefined ? String(body.term) : contract.term;
+        const academicYearFallback =
+          body.academic_year !== undefined ? body.academic_year : contract.academic_year;
+        const courses = coursesIn
+          .map((c) => ({
+            course_id: c?.course_id ?? null,
+            class_id: c?.class_id ?? null,
+            course_name: c?.course_name ?? '',
+            year_level: c?.year_level ?? null,
+            term: c?.term ?? termFallback,
+            academic_year: c?.academic_year ?? academicYearFallback,
+            hours: Number.isFinite(Number(c?.hours)) ? Number(c.hours) : null,
+          }))
+          .filter((c) => c.course_id !== null && c.course_id !== undefined);
+
+        if (!courses.length) {
+          throw new Error('courses are malformed (need at least course_id)');
+        }
+
+        await TeachingContractCourse.destroy({ where: { contract_id: id }, transaction: tx });
+        for (const c of courses) {
+          const cid = Number.isFinite(Number(c.course_id)) ? Number(c.course_id) : null;
+          await TeachingContractCourse.create(
+            {
+              contract_id: id,
+              course_id: cid,
+              class_id: c.class_id || null,
+              course_name: c.course_name,
+              year_level: c.year_level || null,
+              term: String(c.term),
+              academic_year: String(c.academic_year),
+              hours: c.hours,
+            },
+            { transaction: tx }
+          );
+        }
+      }
+
+      if (normalizedItems !== null) {
+        await ContractItem.destroy({ where: { contract_id: id }, transaction: tx });
+        if (normalizedItems.length) {
+          const rows = normalizedItems.map((text) => ({ contract_id: id, duties: text }));
+          await ContractItem.bulkCreate(rows, { transaction: tx });
+        }
+      }
+
+      await tx.commit();
+
+      // Auto-resolve any open redo requests once an edit is submitted
+      try {
+        await ContractRedoRequest.update(
+          {
+            resolved_at: new Date(),
+            resolved_by_user_id: req.user.id,
+          },
+          { where: { contract_id: id, resolved_at: null } }
+        );
+      } catch {}
+      return res.json({ message: 'Updated', id, status: 'WAITING_LECTURER' });
+    } catch (innerErr) {
+      try {
+        await tx.rollback();
+      } catch {}
+      return res
+        .status(HTTP_STATUS.BAD_REQUEST)
+        .json({ message: 'Failed to edit contract', error: innerErr?.message || 'Unknown error' });
+    }
+  } catch (e) {
+    console.error('[editContract]', e);
+    return res
+      .status(HTTP_STATUS.SERVER_ERROR)
+      .json({ message: 'Failed to edit contract', error: e.message });
   }
 }
 
@@ -822,6 +1277,10 @@ export async function uploadSignature(req, res) {
     const who = (req.body.who || 'lecturer').toLowerCase();
     const contract = await TeachingContract.findByPk(id);
     if (!contract) return res.status(HTTP_STATUS.NOT_FOUND).json({ message: 'Not found' });
+    // Lecturers may only sign their own contract
+    if (String(req.user?.role).toLowerCase() === 'lecturer' && contract.lecturer_user_id !== req.user.id) {
+      return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied: you do not own this contract' });
+    }
     if (['admin', 'management'].includes(String(req.user?.role).toLowerCase())) {
       const allowed = await isContractInManagerDept(contract.id, req);
       if (!allowed) return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied' });
@@ -872,6 +1331,13 @@ export async function uploadSignature(req, res) {
         lecturer_signed_at: now,
         status: next,
       });
+      try {
+        const notificationSocket = getNotificationSocket();
+        notificationSocket.broadcastToRole({ role: 'management', type: 'status_change', message: `Contract #${contract.id} signed by lecturer, awaiting your signature`, contractId: contract.id });
+        notificationSocket.broadcastToRole({ role: 'admin', type: 'status_change', message: `Contract #${contract.id} signed by lecturer`, contractId: contract.id });
+      } catch (notifErr) {
+        console.error('[uploadSignature] notification failed:', notifErr);
+      }
     } else {
       // Management signing moves status to WAITING_LECTURER unless lecturer already signed (then COMPLETED)
       const next = contract.lecturer_signed_at ? 'COMPLETED' : 'WAITING_LECTURER';
@@ -880,6 +1346,13 @@ export async function uploadSignature(req, res) {
         management_signed_at: now,
         status: next,
       });
+      try {
+        const notificationSocket = getNotificationSocket();
+        notificationSocket.notifyLecturer({ user_id: contract.lecturer_user_id, type: 'status_change', message: `Contract #${contract.id} has been completed`, contract_id: contract.id });
+        notificationSocket.broadcastToRole({ role: 'admin', type: 'status_change', message: `Contract #${contract.id} completed`, contractId: contract.id });
+      } catch (notifErr) {
+        console.error('[uploadSignature] notification failed:', notifErr);
+      }
     }
     return res.json({ message: 'Signature uploaded', path: filePath, status: contract.status });
   } catch (e) {

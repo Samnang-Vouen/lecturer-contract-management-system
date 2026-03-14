@@ -5,6 +5,11 @@ import { MoreVertical, MoreHorizontal } from 'lucide-react';
 export default function LecturerTableRow({ lecturer, onOpenMenu, onOpenCoursesPopover }) {
   const [courseTooltip, setCourseTooltip] = useState(null);
 
+  const roles = Array.isArray(lecturer?.roles)
+    ? lecturer.roles.map((r) => String(r || '').toLowerCase()).filter(Boolean)
+    : [];
+  const hasAdvisorRole = roles.includes('advisor');
+
   const handleMenuClick = (e) => {
     e.stopPropagation();
     onOpenMenu(lecturer.id, e);
@@ -100,7 +105,14 @@ export default function LecturerTableRow({ lecturer, onOpenMenu, onOpenCoursesPo
             {lecturer.name?.charAt(0)?.toUpperCase() || 'L'}
           </div>
           <div>
-            <div className='font-medium text-gray-900'>{lecturer.name || 'Unknown'}</div>
+            <div className='font-medium text-gray-900 inline-flex items-center gap-2'>
+              <span>{lecturer.name || 'Unknown'}</span>
+              {hasAdvisorRole && (
+                <span className='inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-[11px] font-medium text-purple-800'>
+                  Advisor
+                </span>
+              )}
+            </div>
             <div className='text-sm text-gray-500'>{lecturer.email || ''}</div>
           </div>
         </div>

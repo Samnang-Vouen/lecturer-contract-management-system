@@ -22,15 +22,28 @@ export function clearAuthToken() {
 
 // Basic pass-through interceptors, reserved for future instrumentation
 axiosInstance.interceptors.request.use(
-    (config) => config,
+    (config) => {
+        try {
+            if (import.meta?.env?.DEV && String(config?.url || '').includes('/lecturers')) {
+                console.debug('[axios] request', {
+                    baseURL: config.baseURL,
+                    url: config.url,
+                    params: config.params,
+                });
+            }
+        } catch {}
+        return config;
+    },
     (error) => Promise.reject(error)
 );
 
 axiosInstance.interceptors.response.use(
     (response) => response,
     (error) => {
-        // Log 401/403 errors to help with debugging
-        if (error.response?.status === 401) {
+        // Log 400/401/403 errors to help with debugging
+        if (error.response?.status === 400) {
+            console.error('[axios] 400 Bad Request:', error.config?.url, error.response?.data);
+        } else if (error.response?.status === 401) {
             console.error('[axios] 401 Unauthorized:', error.config?.url);
         } else if (error.response?.status === 403) {
             console.error('[axios] 403 Forbidden:', error.config?.url);

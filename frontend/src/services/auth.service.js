@@ -15,4 +15,14 @@ export async function logout() {
   return res.data;
 }
 
-export default { checkAuth, login, logout };
+export async function forgotPassword(email) {
+  const res = await axios.post('/auth/forgot-password', { email });
+  return res.data;
+}
+
+export async function resetPassword(token, newPassword) {
+  const res = await axios.post('/auth/reset-password', { token, newPassword });
+  return res.data;
+}
+
+export default { checkAuth, login, logout, forgotPassword, resetPassword };

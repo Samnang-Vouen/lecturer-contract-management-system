@@ -8,6 +8,43 @@ import {
   uploadLecturerPayroll,
   updateCandidateHourlyRate
 } from '../../../services/lecturer.service';
+import {
+  deleteAdvisor,
+  toggleAdvisorStatus,
+  updateAdvisorProfile,
+  updateAdvisor,
+  uploadAdvisorPayroll,
+} from '../../../services/advisor.service';
+
+const isAdvisorTarget = (target) => {
+  const toToken = (r) => {
+    if (r === null || r === undefined) return '';
+    if (typeof r === 'string' || typeof r === 'number') return String(r);
+    if (typeof r === 'object') return r.role ?? r.name ?? r.code ?? r.type ?? r.value ?? '';
+    return String(r);
+  };
+
+  const rawValues = [target?.role, target?.roles, target?.user?.role, target?.user?.roles];
+  const flattened = [];
+  for (const v of rawValues) {
+    if (!v) continue;
+    if (Array.isArray(v)) for (const item of v) flattened.push(toToken(item));
+    else flattened.push(toToken(v));
+  }
+
+  const roleTokens = flattened
+    .flatMap((s) => String(s ?? '').split(','))
+    .map((t) => t.trim().toLowerCase())
+    .filter(Boolean);
+
+  const hasAdvisorRole = roleTokens.some((t) => t === 'advisor' || t.includes('advisor'));
+  const hasLecturerRole = roleTokens.some((t) => t === 'lecturer' || t === 'lecture' || t.includes('lectur'));
+  if (hasLecturerRole) return false;
+  if (hasAdvisorRole) return true;
+
+  const positionLc = String(target?.position || '').trim().toLowerCase();
+  return positionLc === 'advisor';
+};
 
 export function useLecturerOperations(setLecturers) {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -27,9 +64,10 @@ export function useLecturerOperations(setLecturers) {
     if (!lecturerToDelete) return;
     
     try {
-      await deleteLecturer(lecturerToDelete.id);
+      if (isAdvisorTarget(lecturerToDelete)) await deleteAdvisor(lecturerToDelete.id);
+      else await deleteLecturer(lecturerToDelete.id);
       setLecturers(prev => prev.filter(l => l.id !== lecturerToDelete.id));
-      toast.success('Lecturer deleted');
+      toast.success(isAdvisorTarget(lecturerToDelete) ? 'Advisor deleted' : 'Lecturer deleted');
     } catch (e) {
       console.error('Delete lecturer failed', e);
       toast.error('Failed to delete lecturer');
@@ -40,11 +78,13 @@ export function useLecturerOperations(setLecturers) {
 
   const handleDeactivate = async (lecturer) => {
     try {
-      const data = await toggleLecturerStatus(lecturer.id);
+      const data = isAdvisorTarget(lecturer)
+        ? await toggleAdvisorStatus(lecturer.id)
+        : await toggleLecturerStatus(lecturer.id);
       setLecturers(prev => prev.map(l => 
         l.id === lecturer.id ? { ...l, status: data.status } : l
       ));
-      toast.success(`Lecturer ${data.status === 'active' ? 'activated' : 'deactivated'}`);
+      toast.success(`${isAdvisorTarget(lecturer) ? 'Advisor' : 'Lecturer'} ${data.status === 'active' ? 'activated' : 'deactivated'}`);
     } catch (e) {
       console.error('Toggle status failed', e);
       toast.error('Failed to update status');
@@ -55,8 +95,11 @@ export function useLecturerOperations(setLecturers) {
     if (!selectedLecturer) return false;
     
     try {
+      const isAdvisor = isAdvisorTarget(selectedLecturer);
+
       // Save bio & research fields
-      await updateLecturerProfile(selectedLecturer.id, {
+      const updateProfile = isAdvisor ? updateAdvisorProfile : updateLecturerProfile;
+      await updateProfile(selectedLecturer.id, {
         short_bio: selectedLecturer.bio || '',
         research_fields: selectedLecturer.specialization.join(','),
         phone_number: selectedLecturer.phone || null,
@@ -66,10 +109,11 @@ export function useLecturerOperations(setLecturers) {
       });
 
       // Update position/status
-      await updateLecturer(selectedLecturer.id, {
-        position: selectedLecturer.position,
-        status: selectedLecturer.status
-      });
+      const updateUserFn = isAdvisor ? updateAdvisor : updateLecturer;
+      const updatePayload = isAdvisor
+        ? { status: selectedLecturer.status }
+        : { position: selectedLecturer.position, status: selectedLecturer.status };
+      await updateUserFn(selectedLecturer.id, updatePayload);
 
       // Update hourly rate if available
       if (selectedLecturer.candidateId && (selectedLecturer.hourlyRateThisYear ?? '') !== '') {
@@ -103,12 +147,13 @@ export function useLecturerOperations(setLecturers) {
     }
   };
 
-  const handlePayrollUpload = async (lecturerId, file, onSuccess) => {
+  const handlePayrollUpload = async (target, file, onSuccess) => {
     if (!file) return;
     
     try {
       toast.loading('Uploading payroll...');
-      const data = await uploadLecturerPayroll(lecturerId, file);
+      const uploader = isAdvisorTarget(target) ? uploadAdvisorPayroll : uploadLecturerPayroll;
+      const data = await uploader(target.id, file);
       const newPath = data.path || data.payrollFilePath || data.profile?.pay_roll_in_riel || 
                       data.profile?.payrollPath || data.pay_roll_in_riel;
       

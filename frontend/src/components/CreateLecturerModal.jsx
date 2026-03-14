@@ -4,6 +4,7 @@ import { X, Loader2, CheckCircle2, Copy } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { listCandidates } from '../services/candidate.service';
 import { createLecturer, createLecturerFromCandidate } from '../services/lecturer.service';
+import { createAdvisor, createAdvisorFromCandidate } from '../services/advisor.service';
 
 export default function CreateLecturerModal({ isOpen, onClose, onLecturerCreated }) {
   const [formData, setFormData] = useState({ fullName: '', email: '', position: '', title: '', gender: '' });
@@ -109,17 +110,23 @@ export default function CreateLecturerModal({ isOpen, onClose, onLecturerCreated
     setIsSubmitting(true);
     try {
       let res;
+      const isAdvisor = String(formData.position || '').trim().toLowerCase() === 'advisor';
       if (selectedCandidateId) {
-        // Use new endpoint to create from candidate and auto mark done
-        res = await createLecturerFromCandidate(selectedCandidateId, {
+        // Create from candidate and auto mark done
+        const payload = { title: formData.title, gender: formData.gender, email: formData.email };
+        res = isAdvisor
+          ? await createAdvisorFromCandidate(selectedCandidateId, payload)
+          : await createLecturerFromCandidate(selectedCandidateId, payload);
+      } else {
+        // Manual create
+        const payload = {
+          fullName: formData.fullName,
+          email: formData.email,
+          position: formData.position,
           title: formData.title,
           gender: formData.gender,
-          email: formData.email
-        });
-      } else {
-        // Fallback: manual create
-        const payload = { fullName: formData.fullName, email: formData.email, position: formData.position, title: formData.title, gender: formData.gender };
-        res = await createLecturer(payload);
+        };
+        res = isAdvisor ? await createAdvisor(payload) : await createLecturer(payload);
       }
       setSuccessData(res);
       onLecturerCreated(res);

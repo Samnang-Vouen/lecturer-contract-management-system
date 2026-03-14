@@ -13,7 +13,11 @@ export async function updateMyLecturerProfile(payload) {
 export async function uploadLecturerFiles({ cv, syllabus }) {
   const fd = new FormData();
   if (cv) fd.append('cv', cv);
-  if (syllabus) fd.append('syllabus', syllabus);
+  if (Array.isArray(syllabus)) {
+    syllabus.filter(Boolean).forEach((f) => fd.append('syllabus', f));
+  } else if (syllabus) {
+    fd.append('syllabus', syllabus);
+  }
   const res = await axios.post('/lecturer-profile/me/files', fd, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });

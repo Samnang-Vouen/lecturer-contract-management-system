@@ -2,13 +2,21 @@ import jwt from 'jsonwebtoken';
 
 const FALLBACK_DEV_SECRET = 'dev_fallback_secret_change_me';
 
-export const generateToken = (user, res, roleOverride) => {
+let warnedMissingJwtSecret = false;
+
+export const getJwtSecret = () => {
   const secret = process.env.JWT_SECRET || FALLBACK_DEV_SECRET;
-  if (!process.env.JWT_SECRET) {
+  if (!process.env.JWT_SECRET && !warnedMissingJwtSecret) {
+    warnedMissingJwtSecret = true;
     console.warn(
       '[WARN] JWT_SECRET not set. Using insecure fallback. Set JWT_SECRET in .env for production.'
     );
   }
+  return secret;
+};
+
+export const generateToken = (user, res, roleOverride) => {
+  const secret = getJwtSecret();
   const role = roleOverride ?? user.role;
   const token = jwt.sign({ userId: user.id, role }, secret, { expiresIn: '7d' });
   res.cookie('jwt', token, {

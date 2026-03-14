@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Evaluation Upload Tester</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 600px;
+        margin: 50px auto;
+        padding: 20px;
+      }
+      .form-group {
+        margin-bottom: 15px;
+      }
+      label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+      }
+      input,
+      button {
+        width: 100%;
+        padding: 8px;
+        font-size: 14px;
+      }
+      button {
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        cursor: pointer;
+        margin-top: 10px;
+      }
+      button:hover {
+        background-color: #45a049;
+      }
+      #result {
+        margin-top: 20px;
+        padding: 10px;
+        border-radius: 4px;
+      }
+      .success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+      .error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>📊 Evaluation Upload Tester</h1>
+    <p style="color: #666; margin-bottom: 20px">
+      Upload evaluation Excel files with lecturer names or IDs. The system auto-detects course
+      mapping.
+    </p>
+
+    <form id="uploadForm">
+      <div class="form-group">
+        <label for="token">Authorization Token:</label>
+        <input
+          type="text"
+          id="token"
+          placeholder="Paste your JWT token here (optional for testing)"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="inputType">Input Type:</label>
+        <select id="inputType" style="width: 100%; padding: 8px">
+          <option value="names">Lecturer Names (Recommended)</option>
+          <option value="ids">Lecturer IDs</option>
+        </select>
+      </div>
+
+      <div class="form-group" id="namesGroup">
+        <label for="lecturerNames">Lecturer Names (JSON array):</label>
+        <input
+          type="text"
+          id="lecturerNames"
+          placeholder='["John Smith", "Jane Doe"]'
+          value='["John Smith", "Jane Doe"]'
+        />
+        <small style="color: #666"
+          >Format: ["Name1", "Name2"] - must match order in Excel columns</small
+        >
+      </div>
+
+      <div class="form-group" id="idsGroup" style="display: none">
+        <label for="lecturerIds">Lecturer IDs (JSON array):</label>
+        <input type="text" id="lecturerIds" placeholder="[1, 2, 3]" value="[1, 2, 3]" />
+        <small style="color: #666">Format: [1, 2, 3] - must match order in Excel columns</small>
+      </div>
+
+      <div class="form-group">
+        <label for="file">Excel File (.xlsx or .xls):</label>
+        <input type="file" id="file" accept=".xlsx,.xls" required />
+      </div>
+
+      <button type="submit">Upload Evaluation</button>
+    </form>
+
+    <div id="result"></div>
+
+    <script>
+      // Toggle between lecturer names and IDs
+      document.getElementById('inputType').addEventListener('change', (e) => {
+        const namesGroup = document.getElementById('namesGroup');
+        const idsGroup = document.getElementById('idsGroup');
+
+        if (e.target.value === 'names') {
+          namesGroup.style.display = 'block';
+          idsGroup.style.display = 'none';
+        } else {
+          namesGroup.style.display = 'none';
+          idsGroup.style.display = 'block';
+        }
+      });
+
+      document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const token = document.getElementById('token').value;
+        const inputType = document.getElementById('inputType').value;
+        const lecturerInput =
+          inputType === 'names'
+            ? document.getElementById('lecturerNames').value
+            : document.getElementById('lecturerIds').value;
+        const fileInput = document.getElementById('file');
+        const file = fileInput.files[0];
+        const resultDiv = document.getElementById('result');
+
+        if (!file) {
+          resultDiv.className = 'error';
+          resultDiv.textContent = 'Please select a file';
+          return;
+        }
+
+        // Validate JSON format
+        try {
+          JSON.parse(lecturerInput);
+        } catch (e) {
+          resultDiv.className = 'error';
+          resultDiv.textContent = `Invalid ${inputType === 'names' ? 'lecturer names' : 'lecturer IDs'} format. Must be JSON array`;
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        if (inputType === 'names') {
+          formData.append('lecturer_names', lecturerInput);
+        } else {
+          formData.append('lecturer_ids', lecturerInput);
+        }
+
+        try {
+          resultDiv.textContent = 'Uploading and creating evaluation...';
+          resultDiv.className = '';
+
+          const headers = {};
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
+
+          const response = await fetch(`http://localhost:4000/api/evaluations/upload`, {
+            method: 'POST',
+            headers: headers,
+            body: formData,
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+            resultDiv.className = 'success';
+            resultDiv.innerHTML = `✅ ${data.message}<br>
+                        <strong>Evaluation ID:</strong> ${data.evaluation_id}<br>
+                        <strong>Course Mapping ID:</strong> ${data.course_mapping_id}<br>
+                        <strong>Course:</strong> ${data.course_info?.course_name || 'N/A'}<br>
+                        <strong>Class:</strong> ${data.course_info?.class_name || 'N/A'} (${data.course_info?.year_level || 'N/A'}, ${data.course_info?.term || 'N/A'})<br>
+                        <strong>Academic Year:</strong> ${data.course_info?.academic_year || 'N/A'}<br>
+                        <strong>Specialization:</strong> ${data.course_info?.specialization || 'N/A'}<br>
+                        <strong>Department:</strong> ${data.course_info?.department || 'N/A'}<br>
+                        <strong>Total Submissions:</strong> ${data.stats?.total_submissions || 0}<br>
+                        <strong>Lecturers:</strong> ${data.stats?.lecturers || 0}`;
+          } else {
+            resultDiv.className = 'error';
+            resultDiv.textContent = '❌ Error: ' + (data.message || 'Upload failed');
+            if (data.error) {
+              resultDiv.innerHTML += '<br><small>' + data.error + '</small>';
+            }
+          }
+        } catch (error) {
+          resultDiv.className = 'error';
+          resultDiv.textContent = '❌ Network Error: ' + error.message;
+        }
+      });
+    </script>
+  </body>
+</html>

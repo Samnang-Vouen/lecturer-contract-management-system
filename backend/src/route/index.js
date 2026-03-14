@@ -17,10 +17,16 @@ import universityRoutes from './university.route.js';
 import majorRoutes from './major.route.js';
 import teachingContractRoutes from './teachingContract.route.js';
 import contractsRoutes from './contracts.route.js';
+import advisorContractRoutes from './advisorContract.route.js';
+import advisorRoutes from './advisor.route.js';
 import lecturerDashboardRoutes from './lecturerDashboard.route.js';
 import schedule from './schedule.route.js';
 import group from './group.route.js';
+import evaluationRoutes from './evaluation.route.js';
 import specialization from './specialization.route.js';
+import scheduleEntryRoutes from './scheduleEntry.route.js';
+import notificationRoutes from './notification.route.js';
+import hourlyRateRoutes from './hourlyRate.route.js';
 
 export function registerRoutes(app) {
   // IMPORTANT: Mount the more specific lecturer onboarding route BEFORE the generic /api/lecturers route.
@@ -32,6 +38,7 @@ export function registerRoutes(app) {
   app.use('/api/users', userRoutes);
   app.use('/api/lecturers/onboarding', onboardingRoutes);
   app.use('/api/lecturers', lecturerRoutes);
+  app.use('/api/advisors', advisorRoutes);
   app.use('/api/lecturer', lecturerSelfRoutes);
   app.use('/api/lecturer-profile', lecturerProfileRoutes);
   app.use('/api/classes', classRoutes);
@@ -42,9 +49,14 @@ export function registerRoutes(app) {
   app.use('/api/universities', universityRoutes);
   app.use('/api/majors', majorRoutes);
   app.use('/api/teaching-contracts', teachingContractRoutes);
+  app.use('/api/advisor-contracts', advisorContractRoutes);
   app.use('/api/contracts', contractsRoutes);
   app.use('/api/lecturer-dashboard', lecturerDashboardRoutes);
   app.use('/api/schedules', schedule);
+  app.use('/api/schedule-entries', scheduleEntryRoutes);
   app.use('/api/groups', group);
+  app.use('/api/evaluations', evaluationRoutes);
   app.use('/api/specializations', specialization);
+  app.use('/api/hourly-rates', hourlyRateRoutes);
+  app.use('/api/notifications', notificationRoutes);
 }

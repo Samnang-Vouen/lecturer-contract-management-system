@@ -3,6 +3,7 @@ import { buildFileUrl } from '../../../utils/profileUtils';
 
 export default function DocumentRow({ label, exists, url, onUpload, uploading, editable }) {
   const downloadUrl = exists ? buildFileUrl(url) : null;
+  const fileName = exists ? (String(url || '').replace(/\\/g, '/').split('/').pop() || '') : '';
   
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 text-sm p-4 rounded-xl border border-dashed border-gray-200 hover:border-gray-300 transition-colors bg-gradient-to-br from-white to-gray-50/70 group">
@@ -18,17 +19,19 @@ export default function DocumentRow({ label, exists, url, onUpload, uploading, e
         <p className={`text-[11px] mt-1 ${exists ? 'text-emerald-600 font-medium' : 'text-gray-400 italic'}`}>
           {exists ? 'Uploaded' : 'Not uploaded'}
         </p>
-      </div>
-      <div className="flex items-center flex-wrap gap-2">
-        {exists && (
+        {exists && downloadUrl ? (
           <a
             href={downloadUrl}
-            download
-            className="text-xs bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white px-3 py-1.5 rounded-md font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            target="_blank"
+            rel="noreferrer"
+            className="mt-1 inline-block text-[11px] font-medium text-indigo-700 hover:text-indigo-800 max-w-[22rem] truncate"
+            title={fileName || undefined}
           >
-            Download
+            {fileName || 'View file'}
           </a>
-        )}
+        ) : null}
+      </div>
+      <div className="flex items-center flex-wrap gap-2">
         {editable && (
           <label className="text-xs cursor-pointer bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-md font-medium shadow-sm border border-gray-200 focus-within:ring-2 focus-within:ring-indigo-500">
             <input 
