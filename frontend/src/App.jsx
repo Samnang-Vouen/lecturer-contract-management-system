@@ -34,6 +34,8 @@ const SuperAdminDashboard = lazy(() => import('./pages/SuperAdminDashboard.jsx')
 const UserManagement = lazy(() => import('./pages/UserManagement.jsx'));
 const SuperAdminProfile = lazy(() => import('./pages/superadmin/SuperAdminProfile.jsx'));
 const LoginForm = lazy(() => import('./components/LoginForm.jsx'));
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage.jsx'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage.jsx'));
 
 
 function App() {
@@ -61,6 +63,10 @@ function App() {
 
           {/* Public login */}
           <Route path="/login" element={<LoginForm />} />
+
+          {/* Public forgot / reset password */}
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         {/* Superadmin */}
         <Route

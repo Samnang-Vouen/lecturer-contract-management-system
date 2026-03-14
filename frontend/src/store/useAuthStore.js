@@ -1,5 +1,5 @@
 import {create} from 'zustand';
-import { checkAuth as apiCheckAuth, login as apiLogin, logout as apiLogout } from '../services/auth.service';
+import { checkAuth as apiCheckAuth, login as apiLogin, logout as apiLogout, forgotPassword as apiForgotPassword, resetPassword as apiResetPassword } from '../services/auth.service';
 import toast from 'react-hot-toast';
 
 export const useAuthStore = create((set) => ({
@@ -55,13 +55,37 @@ export const useAuthStore = create((set) => ({
     },
 
     logout: async () => {
-        try { 
-            await apiLogout(); 
+        try {
+            await apiLogout();
             set({ authUser: null });
             toast.success('Logged out successfully');
         } catch (error) {
             console.error('Logout failed:', error);
             toast.error(error.response?.data?.message || 'Logout failed');
+        }
+    },
+
+    forgotPassword: async (email) => {
+        try {
+            const res = await apiForgotPassword(email);
+            toast.success(res.message || 'If that email is registered, a reset link has been sent.');
+            return { success: true };
+        } catch (error) {
+            const msg = error.response?.data?.message || 'Failed to send reset email. Please try again.';
+            toast.error(msg);
+            return { success: false, message: msg };
+        }
+    },
+
+    resetPassword: async (token, newPassword) => {
+        try {
+            const res = await apiResetPassword(token, newPassword);
+            toast.success(res.message || 'Password reset successfully.');
+            return { success: true };
+        } catch (error) {
+            const msg = error.response?.data?.message || 'Failed to reset password. The link may have expired.';
+            toast.error(msg);
+            return { success: false, message: msg };
         }
     },
 }));

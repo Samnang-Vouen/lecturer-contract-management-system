@@ -328,6 +328,27 @@ export async function runSchemaBootstrapping(sequelize) {
     console.warn('[schema] ensure contract_items table failed:', e.message);
   }
 
+  // Ensure users table has reset_token columns for forgot-password flow
+  try {
+    const usersAddIfMissing = async (col, ddl) => {
+      const [rows] = await sequelize.query(`SHOW COLUMNS FROM \`users\` LIKE '${col}'`);
+      if (!rows.length) {
+        console.log(`[schema] Adding missing column users.${col}`);
+        await sequelize.query(ddl);
+      }
+    };
+    await usersAddIfMissing(
+      'reset_token',
+      'ALTER TABLE `users` ADD COLUMN `reset_token` VARCHAR(255) NULL'
+    );
+    await usersAddIfMissing(
+      'reset_token_expires',
+      'ALTER TABLE `users` ADD COLUMN `reset_token_expires` DATETIME NULL'
+    );
+  } catch (e) {
+    console.warn('[schema] ensure users reset_token columns failed:', e.message);
+  }
+
   // Ensure Candidates.status enum includes 'done' (attempt auto-alter for MySQL)
   try {
     const [rows] = await sequelize.query("SHOW COLUMNS FROM `Candidates` LIKE 'status'");
