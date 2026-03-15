@@ -15,7 +15,10 @@ export default function ContractCard({
 }) {
   // Map backend status to display status
   const getStatusDisplay = () => {
-    const status = (contract.status || '').toUpperCase();
+    const status = String(contract.status || '')
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g, '_');
     
     // WAITING_LECTURER: Admin created, awaiting lecturer signature
     if (status === 'WAITING_LECTURER') {
@@ -71,6 +74,15 @@ export default function ContractCard({
         icon: AlertCircle
       };
     }
+
+    if (status === 'CONTRACT_ENDED') {
+      return {
+        label: 'contract ended',
+        variant: 'secondary',
+        color: 'bg-gray-50 text-gray-700 border border-gray-200',
+        icon: FileText,
+      };
+    }
     
     return { 
       label: 'draft', 
@@ -82,7 +94,13 @@ export default function ContractCard({
 
   const statusDisplay = getStatusDisplay();
   const StatusIcon = statusDisplay.icon;
-  const isRequestRedo = String(contract?.status || '').toUpperCase() === 'REQUEST_REDO';
+  const statusRaw = String(contract?.status || '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '_');
+  const contractType = String(contract.contract_type || '').toUpperCase();
+  const isRequestRedo = statusRaw === 'REQUEST_REDO';
+  const canEdit = isRequestRedo;
 
   // Get lecturer display name
   const lecturerProfile = contract.lecturer?.LecturerProfile || {};
@@ -108,7 +126,6 @@ export default function ContractCard({
 
   // Format contract ID
   const year = contract.academic_year?.split('-')[0] || new Date().getFullYear();
-  const contractType = String(contract.contract_type || '').toUpperCase();
   const prefix = contractType === 'ADVISOR' ? 'AC' : 'LC';
   const contractId = `${prefix}-${year}-${String(contract.id).padStart(3, '0')}`;
 
@@ -120,10 +137,10 @@ export default function ContractCard({
     return Number.isFinite(n) ? n : null;
   };
 
-  const advisorRate = toNum(contract.hourly_rate);
-  const enrichedRate = toNum(contract.hourlyRateThisYear);
-  const teachingRate = ratesByLecturer?.[lecturerId];
-  const hourlyRate = advisorRate ?? enrichedRate ?? (teachingRate ?? 0);
+  const contractHourlyRate = toNum(contract.hourly_rate);
+  const contractHourlyRateThisYear = toNum(contract.hourlyRateThisYear);
+  const teachingRate = toNum(ratesByLecturer?.[lecturerId]);
+  const hourlyRate = contractHourlyRate ?? contractHourlyRateThisYear ?? (teachingRate ?? 0);
 
   const courseHours = Array.isArray(contract.courses)
     ? contract.courses.reduce((sum, c) => sum + (toNum(c?.hours) || 0), 0)
@@ -238,7 +255,7 @@ export default function ContractCard({
               <span className="whitespace-nowrap">{statusDisplay.label}</span>
             </div>
             <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
-              {isRequestRedo && (
+              {canEdit && (
                 <button
                   onClick={handleEdit}
                   className="p-2 rounded-lg bg-white border border-red-200 hover:border-red-300 hover:bg-red-50 text-red-600 hover:text-red-700 transition-all duration-200 shadow-sm"

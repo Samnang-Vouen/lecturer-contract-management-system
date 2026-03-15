@@ -39,7 +39,7 @@ export const AdvisorContractCreateSchema = z
   );
 
 export const AdvisorContractStatusUpdateSchema = z.object({
-  status: z.enum(['DRAFT', 'REQUEST_REDO', 'COMPLETED'], {
+  status: z.enum(['DRAFT', 'WAITING_MANAGEMENT', 'REQUEST_REDO', 'COMPLETED', 'CONTRACT ENDED', 'CONTRACT_ENDED'], {
     errorMap: () => ({ message: 'Invalid status' }),
   }),
 });

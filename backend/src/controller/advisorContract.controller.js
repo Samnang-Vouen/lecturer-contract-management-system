@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import puppeteer from 'puppeteer';
 import multer from 'multer';
+import Sequelize from 'sequelize';
 import { AdvisorContract, LecturerProfile, Role, User, UserRole } from '../model/index.js';
 import sequelize from '../config/db.js';
 import { HTTP_STATUS, PAGINATION_DEFAULT_LIMIT, PAGINATION_MAX_LIMIT } from '../config/constants.js';
@@ -82,6 +83,20 @@ function embedLogo(html) {
   const dataUri = `data:image/png;base64,${base64}`;
   // Replace ALL occurrences, regardless of quote style
   return html.replace(/src=(['"])cadt_logo\.png\1/g, `src="${dataUri}"`);
+}
+
+// Convert an image file to an <img> tag HTML or empty string if missing
+function signatureTag(filePath) {
+  try {
+    if (!filePath) return '';
+    if (!fs.existsSync(filePath)) return '';
+    const ext = path.extname(filePath).toLowerCase();
+    const mime = ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 'image/png';
+    const base64 = fs.readFileSync(filePath, 'base64');
+    return `<img src="data:${mime};base64,${base64}" style="max-height:70px; max-width:220px;" />`;
+  } catch {
+    return '';
+  }
 }
 
 function ordinalSuffix(n) {
@@ -171,7 +186,12 @@ export const uploadAdvisorSignature = multer({ storage: advisorSignatureStorage 
 export async function uploadAdvisorContractSignature(req, res) {
   try {
     const id = parseInt(req.params.id, 10);
-    const who = String(req.body.who || 'advisor').toLowerCase();
+    const whoRaw = String(req.body.who || 'advisor').toLowerCase();
+    // Advisors are lecturers in this system; accept 'lecturer' as an alias.
+    const who = whoRaw === 'lecturer' ? 'advisor' : whoRaw;
+    if (who !== 'advisor' && who !== 'management') {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({ message: "Invalid 'who' (must be advisor|management)" });
+    }
 
     const found = await AdvisorContract.findByPk(id, {
       include: [
@@ -232,7 +252,7 @@ export async function uploadAdvisorContractSignature(req, res) {
     const now = new Date();
 
     if (who === 'advisor') {
-      const nextStatus = found.management_signed_at ? 'COMPLETED' : 'DRAFT';
+      const nextStatus = found.management_signed_at ? 'COMPLETED' : 'WAITING_MANAGEMENT';
       await found.update({
         advisor_signature_path: filePath,
         advisor_signed_at: now,
@@ -334,6 +354,7 @@ export async function listAdvisorContracts(req, res) {
       Math.max(1, parseInt(req.query.limit || String(PAGINATION_DEFAULT_LIMIT), 10))
     );
     const offset = (page - 1) * limit;
+    const { q } = req.query;
 
     const where = {};
     const actorRole = String(req.user?.role || '').toLowerCase();
@@ -369,12 +390,29 @@ export async function listAdvisorContracts(req, res) {
       include[0].where = { department_name: req.user.department_name };
     }
 
+    // Text search on lecturer display_name or email
+    if (q) {
+      const like = `%${q}%`;
+      if (!where[Sequelize.Op.and]) where[Sequelize.Op.and] = [];
+      where[Sequelize.Op.and].push(
+        Sequelize.literal(`(
+          EXISTS (
+            SELECT 1 FROM Users AS u
+            JOIN LecturerProfiles AS lp ON lp.user_id = u.id
+            WHERE u.id = Advisor_Contracts.lecturer_user_id
+              AND (u.display_name LIKE ${sequelize.escape(like)} OR u.email LIKE ${sequelize.escape(like)})
+          )
+        )`)
+      );
+    }
+
     const { rows, count } = await AdvisorContract.findAndCountAll({
       where,
       include,
       limit,
       offset,
       order: [['created_at', 'DESC']],
+      distinct: true,
     });
 
     return res.json({ data: rows, page, limit, total: count });
@@ -430,7 +468,8 @@ export async function updateAdvisorStatus(req, res) {
   try {
     const id = parseInt(req.params.id, 10);
     const body = req.validated?.body || req.body || {};
-    const status = String(body.status || '').toUpperCase();
+    const statusRaw = String(body.status || '').trim().toUpperCase();
+    const status = statusRaw === 'CONTRACT_ENDED' ? 'CONTRACT_ENDED' : statusRaw;
 
     const found = await AdvisorContract.findByPk(id, {
       include: [
@@ -713,8 +752,8 @@ export async function generateAdvisorPdf(req, res) {
       .replaceAll('{academic_year}', escapeHtml(academicYear))
       .replaceAll('{program_label_en}', escapeHtml(programLabelEn))
       .replaceAll('{department_name}', escapeHtml(departmentName))
-      .replaceAll('{management_signature_path}', escapeHtml(found.management_signature_path || ''))
-      .replaceAll('{advisor_signature_path}', escapeHtml(found.advisor_signature_path || ''))
+      .replaceAll('{management_signature_path}', signatureTag(found.management_signature_path))
+      .replaceAll('{advisor_signature_path}', signatureTag(found.advisor_signature_path))
       .replaceAll('{students_rows_en}', studentsRowsEn)
       .replaceAll('{students_rows_kh}', studentsRowsKh)
       .replaceAll('{duties_rows_en}', dutiesRowsEn)

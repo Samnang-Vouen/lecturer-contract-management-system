@@ -319,22 +319,6 @@ export default function CourseMappingPage() {
         return;
       }
 
-      const buildRoomMapForEdit = (groupIds, rawMap) => {
-        const selected = Array.from(new Set((Array.isArray(groupIds) ? groupIds : []).map(String)));
-        const src = rawMap && typeof rawMap === 'object' ? rawMap : {};
-        const out = {};
-        for (const gid of selected) {
-          const v = String(src[gid] || '').trim().slice(0, 50).toUpperCase();
-          out[gid] = v || null; // null clears
-        }
-        return out;
-      };
-
-      const thGroupIds = Array.isArray(form.theory_group_ids) ? form.theory_group_ids : [];
-      const lbGroupIds = Array.isArray(form.lab_group_ids) ? form.lab_group_ids : [];
-      const thRoomMap = buildRoomMapForEdit(thGroupIds, form.theory_room_by_group);
-      const lbRoomMap = buildRoomMapForEdit(lbGroupIds, form.lab_room_by_group);
-
       const payload = {
         lecturer_profile_id: form.lecturer_profile_id,
         availability: form.availability,
@@ -343,8 +327,6 @@ export default function CourseMappingPage() {
         room_number: (form.room_number || '').toUpperCase(),
         theory_room_number: (form.theory_room_number || '').toUpperCase(),
         lab_room_number: (form.lab_room_number || '').toUpperCase(),
-        ...(Object.keys(thRoomMap).length ? { theory_room_by_group: thRoomMap } : {}),
-        ...(Object.keys(lbRoomMap).length ? { lab_room_by_group: lbRoomMap } : {}),
         comment: (form.comment || '').slice(0, 160),
         ...teachingPayload,
       };

@@ -1,6 +1,22 @@
 // Schema bootstrapping moved from server.js for single-responsibility startup
 
 export async function runSchemaBootstrapping(sequelize) {
+  // Ensure lecturer_profiles has candidate_id column (used to link hourly rates reliably)
+  try {
+    const table = 'lecturer_profiles';
+    const [rows] = await sequelize.query(
+      `SHOW COLUMNS FROM \`${table}\` LIKE 'candidate_id'`
+    );
+    if (!rows.length) {
+      console.log(`[schema] Adding missing column ${table}.candidate_id`);
+      await sequelize.query(
+        `ALTER TABLE \`${table}\` ADD COLUMN \`candidate_id\` BIGINT UNSIGNED NULL AFTER \`user_id\``
+      );
+    }
+  } catch (e) {
+    console.warn('[schema] ensure lecturer_profiles candidate_id failed:', e.message);
+  }
+
   // Ensure Course_Mappings has dual theory/lab columns (non-destructive add-if-missing)
   try {
     const table = 'Course_Mappings';
@@ -125,7 +141,7 @@ export async function runSchemaBootstrapping(sequelize) {
           } catch {}
           // Now ensure enum supports the current contract lifecycle
           await sequelize.query(
-            "ALTER TABLE `Teaching_Contracts` MODIFY COLUMN `status` ENUM('WAITING_LECTURER','WAITING_ADVISOR','WAITING_MANAGEMENT','REQUEST_REDO','COMPLETED') NOT NULL DEFAULT 'WAITING_LECTURER'"
+            "ALTER TABLE `Teaching_Contracts` MODIFY COLUMN `status` ENUM('WAITING_LECTURER','WAITING_ADVISOR','WAITING_MANAGEMENT','REQUEST_REDO','COMPLETED','CONTRACT ENDED') NOT NULL DEFAULT 'WAITING_LECTURER'"
           );
         }
       } catch (e) {
@@ -152,7 +168,7 @@ export async function runSchemaBootstrapping(sequelize) {
       // Ensure enum supports redo lifecycle
       try {
         await sequelize.query(
-          "ALTER TABLE `Advisor_Contracts` MODIFY COLUMN `status` ENUM('DRAFT','REQUEST_REDO','COMPLETED') NOT NULL DEFAULT 'DRAFT'"
+          "ALTER TABLE `Advisor_Contracts` MODIFY COLUMN `status` ENUM('DRAFT','WAITING_MANAGEMENT','REQUEST_REDO','COMPLETED','CONTRACT_ENDED') NOT NULL DEFAULT 'DRAFT'"
         );
       } catch (e) {
         console.warn('[schema] migrate Advisor_Contracts.status failed:', e.message);

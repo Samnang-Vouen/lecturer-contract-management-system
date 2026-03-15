@@ -37,15 +37,8 @@ export const login = async (req, res) => {
       });
     }
 
-    console.log('Login attempt', email);
-
     // Find user
     let user = await User.findOne({ where: { email } });
-    console.log('[DEBUG login] email=', JSON.stringify(email), 'user=', user ? `id:${user.id} status:${user.status}` : 'NULL');
-    if (!user) {
-      const [rawRows] = await sequelize.query('SELECT id, email, status FROM users WHERE email = ?', { replacements: [email] });
-      console.log('[DEBUG login] raw SQL rows:', JSON.stringify(rawRows));
-    }
 
     // Bootstrap superadmin if not present
     if (!user && email === SUPERADMIN_EMAIL) {
@@ -61,7 +54,6 @@ export const login = async (req, res) => {
         display_name: 'Super Admin',
         status: 'active',
       });
-      console.log('Bootstrapped superadmin user id', user.id);
     }
 
    if (!user) {

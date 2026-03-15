@@ -8,6 +8,7 @@ import {
   getAdvisorContractPdfUrl
 } from '../../../services/contract.service';
 import { getLecturerDetail } from '../../../services/lecturer.service';
+import { getAdvisorDetail } from '../../../services/advisor.service';
 import { lecturerFilename } from '../../../utils/contractHelpers';
 
 /**
@@ -21,14 +22,32 @@ export function useContractActions(contracts, setContracts, refreshContracts) {
     const ids = Array.from(new Set((contracts || []).map(c => c.lecturer_user_id).filter(Boolean)));
     const missing = ids.filter(id => !(id in ratesByLecturer));
     if (missing.length === 0) return;
+
+    const shouldUseAdvisorDetailByUserId = new Map();
+    for (const c of (contracts || [])) {
+      const userId = c?.lecturer_user_id;
+      if (!userId) continue;
+      const type = String(c?.contract_type || '').toUpperCase();
+      const isAdvisorContract = type === 'ADVISOR';
+      const prev = shouldUseAdvisorDetailByUserId.get(userId);
+      if (prev === undefined) {
+        // Start optimistic: if we only ever see advisor contracts for this user, use advisor endpoint.
+        shouldUseAdvisorDetailByUserId.set(userId, isAdvisorContract);
+      } else {
+        // If any non-advisor contract exists, prefer lecturer endpoint to avoid role mismatches.
+        shouldUseAdvisorDetailByUserId.set(userId, prev && isAdvisorContract);
+      }
+    }
     
     (async () => {
       try {
         const results = await Promise.all(missing.map(async (id) => {
           try {
-            const body = await getLecturerDetail(id);
+            // Avoid noisy 404s: if this user only appears in ADVISOR contracts, call advisor detail directly.
+            const useAdvisorDetail = shouldUseAdvisorDetailByUserId.get(id) === true;
+            const body = useAdvisorDetail ? await getAdvisorDetail(id) : await getLecturerDetail(id);
             const raw = body?.hourlyRateThisYear;
-            const n = raw != null ? parseFloat(String(raw).replace(/[^0-9.\-]/g, '')) : null;
+            const n = raw != null ? parseFloat(String(raw).replace(/[^0-9.-]/g, '')) : null;
             return [id, Number.isFinite(n) ? n : null];
           } catch {
             return [id, null];

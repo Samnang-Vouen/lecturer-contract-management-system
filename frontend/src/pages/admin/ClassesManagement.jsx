@@ -156,9 +156,6 @@ export default function ClassesManagement() {
         />
       </div>
 
-      {/* Error Message */}
-      {error && !isErrorDialogOpen && <div className="text-sm mb-2 text-red-600">{error}</div>}
-
       {/* Classes Table */}
       <div className="overflow-x-auto">
         <ClassesTable

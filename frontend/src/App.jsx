@@ -23,6 +23,7 @@ const LecturerContracts = lazy(() => import('./pages/lecturer/LecturerContracts.
 const LecturerSchedule = lazy(() => import('./pages/lecturer/LecturerSchedule.jsx'));
 const Onboarding = lazy(() => import('./pages/lecturer/Onboarding.jsx'));
 
+const AdvisorDashboard = lazy(() => import('./pages/advisor/AdvisorDashboard.jsx'));
 const AdvisorProfile = lazy(() => import('./pages/advisor/AdvisorProfile.jsx'));
 
 const ManagementDashboardLayout = lazy(() => import('./pages/ManagementDashboard.jsx'));
@@ -137,7 +138,7 @@ function App() {
             </RequireRole>
           }
         >
-          <Route index element={<LecturerDashboard />} />
+          <Route index element={<AdvisorDashboard />} />
           <Route path="profile" element={<AdvisorProfile />} />
           <Route path="my-contracts" element={<LecturerContracts />} />
         </Route>

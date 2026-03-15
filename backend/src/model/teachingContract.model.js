@@ -29,13 +29,15 @@ const TeachingContract = sequelize.define(
     // - WAITING_MANAGEMENT: lecturer/advisor signed, awaiting management approval
     // - REQUEST_REDO: management requests revisions
     // - COMPLETED: all parties signed
+    // - CONTRACT ENDED: The agreed-upon end date or term has passed.
     status: {
       type: DataTypes.ENUM(
         'WAITING_LECTURER',
         'WAITING_ADVISOR',
         'WAITING_MANAGEMENT',
         'REQUEST_REDO',
-        'COMPLETED'
+        'COMPLETED',
+        'CONTRACT_ENDED'
       ),
       allowNull: false,
       defaultValue: 'WAITING_LECTURER',

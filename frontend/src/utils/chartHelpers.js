@@ -9,7 +9,10 @@ export const chartColors = {
 };
 
 export const statusToUi = (rawStatus) => {
-  const st = String(rawStatus || '').toUpperCase();
+  const st = String(rawStatus || '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '_');
   switch (st) {
     case 'WAITING_LECTURER':
       return { 
@@ -40,6 +43,12 @@ export const statusToUi = (rawStatus) => {
         label: 'Completed', 
         chipClass: 'bg-green-50 text-green-700 border border-green-100', 
         dotClass: 'bg-green-500' 
+      };
+    case 'CONTRACT_ENDED':
+      return {
+        label: 'Contract Ended',
+        chipClass: 'bg-slate-50 text-slate-700 border border-slate-200',
+        dotClass: 'bg-slate-400',
       };
     default:
       return { 

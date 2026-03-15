@@ -199,6 +199,8 @@ export async function createDraftContract(req, res) {
       const contract = await TeachingContract.create(
         {
           lecturer_user_id: parsedLecturerId,
+          // This endpoint is for lecturer teaching contracts.
+          contract_type: 'TEACHING',
           academic_year,
           term,
           year_level: year_level || null,
@@ -339,6 +341,13 @@ export async function listContracts(req, res) {
     const { academic_year, term, status, q } = req.query;
 
     const where = {};
+
+    // This controller backs /api/teaching-contracts (lecturer contracts). Keep it scoped to TEACHING
+    // so advisor contracts (handled by /api/advisor-contracts) don't interfere with list/search.
+    // If a client explicitly provides ?contract_type=ADVISOR, we'll honor it.
+    const requestedType = String(req.query.contract_type || 'TEACHING').toUpperCase();
+    where.contract_type = requestedType === 'ADVISOR' ? 'ADVISOR' : 'TEACHING';
+
     if (academic_year) where.academic_year = academic_year;
     if (term) where.term = term;
     if (status) {
@@ -372,7 +381,13 @@ export async function listContracts(req, res) {
         model: User,
         as: 'lecturer',
         attributes: ['id', 'email', 'display_name', 'department_name'],
-        include: [{ model: LecturerProfile, attributes: ['title', 'full_name_english', 'full_name_khmer', 'position'], required: false }],
+        include: [
+          {
+            model: LecturerProfile,
+            attributes: ['candidate_id', 'title', 'full_name_english', 'full_name_khmer', 'position'],
+            required: false,
+          },
+        ],
       },
     ];
 
@@ -400,20 +415,16 @@ export async function listContracts(req, res) {
 
     // Basic text search on lecturer fields
     if (q) {
-      // Keep lecturer include optional and apply where via literal on joined alias to avoid subquery complications
-      include[1].required = false;
+      // Filter against the already-joined lecturer (users) table to avoid raw SQL + table-name issues
+      // (some DBs use `lecturer_profiles` and are case/identifier sensitive).
       const like = `%${q}%`;
-      where[Sequelize.Op.and] = [
-        ...(where[Sequelize.Op.and] || []),
-        Sequelize.literal(`(
-          EXISTS (
-            SELECT 1 FROM Users AS lecturer
-            JOIN LecturerProfiles AS LecturerProfile ON LecturerProfile.user_id = lecturer.id
-            WHERE lecturer.id = Teaching_Contracts.lecturer_user_id
-              AND (lecturer.display_name LIKE ${sequelize.escape(like)} OR lecturer.email LIKE ${sequelize.escape(like)})
-          )
-        )`),
-      ];
+      include[1].required = true;
+      include[1].where = {
+        [Sequelize.Op.or]: [
+          { display_name: { [Sequelize.Op.like]: like } },
+          { email: { [Sequelize.Op.like]: like } },
+        ],
+      };
     }
 
     // When using required includes, count can be inflated; use distinct
@@ -449,6 +460,22 @@ export async function listContracts(req, res) {
           // If no rate in contract, try to find from Candidate profile
           if (hourlyRateUsd === null) {
             try {
+              const candidateId = plain?.lecturer?.LecturerProfile?.candidate_id;
+              if (candidateId) {
+                const candById = await Candidate.findByPk(candidateId);
+                if (candById && candById.hourlyRate != null) {
+                  const parsed = parseFloat(String(candById.hourlyRate).replace(/[^0-9.\-]/g, ''));
+                  hourlyRateUsd = Number.isFinite(parsed) ? parsed : null;
+                }
+              }
+
+              // If still missing, fall back to legacy name/email matching
+              if (hourlyRateUsd !== null) {
+                plain.hourlyRateThisYear = hourlyRateUsd;
+                enriched.push(plain);
+                continue;
+              }
+
               const displayName = plain?.lecturer?.display_name || '';
               let cand = null;
               console.log(`[listContracts enrichment] Looking up rate for: "${displayName}"`);
@@ -768,7 +795,11 @@ export async function updateStatus(req, res) {
   try {
     const id = parseInt(req.params.id, 10);
     const body = req.validated?.body || req.body || {};
-    const { status, remarks } = body;
+    const { remarks } = body;
+    const statusRaw = body.status;
+    const status =
+      CONTRACT_STATUS_ALIAS_MAP[String(statusRaw || '').trim().toUpperCase()] ||
+      String(statusRaw || '').trim();
     // Validation handled by middleware; status is already safe
     const contract = await TeachingContract.findByPk(id);
     if (!contract) return res.status(HTTP_STATUS.NOT_FOUND).json({ message: 'Not found' });

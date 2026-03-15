@@ -5,6 +5,92 @@ import { LecturerProfile, User, Department } from '../model/index.js';
 import Candidate from '../model/candidate.model.js';
 import Course from '../model/course.model.js';
 import LecturerCourse from '../model/lecturerCourse.model.js';
+import { Op } from 'sequelize';
+
+const sanitizeDisplayName = (name) => {
+  const base = path.basename(String(name || '')).trim();
+  if (!base) return 'syllabus.pdf';
+  // Keep it readable and avoid weird control characters.
+  const cleaned = base
+    .replace(/[\u0000-\u001f\u007f]/g, '')
+    .replace(/\s+/g, ' ')
+    .slice(0, 120)
+    .trim();
+  return cleaned || 'syllabus.pdf';
+};
+
+const syllabusManifestPath = (folderSlug) =>
+  path.join(process.cwd(), 'uploads', 'lecturers', folderSlug, 'syllabus', '_manifest.json');
+
+const readSyllabusManifest = async (folderSlug) => {
+  if (!folderSlug) return { files: [] };
+  const manifestPath = syllabusManifestPath(folderSlug);
+  try {
+    const txt = await fs.promises.readFile(manifestPath, 'utf8');
+    const parsed = JSON.parse(txt);
+    if (!parsed || !Array.isArray(parsed.files)) return { files: [] };
+    return { files: parsed.files };
+  } catch {
+    return { files: [] };
+  }
+};
+
+const writeSyllabusManifest = async (folderSlug, files) => {
+  if (!folderSlug) return;
+  const manifestPath = syllabusManifestPath(folderSlug);
+  await fs.promises.mkdir(path.dirname(manifestPath), { recursive: true });
+  const payload = { files: Array.isArray(files) ? files : [] };
+  await fs.promises.writeFile(manifestPath, JSON.stringify(payload, null, 2), 'utf8');
+};
+
+const listSyllabusFilesWithNames = async (folderSlug, legacySinglePath = null) => {
+  if (!folderSlug) {
+    const legacy = legacySinglePath ? String(legacySinglePath).replace(/\\/g, '/') : null;
+    return {
+      files: legacy ? [legacy] : [],
+      file_names: legacy ? { [legacy]: sanitizeDisplayName(legacy) } : {},
+    };
+  }
+
+  const dir = path.join(process.cwd(), 'uploads', 'lecturers', folderSlug, 'syllabus');
+  const manifest = await readSyllabusManifest(folderSlug);
+  const originalByStored = new Map();
+  for (const f of manifest.files) {
+    if (!f || !f.stored) continue;
+    originalByStored.set(String(f.stored), sanitizeDisplayName(f.original || f.stored));
+  }
+
+  try {
+    const names = await fs.promises.readdir(dir);
+    const pdfs = names
+      .filter((n) => /\.pdf$/i.test(String(n)))
+      .map((n) => String(n))
+      .sort((a, b) => String(b).localeCompare(String(a)));
+
+    const files = pdfs.map((n) =>
+      path.join('uploads', 'lecturers', folderSlug, 'syllabus', n).replace(/\\/g, '/')
+    );
+    const file_names = {};
+    for (let i = 0; i < pdfs.length; i += 1) {
+      const stored = pdfs[i];
+      const p = files[i];
+      file_names[p] = originalByStored.get(stored) || sanitizeDisplayName(stored);
+    }
+
+    if (!files.length && legacySinglePath) {
+      const legacy = String(legacySinglePath).replace(/\\/g, '/');
+      return { files: [legacy], file_names: { [legacy]: sanitizeDisplayName(legacy) } };
+    }
+
+    return { files, file_names };
+  } catch {
+    const legacy = legacySinglePath ? String(legacySinglePath).replace(/\\/g, '/') : null;
+    return {
+      files: legacy ? [legacy] : [],
+      file_names: legacy ? { [legacy]: sanitizeDisplayName(legacy) } : {},
+    };
+  }
+};
 
 const LECTURER_PROFILE_EDITABLE_FIELDS = [
   'title',
@@ -88,27 +174,66 @@ export const getMyLecturerProfile = async (req, res) => {
     // Lookup hourly rate from Candidate using direct candidate_id reference
     let hourlyRateThisYear = null;
     try {
-      if (profile.candidate_id) {
-        const cand = await Candidate.findByPk(profile.candidate_id, {
-          attributes: ['id', 'fullName', 'email', 'hourlyRate'],
-        });
+      const attrs = ['id', 'fullName', 'email', 'hourlyRate'];
 
-        if (cand && cand.hourlyRate != null) {
-          hourlyRateThisYear = String(cand.hourlyRate);
+      let cand = null;
+
+      if (profile.candidate_id) {
+        cand = await Candidate.findByPk(profile.candidate_id, { attributes: attrs });
+      }
+
+      // Legacy-safe fallback: match by email if candidate_id not populated.
+      if (!cand) {
+        const emailCandidates = [user?.email, profile?.personal_email]
+          .map((s) => (s ? String(s).trim().toLowerCase() : ''))
+          .filter(Boolean);
+
+        if (emailCandidates.length) {
+          cand = await Candidate.findOne({
+            where: { email: { [Op.in]: emailCandidates } },
+            attributes: attrs,
+          });
         }
       }
+
+      // Lightweight fallback: exact name match (avoid full-table scans).
+      if (!cand) {
+        const titleRegex = /^(mr\.?|ms\.?|mrs\.?|dr\.?|prof\.?|professor|miss)\s+/i;
+        const fullEn = profile?.full_name_english ? String(profile.full_name_english).trim() : '';
+        const fullKh = profile?.full_name_khmer ? String(profile.full_name_khmer).trim() : '';
+        const cleanedEn = fullEn ? fullEn.replace(titleRegex, '').replace(/\s+/g, ' ').trim() : '';
+
+        const names = [fullEn, cleanedEn, fullKh].filter(Boolean);
+
+        if (names.length) {
+          cand = await Candidate.findOne({
+            where: { fullName: { [Op.in]: names } },
+            attributes: attrs,
+          });
+        }
+      }
+
+      if (cand && cand.hourlyRate != null) hourlyRateThisYear = String(cand.hourlyRate);
     } catch (err) {
       console.error('[getMyLecturerProfile] candidate lookup failed:', err.message);
     }
     if (String(req.query.debug || '') === '1') {
+      const { files: course_syllabus_files, file_names: course_syllabus_file_names } =
+        await listSyllabusFilesWithNames(profile.storage_folder, profile.course_syllabus);
       return res.json({
         raw: { ...toResponse(profile, user, departments, lecturerCourses), hourlyRateThisYear },
+        course_syllabus_files,
+        course_syllabus_file_names,
         deptCount: departments.length,
         courseLinkCount: lecturerCourses.length,
       });
     }
+    const { files: course_syllabus_files, file_names: course_syllabus_file_names } =
+      await listSyllabusFilesWithNames(profile.storage_folder, profile.course_syllabus);
     return res.json({
       ...toResponse(profile, user, departments, lecturerCourses),
+      course_syllabus_files,
+      course_syllabus_file_names,
       hourlyRateThisYear,
     });
   } catch (e) {
@@ -265,28 +390,64 @@ export const uploadLecturerFiles = async (req, res) => {
     const destRoot = path.join(process.cwd(), 'uploads', 'lecturers', folderSlug);
     await fs.promises.mkdir(destRoot, { recursive: true });
 
-    const saveFile = async (file, targetName) => {
+    const saveFile = async (file, targetRelPath) => {
       if (!file) return null;
-      const filePath = path.join(
-        destRoot,
-        targetName + (file.originalname ? path.extname(file.originalname) : '')
-      );
+      const filePath = path.join(destRoot, targetRelPath);
+      await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
       await fs.promises.writeFile(filePath, file.buffer);
       return filePath.replace(process.cwd() + path.sep, '');
     };
 
+    const safeExt = (originalName) => {
+      const ext = originalName ? path.extname(originalName) : '';
+      return /\.pdf$/i.test(ext) ? ext : '.pdf';
+    };
+
+    const displayNameOf = (originalName, storedName) => {
+      const cleaned = sanitizeDisplayName(originalName);
+      // Ensure we still show .pdf if someone uploaded without extension.
+      if (/\.pdf$/i.test(cleaned)) return cleaned;
+      const ext = safeExt(originalName || storedName);
+      return `${cleaned}${ext}`;
+    };
+
     const cvFile = req.files?.cv?.[0];
-    const syllabusFile = req.files?.syllabus?.[0];
+    const syllabusFiles = Array.isArray(req.files?.syllabus) ? req.files.syllabus : [];
 
     const updates = {};
     if (cvFile) {
-      const pth = await saveFile(cvFile, 'cv');
+      const cvPath = `cv${cvFile.originalname ? path.extname(cvFile.originalname) : ''}`;
+      const pth = await saveFile(cvFile, cvPath);
       updates.cv_uploaded = true;
       updates.cv_file_path = pth;
     }
-    if (syllabusFile) {
-      const pth = await saveFile(syllabusFile, 'syllabus');
-      updates.course_syllabus = pth;
+    if (syllabusFiles.length) {
+      const ts = Date.now();
+      const saved = [];
+      const manifest = await readSyllabusManifest(profile.storage_folder);
+      const manifestFiles = Array.isArray(manifest.files) ? [...manifest.files] : [];
+      for (let i = 0; i < syllabusFiles.length; i += 1) {
+        const f = syllabusFiles[i];
+        const filename = `syllabus_${ts}_${i + 1}${safeExt(f.originalname)}`;
+        const pth = await saveFile(f, path.join('syllabus', filename));
+        if (pth) saved.push(pth.replace(/\\/g, '/'));
+
+        manifestFiles.push({
+          stored: filename,
+          original: displayNameOf(f.originalname, filename),
+          uploadedAt: new Date().toISOString(),
+        });
+      }
+
+      // Persist manifest (best-effort).
+      try {
+        await writeSyllabusManifest(profile.storage_folder, manifestFiles);
+      } catch (err) {
+        console.warn('[uploadLecturerFiles] failed to write syllabus manifest:', err.message);
+      }
+
+      // Backward compatibility: keep a single string path pointing to the most recent syllabus.
+      if (saved.length) updates.course_syllabus = saved[saved.length - 1];
       updates.upload_syllabus = true;
     }
 
@@ -299,9 +460,15 @@ export const uploadLecturerFiles = async (req, res) => {
       where: { lecturer_profile_id: profile.id },
       include: [{ model: Course }],
     });
+    const { files: course_syllabus_files, file_names: course_syllabus_file_names } =
+      await listSyllabusFilesWithNames(profile.storage_folder, profile.course_syllabus);
     return res.json({
       message: 'Files uploaded',
-      profile: toResponse(profile, userFresh, departments, lecturerCourses),
+      profile: {
+        ...toResponse(profile, userFresh, departments, lecturerCourses),
+        course_syllabus_files,
+        course_syllabus_file_names,
+      },
     });
   } catch (e) {
     console.error('uploadLecturerFiles error', e);

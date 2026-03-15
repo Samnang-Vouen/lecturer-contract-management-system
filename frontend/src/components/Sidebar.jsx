@@ -244,7 +244,7 @@ export function Sidebar({ user: userProp, onLogout, mobileOpen = false, onClose 
       admin: 'Admin Panel',
       management: 'Management Panel',
       lecturer: 'Lecturer Panel',
-      advisor: 'Lecturer Panel'
+      advisor: 'Advisor Panel'
     };
     return panel[role] || 'Panel';
   };

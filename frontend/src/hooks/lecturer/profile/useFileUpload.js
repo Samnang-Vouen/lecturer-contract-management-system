@@ -6,7 +6,9 @@ export function useFileUpload(setProfile) {
   const [fileUploading, setFileUploading] = useState(false);
 
   const uploadFiles = async (files) => {
-    if (!files.cv && !files.syllabus) return;
+    const hasCv = !!files.cv;
+    const hasSyllabus = Array.isArray(files.syllabus) ? files.syllabus.filter(Boolean).length > 0 : !!files.syllabus;
+    if (!hasCv && !hasSyllabus) return;
     setFileUploading(true);
     try {
       const res = await uploadLecturerFiles({ cv: files.cv, syllabus: files.syllabus });
