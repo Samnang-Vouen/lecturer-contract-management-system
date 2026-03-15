@@ -39,7 +39,6 @@ export default function LecturerContracts() {
     uploadSignature,
     openViewDialog,
     openSignDialog,
-    requestRedo,
   } = useContractActions(lecturerProfile, authUser, fetchContracts);
 
   // Handle deep-linked contracts
@@ -73,7 +72,6 @@ export default function LecturerContracts() {
         onDownload={downloadPdf}
         onViewDetail={openViewDialog}
         onSign={openSignDialog}
-        onRequestRedo={requestRedo}
       />
 
       {/* View Contract Dialog */}

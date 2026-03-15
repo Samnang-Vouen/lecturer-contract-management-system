@@ -32,7 +32,7 @@ export const CourseGroupsTable = ({ courseMappings }) => {
               </thead>
               <tbody className='divide-y divide-gray-100'>
                 {courseMappings.map((m) => (
-                  <tr key={m.id} className='hover:bg-gray-50'>
+                  <tr key={m._key || m.id} className='hover:bg-gray-50'>
                     <td className='py-3 pr-6 text-gray-900 font-medium'>{m.course_name}</td>
                     <td className='py-3 pr-6 whitespace-nowrap'>
                       {m.academic_year ? (
@@ -49,7 +49,9 @@ export const CourseGroupsTable = ({ courseMappings }) => {
                           {new Date(m.contract_end_date).toLocaleDateString()}
                         </span>
                       ) : (
-                        <span className='text-gray-400'>-</span>
+                        <span className='inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-sky-50 text-sky-700 border border-sky-200'>
+                          In Progress
+                        </span>
                       )}
                     </td>
                     <td className='py-3 pr-6 whitespace-nowrap'>
@@ -71,30 +73,84 @@ export const CourseGroupsTable = ({ courseMappings }) => {
                       )}
                     </td>
                     <td className='py-3 pr-6'>
-                      <span className='inline-flex items-center justify-center min-w-[2rem] px-2 py-0.5 rounded-md text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200'>
-                        {m.theory_groups ?? 0}
-                      </span>
+                      {(() => {
+                        const names = Array.isArray(m.theory_group_names)
+                          ? m.theory_group_names.map((x) => String(x || '').trim()).filter(Boolean)
+                          : [];
+                        const items = names.length ? Array.from(new Set(names)) : ['None'];
+                        return (
+                          <div className='flex flex-wrap gap-1.5'>
+                            {items.map((name, idx) => (
+                              <span
+                                key={`${name}-${idx}`}
+                                title={name}
+                                className={
+                                  name === 'None'
+                                    ? 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-50 text-slate-500 border border-slate-200'
+                                    : 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-violet-50 text-violet-700 border border-violet-200'
+                                }
+                              >
+                                {name}
+                              </span>
+                            ))}
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className='py-3 pr-6'>
-                      <span className='inline-flex items-center justify-center min-w-[2rem] px-2 py-0.5 rounded-md text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200'>
-                        {m.lab_groups ?? 0}
-                      </span>
+                      {(() => {
+                        const names = Array.isArray(m.lab_group_names)
+                          ? m.lab_group_names.map((x) => String(x || '').trim()).filter(Boolean)
+                          : [];
+                        const items = names.length ? Array.from(new Set(names)) : ['None'];
+                        return (
+                          <div className='flex flex-wrap gap-1.5'>
+                            {items.map((name, idx) => (
+                              <span
+                                key={`${name}-${idx}`}
+                                title={name}
+                                className={
+                                  name === 'None'
+                                    ? 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-50 text-slate-500 border border-slate-200'
+                                    : 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-teal-50 text-teal-700 border border-teal-200'
+                                }
+                              >
+                                {name}
+                              </span>
+                            ))}
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className='py-3 pr-6 text-gray-800 whitespace-nowrap'>
                       {(() => {
-                        const backendTotal = Number.isFinite(+m.contract_total_hours) ? +m.contract_total_hours : null;
-                        let total = backendTotal;
+                        const backendMappingTotal = Number.isFinite(+m.mapping_total_hours) ? +m.mapping_total_hours : null;
+                        let total = backendMappingTotal;
+                        let breakdownTitle = '';
                         if (total == null) {
                           const { theoryTotal, labTotal } = computeTotalHours(m);
                           const hasAny = theoryTotal != null || labTotal != null;
                           if (!hasAny) return <span className='text-gray-400'>-</span>;
+                          const parts = [];
+                          if (theoryTotal != null) parts.push(`Theory ${theoryTotal}h`);
+                          if (labTotal != null) parts.push(`Lab ${labTotal}h`);
+                          breakdownTitle = parts.join(' + ');
                           total = 0;
                           if (theoryTotal != null) total += theoryTotal;
                           if (labTotal != null) total += labTotal;
                         }
-                        if (!Number.isFinite(total) || total <= 0) return <span className='text-gray-400'>-</span>;
+                        if (!Number.isFinite(total) || total <= 0) {
+                          return (
+                            <span className='inline-flex items-center justify-center min-w-[3.75rem] px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-50 text-slate-500 border border-slate-200'>
+                              —
+                            </span>
+                          );
+                        }
                         return (
-                          <span className='inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-mono bg-slate-100 text-slate-700 border border-slate-200'>
+                          <span
+                            title={breakdownTitle || undefined}
+                            className='inline-flex items-center justify-center min-w-[3.75rem] px-3 py-0.5 rounded-full text-xs font-semibold tabular-nums bg-sky-50 text-sky-700 border border-sky-200'
+                          >
                             {`${total}h`}
                           </span>
                         );

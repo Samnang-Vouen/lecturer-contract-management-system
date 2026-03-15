@@ -85,7 +85,7 @@ const AdvisorContract = sequelize.define(
     management_signed_at: { type: DataTypes.DATE, allowNull: true },
 
     status: {
-      type: DataTypes.ENUM('DRAFT', 'REQUEST_REDO', 'COMPLETED'),
+      type: DataTypes.ENUM('DRAFT', 'WAITING_MANAGEMENT', 'REQUEST_REDO', 'COMPLETED',  'CONTRACT_ENDED'),
       allowNull: false,
       defaultValue: 'DRAFT',
     },

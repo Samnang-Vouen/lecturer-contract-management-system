@@ -22,19 +22,108 @@ export default function LecturerProfileDialog({
   onPayrollUpload,
   fileUrl
 }) {
-  if (!lecturer) return null;
+  const safeLecturer = lecturer ?? {};
 
-  const normalizedRole = Array.isArray(lecturer.role)
-    ? lecturer.role.map(r => String(r ?? '').trim().toLowerCase()).filter(Boolean).join(',')
-    : String(lecturer.role ?? '').trim().toLowerCase();
+  const normalizePathKey = (p) => String(p || '').replace(/\\/g, '/').replace(/^\//, '');
+  const friendlyStoredName = (p) => {
+    const base = String(p).split('/').pop() || '';
+    const m = base.match(/^syllabus_\d+_(\d+)\.pdf$/i);
+    if (m) return `Syllabus ${m[1]}.pdf`;
+    const m2 = base.match(/^syllabus_\d+\.pdf$/i);
+    if (m2) return 'Syllabus.pdf';
+    return base || 'syllabus.pdf';
+  };
+  const getFileNameFromPath = (p) => {
+    const base = String(p || '').replace(/\\/g, '/').split('/').pop() || '';
+    return base || 'file.pdf';
+  };
+  const courseSyllabusFilesRaw = Array.isArray(safeLecturer.courseSyllabusFiles)
+    ? safeLecturer.courseSyllabusFiles
+    : Array.isArray(safeLecturer.course_syllabus_files)
+      ? safeLecturer.course_syllabus_files
+      : [];
+  const courseSyllabusFiles = Array.from(
+    new Set(
+      (courseSyllabusFilesRaw || [])
+        .filter(Boolean)
+        .map((p) => normalizePathKey(p))
+    )
+  ).sort((a, b) => {
+    const an = String(a).split('/').pop() || '';
+    const bn = String(b).split('/').pop() || '';
+    return bn.localeCompare(an);
+  });
+  const syllabusNamesMapRaw =
+    (safeLecturer.courseSyllabusFileNames && typeof safeLecturer.courseSyllabusFileNames === 'object')
+      ? safeLecturer.courseSyllabusFileNames
+      : (safeLecturer.course_syllabus_file_names && typeof safeLecturer.course_syllabus_file_names === 'object')
+        ? safeLecturer.course_syllabus_file_names
+        : {};
+  const syllabusNamesMap = Object.fromEntries(
+    Object.entries(syllabusNamesMapRaw).map(([k, v]) => [normalizePathKey(k), String(v)])
+  );
+  const syllabusNameOf = (p) => syllabusNamesMap[normalizePathKey(p)] || friendlyStoredName(p);
+
+  const roleTokens = (() => {
+    const toToken = (r) => {
+      if (r === null || r === undefined) return '';
+      if (typeof r === 'string' || typeof r === 'number') return String(r);
+      if (typeof r === 'object') {
+        return (
+          r.role ??
+          r.name ??
+          r.code ??
+          r.type ??
+          r.value ??
+          ''
+        );
+      }
+      return String(r);
+    };
+
+    const rawValues = [
+      safeLecturer.role,
+      safeLecturer.roles,
+      safeLecturer.user?.role,
+      safeLecturer.user?.roles
+    ];
+
+    const flattened = [];
+    for (const v of rawValues) {
+      if (!v) continue;
+      if (Array.isArray(v)) {
+        for (const item of v) flattened.push(toToken(item));
+      } else {
+        flattened.push(toToken(v));
+      }
+    }
+
+    return flattened
+      .flatMap((s) => String(s ?? '').split(','))
+      .map((t) => t.trim().toLowerCase())
+      .filter(Boolean);
+  })();
 
   // Advisor-specific fields should be shown based on the user's role.
   // Previously this also required `position === 'advisor'`, which caused advisor profiles
   // to render without their role-specific information.
-  const isAdvisor = normalizedRole === 'advisor' || normalizedRole.includes('advisor');
+  // If a user has both lecturer + advisor roles, treat them as lecturer.
+  const hasAdvisorRole = roleTokens.some((t) => t === 'advisor' || t.includes('advisor'));
+  const hasLecturerRole = roleTokens.some((t) => t === 'lecturer' || t === 'lecture' || t.includes('lectur'));
+  const isAdvisor = hasAdvisorRole && !hasLecturerRole;
 
-  const specialization = Array.isArray(lecturer.specialization) ? lecturer.specialization : [];
-  const education = Array.isArray(lecturer.education) ? lecturer.education : [];
+  const specialization = Array.isArray(safeLecturer.specialization) ? safeLecturer.specialization : [];
+  const education = Array.isArray(safeLecturer.education) ? safeLecturer.education : [];
+  const advisorDepartmentName =
+    typeof safeLecturer.department === 'string'
+      ? safeLecturer.department.trim()
+      : String(safeLecturer.department?.name ?? '').trim();
+
+  React.useEffect(() => {
+    if (isAdvisor && activeTab === 'documents') setActiveTab('basic');
+  }, [isAdvisor, activeTab, setActiveTab]);
+
+  if (!lecturer) return null;
 
   const handleTabChange = (newTab) => {
     console.log('Tab changing from', activeTab, 'to', newTab);
@@ -68,9 +157,11 @@ export default function LecturerProfileDialog({
               <TabsTrigger value='work'>
                 Experience
               </TabsTrigger>
-              <TabsTrigger value='documents'>
-                Documents
-              </TabsTrigger>
+              {!isAdvisor && (
+                <TabsTrigger value='documents'>
+                  Documents
+                </TabsTrigger>
+              )}
             </TabsList>
 
             {/* Basic Info Tab */}
@@ -166,57 +257,18 @@ export default function LecturerProfileDialog({
                   />
                 </div>
 
-                {isAdvisor && (
+                {!isAdvisor && (
                   <div className='space-y-2'>
-                    <Label>Qualifications</Label>
-                    <Textarea rows={3} value={lecturer.qualifications || ''} readOnly />
-                  </div>
-                )}
-
-                <div className='space-y-2'>
-                  <Label>Research Field</Label>
-                  <div className='flex flex-wrap gap-2'>
-                    {specialization.length ? (
-                      specialization.map(spec => (
-                        <Badge key={spec} variant='secondary'>{spec}</Badge>
-                      ))
-                    ) : (
-                      <span className='text-xs text-gray-400'>None</span>
-                    )}
-                  </div>
-                </div>
-
-                {isAdvisor && (
-                  <div className='space-y-2'>
-                    <Label>Departments (Onboarding)</Label>
+                    <Label>Research Field</Label>
                     <div className='flex flex-wrap gap-2'>
-                      {Array.isArray(lecturer.departments) && lecturer.departments.length ? (
-                        lecturer.departments.map((d) => (
-                          <Badge key={d.id ?? d.name ?? String(d)} variant='secondary'>
-                            {d?.name ?? String(d)}
-                          </Badge>
+                      {specialization.length ? (
+                        specialization.map(spec => (
+                          <Badge key={spec} variant='secondary'>{spec}</Badge>
                         ))
                       ) : (
                         <span className='text-xs text-gray-400'>None</span>
                       )}
                     </div>
-                  </div>
-                )}
-
-                {isAdvisor && (
-                  <div className='space-y-2'>
-                    <Label>Courses (Onboarding)</Label>
-                    {Array.isArray(lecturer.courses) && lecturer.courses.length ? (
-                      <div className='space-y-1 text-sm'>
-                        {lecturer.courses.map((c) => (
-                          <div key={c.id ?? c.course_id ?? `${c.course_code}-${c.course_name}`}> 
-                            {c.course_code ? `${c.course_code} — ` : ''}{c.course_name || c.name || '—'}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className='text-xs text-gray-400'>None</span>
-                    )}
                   </div>
                 )}
               </div>
@@ -402,103 +454,91 @@ export default function LecturerProfileDialog({
             </TabsContent>
 
             {/* Documents Tab */}
-            <TabsContent value='documents'>
-              <div className='space-y-6'>
-                {/* CV */}
-                <div>
-                  <Label className='text-base font-medium'>Curriculum Vitae (CV)</Label>
-                  <div className='mt-2 space-y-4'>
-                    {lecturer.cvUploaded ? (
-                      <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 border rounded-lg'>
-                        <div className='flex items-center flex-1 min-w-0'>
-                          <FileText className='h-8 w-8 text-red-600 mr-3'/>
-                          <div>
-                            <p className='font-medium'>Current CV</p>
-                            <p className='text-sm text-gray-600'>PDF Document</p>
+            {!isAdvisor && (
+              <TabsContent value='documents'>
+                <div className='space-y-6'>
+                  {/* CV */}
+                  <div>
+                    <Label className='text-base font-medium'>Curriculum Vitae (CV)</Label>
+                    <div className='mt-2 space-y-4'>
+                      {lecturer.cvUploaded ? (
+                        <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 border rounded-lg'>
+                          <div className='flex items-center flex-1 min-w-0'>
+                            <FileText className='h-8 w-8 text-red-600 mr-3'/>
+                            <div>
+                              <p className='font-medium'>Current CV</p>
+                              {lecturer.cvFilePath ? (
+                                <a
+                                  href={fileUrl(lecturer.cvFilePath)}
+                                  target='_blank'
+                                  rel='noreferrer'
+                                  className='text-sm text-indigo-700 hover:text-indigo-800 truncate block max-w-[28rem]'
+                                  title={getFileNameFromPath(lecturer.cvFilePath)}
+                                >
+                                  {getFileNameFromPath(lecturer.cvFilePath)}
+                                </a>
+                              ) : (
+                                <p className='text-sm text-gray-600'>PDF Document</p>
+                              )}
+                            </div>
                           </div>
                         </div>
-                        <div className='flex flex-wrap gap-2 w-full sm:w-auto sm:justify-end'>
-                          {lecturer.cvFilePath && (() => {
-                            const url = fileUrl(lecturer.cvFilePath);
-                            return (
-                              <>
-                                <a 
-                                  href={url} 
-                                  target='_blank' 
-                                  rel='noreferrer' 
-                                  className='inline-flex items-center px-3 py-1.5 text-xs rounded border hover:bg-gray-50 whitespace-nowrap'
-                                >
-                                  <Eye className='w-4 h-4 mr-1'/> Preview
-                                </a>
-                                <a 
-                                  href={url} 
-                                  download 
-                                  className='inline-flex items-center px-3 py-1.5 text-xs rounded border hover:bg-gray-50 whitespace-nowrap'
-                                >
-                                  <Download className='w-4 h-4 mr-1'/> Download
-                                </a>
-                              </>
-                            );
-                          })()}
+                      ) : (
+                        <div className='text-center py-8 border-2 border-dashed border-gray-300 rounded-lg'>
+                          <FileText className='h-12 w-12 text-gray-400 mx-auto mb-4'/>
+                          <p className='text-gray-600 text-sm'>No CV uploaded</p>
                         </div>
-                      </div>
-                    ) : (
-                      <div className='text-center py-8 border-2 border-dashed border-gray-300 rounded-lg'>
-                        <FileText className='h-12 w-12 text-gray-400 mx-auto mb-4'/>
-                        <p className='text-gray-600 text-sm'>No CV uploaded</p>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                {/* Syllabus */}
-                <div>
-                  <Label className='text-base font-medium'>Course Syllabus</Label>
-                  <div className='mt-2 space-y-4'>
-                    {lecturer.syllabusUploaded ? (
-                      <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 border rounded-lg'>
-                        <div className='flex items-center flex-1 min-w-0'>
-                          <FileText className='h-8 w-8 text-blue-600 mr-3'/>
-                          <div>
-                            <p className='font-medium'>Current Syllabus</p>
-                            <p className='text-sm text-gray-600'>PDF Document</p>
+                  {/* Syllabus */}
+                  <div>
+                    <Label className='text-base font-medium'>Course Syllabus</Label>
+                    <div className='mt-2 space-y-4'>
+                      {(lecturer.syllabusUploaded || courseSyllabusFiles.length || lecturer.syllabusFilePath) ? (
+                        <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 border rounded-lg'>
+                          <div className='flex items-center flex-1 min-w-0'>
+                            <FileText className='h-8 w-8 text-blue-600 mr-3'/>
+                            <div>
+                              <p className='font-medium'>Syllabus Files</p>
+                              <p className='text-sm text-gray-600'>Click a file to open</p>
+                            </div>
+                          </div>
+                          <div className='w-full sm:w-auto sm:min-w-[18rem]'>
+                            <div className='max-h-28 overflow-auto space-y-1'>
+                              {(courseSyllabusFiles.length ? courseSyllabusFiles : (lecturer.syllabusFilePath ? [normalizePathKey(lecturer.syllabusFilePath)] : []))
+                                .map((p) => {
+                                  const name = syllabusNameOf(p);
+                                  const url = fileUrl(p);
+                                  return (
+                                    <a
+                                      key={p}
+                                      href={url}
+                                      target='_blank'
+                                      rel='noreferrer'
+                                      title={name}
+                                      className='flex items-center gap-2 px-3 py-2 text-xs rounded border bg-white hover:bg-gray-50 truncate'
+                                    >
+                                      <span className='inline-block w-1.5 h-1.5 rounded-full bg-indigo-300 flex-shrink-0' />
+                                      <span className='truncate'>{name}</span>
+                                    </a>
+                                  );
+                                })}
+                            </div>
                           </div>
                         </div>
-                        <div className='flex flex-wrap gap-2 w-full sm:w-auto sm:justify-end'>
-                          {lecturer.syllabusFilePath && (() => {
-                            const url = fileUrl(lecturer.syllabusFilePath);
-                            return (
-                              <>
-                                <a 
-                                  href={url} 
-                                  target='_blank' 
-                                  rel='noreferrer' 
-                                  className='inline-flex items-center px-3 py-1.5 text-xs rounded border hover:bg-gray-50 whitespace-nowrap'
-                                >
-                                  <Eye className='w-4 h-4 mr-1'/> Preview
-                                </a>
-                                <a 
-                                  href={url} 
-                                  download 
-                                  className='inline-flex items-center px-3 py-1.5 text-xs rounded border hover:bg-gray-50 whitespace-nowrap'
-                                >
-                                  <Download className='w-4 h-4 mr-1'/> Download
-                                </a>
-                              </>
-                            );
-                          })()}
+                      ) : (
+                        <div className='text-center py-8 border-2 border-dashed border-gray-300 rounded-lg'>
+                          <FileText className='h-12 w-12 text-gray-400 mx-auto mb-4'/>
+                          <p className='text-gray-600 text-sm'>No syllabus uploaded</p>
                         </div>
-                      </div>
-                    ) : (
-                      <div className='text-center py-8 border-2 border-dashed border-gray-300 rounded-lg'>
-                        <FileText className='h-12 w-12 text-gray-400 mx-auto mb-4'/>
-                        <p className='text-gray-600 text-sm'>No syllabus uploaded</p>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </TabsContent>
+              </TabsContent>
+            )}
           </Tabs>
 
           <div className='flex flex-col sm:flex-row justify-end gap-2 border-t pt-4'>

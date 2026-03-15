@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, BarChart3, RefreshCw, CheckCircle, AlertCircle, XCircle, Info } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const getSystemHealthColor = (health) => {
   switch (health) {
@@ -24,6 +25,8 @@ export default function DashboardHeader({
   onRefresh, 
   lastUpdated 
 }) {
+  const navigate = useNavigate();
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: -20 }}
@@ -120,12 +123,13 @@ export default function DashboardHeader({
                 <div className='max-h-64 overflow-y-auto'>
                   {notifications.length > 0 ? (
                     notifications.map((notification, index) => (
-                      <motion.div 
-                        key={index} 
+                      <motion.div
+                        key={index}
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: index * 0.1 }}
-                        className='p-4 border-b border-gray-100 hover:bg-gray-50'
+                        onClick={() => { if (notification.contract_id) { setShowNotifications(false); navigate('/admin/contracts'); } }}
+                        className={`p-4 border-b border-gray-100 hover:bg-gray-50 ${notification.contract_id ? 'cursor-pointer' : ''}`}
                       >
                         <p className='text-sm text-gray-800'>{notification.message}</p>
                         <p className='text-xs text-gray-500 mt-1'>{notification.time}</p>

@@ -8,18 +8,18 @@ export default function SyllabusUploadDialog({
   onUpload, 
   uploading 
 }) {
-  const [syllabusFile, setSyllabusFile] = useState(null);
+  const [syllabusFiles, setSyllabusFiles] = useState([]);
 
   const handleUpload = async () => {
-    if (!syllabusFile) return;
-    await onUpload({ syllabus: syllabusFile });
+    if (!syllabusFiles.length) return;
+    await onUpload({ syllabus: syllabusFiles });
     onOpenChange(false);
-    setSyllabusFile(null);
+    setSyllabusFiles([]);
   };
 
   const handleCancel = () => {
     onOpenChange(false);
-    setSyllabusFile(null);
+    setSyllabusFiles([]);
   };
 
   return (
@@ -36,12 +36,21 @@ export default function SyllabusUploadDialog({
             <input
               type="file"
               accept="application/pdf"
-              onChange={e => setSyllabusFile(e.target.files?.[0] || null)}
+              multiple
+              onChange={e => setSyllabusFiles(Array.from(e.target.files || []))}
               className="block w-full text-sm"
             />
-            {syllabusFile && (
-              <p className="mt-2 text-xs text-gray-600">Selected: {syllabusFile.name}</p>
-            )}
+            {syllabusFiles.length ? (
+              <div className="mt-2 text-xs text-gray-600 space-y-1">
+                <p>Selected: {syllabusFiles.length} file(s)</p>
+                <ul className="list-disc pl-5">
+                  {syllabusFiles.slice(0, 5).map((f) => (
+                    <li key={f.name}>{f.name}</li>
+                  ))}
+                  {syllabusFiles.length > 5 ? <li>and {syllabusFiles.length - 5} more…</li> : null}
+                </ul>
+              </div>
+            ) : null}
           </div>
           <div className="flex justify-end gap-2">
             <Button 
@@ -55,7 +64,7 @@ export default function SyllabusUploadDialog({
             <Button
               type="button"
               className="bg-indigo-600 hover:bg-indigo-700"
-              disabled={!syllabusFile || uploading}
+              disabled={!syllabusFiles.length || uploading}
               onClick={handleUpload}
             >
               {uploading ? 'Uploading...' : 'Upload'}

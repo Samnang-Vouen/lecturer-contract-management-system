@@ -168,11 +168,11 @@ export const createUser = async (req, res) => {
     let { fullName, email, role, department, position, title, gender } = req.body;
     const errors = {};
     if (!fullName || !fullName.trim()) errors.fullName = 'Full name is required';
-    if (!email || !email.trim()) {
+    /* if (!email || !email.trim()) {
       errors.email = 'Email is required';
     } else if (!/^[A-Z0-9._%+-]+@cadt\.edu\.kh$/i.test(email)) {
       errors.email = 'Email must be a CADT address (example@cadt.edu.kh)';
-    } else if (await User.findOne({ where: { email } })) {
+    }  */else if (await User.findOne({ where: { email } })) {
       errors.email = 'Email is already registered';
     }
     // Force lecturer role if not supplied

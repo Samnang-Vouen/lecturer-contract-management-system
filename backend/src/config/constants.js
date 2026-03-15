@@ -37,14 +37,18 @@ export const CONTRACT_STATUS_ALIAS_MAP = Object.freeze({
   DRAFT: 'WAITING_LECTURER',
   MANAGEMENT_SIGNED: 'WAITING_LECTURER',
   LECTURER_SIGNED: 'WAITING_MANAGEMENT',
+  CONTRACT_ENDED: 'CONTRACT_ENDED',
 });
 
 // Allowed contract statuses for updates
 export const CONTRACT_ALLOWED_STATUSES = Object.freeze([
+  'WAITING_ADVISOR',
   'WAITING_LECTURER',
   'WAITING_MANAGEMENT',
   'REQUEST_REDO',
   'COMPLETED',
+  'CONTRACT ENDED',
+  'CONTRACT_ENDED',
 ]);
 
 // HTTP status codes for readability

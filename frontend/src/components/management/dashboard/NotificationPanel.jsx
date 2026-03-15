@@ -1,11 +1,22 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 
-export default function NotificationPanel({ 
-  show, 
-  notifications, 
-  lastViewedAt 
+export default function NotificationPanel({
+  show,
+  notifications,
+  lastViewedAt,
+  setShowNotifications
 }) {
+  const navigate = useNavigate();
+
+  const handleNotifClick = (n) => {
+    if (n.contract_id) {
+      if (setShowNotifications) setShowNotifications(false);
+      navigate('/management/contracts');
+    }
+  };
+
   if (!show) return null;
 
   const items = [...(notifications || [])].sort((a, b) => (b.ts || 0) - (a.ts || 0));
@@ -34,7 +45,8 @@ export default function NotificationPanel({
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.03 }}
-                  className={`p-4 border-b border-gray-100 hover:bg-gray-50 ${isUnread ? 'bg-blue-50/40' : ''}`}
+                  onClick={() => handleNotifClick(n)}
+                  className={`p-4 border-b border-gray-100 hover:bg-gray-50 ${isUnread ? 'bg-blue-50/40' : ''} ${n.contract_id ? 'cursor-pointer' : ''}`}
                 >
                   <div className='flex items-start gap-2'>
                     <span className={`mt-1 w-2 h-2 rounded-full ${isUnread ? 'bg-blue-500' : 'bg-gray-300'}`} />

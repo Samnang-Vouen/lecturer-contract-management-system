@@ -1,8 +1,20 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Zap, Settings, GraduationCap, BookOpen, FileText, CheckCircle, Info, ArrowUp } from 'lucide-react';
+import { Zap, Settings, GraduationCap, FileText, CheckCircle, Info, ArrowUp } from 'lucide-react';
 
-export const QuickActions = ({ assignedCoursesCount, totalContractsCount, signedContractsCount, waitingManagementCount }) => {
+const normalizeBasePath = (p) => {
+  const s = String(p || '').trim();
+  if (!s) return '/lecturer';
+  return s.startsWith('/') ? s.replace(/\/+$/, '') : `/${s.replace(/\/+$/, '')}`;
+};
+
+export const QuickActions = ({
+  totalContractsCount,
+  signedContractsCount,
+  waitingManagementCount,
+  basePath = '/lecturer',
+}) => {
+  const root = normalizeBasePath(basePath);
   return (
     <motion.div 
       initial={{ opacity: 0, x: 50 }} 
@@ -33,7 +45,7 @@ export const QuickActions = ({ assignedCoursesCount, totalContractsCount, signed
           whileHover={{ scale: 1.02, y: -2 }} 
           whileTap={{ scale: 0.98 }} 
           className='group p-4 bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl border border-yellow-200 hover:from-yellow-100 hover:to-orange-100 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-md' 
-          onClick={() => (window.location.href = '/lecturer/my-contracts')}
+          onClick={() => (window.location.href = `${root}/my-contracts`)}
         >
           <div className='flex items-center gap-3 mb-3'>
             <motion.div 
@@ -61,7 +73,7 @@ export const QuickActions = ({ assignedCoursesCount, totalContractsCount, signed
           whileHover={{ scale: 1.02, y: -2 }} 
           whileTap={{ scale: 0.98 }} 
           className='group p-4 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border border-purple-200 hover:from-purple-100 hover:to-pink-100 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-md' 
-          onClick={() => (window.location.href = '/lecturer/profile')}
+          onClick={() => (window.location.href = `${root}/profile`)}
         >
           <div className='flex items-center gap-3 mb-3'>
             <motion.div 
@@ -91,9 +103,8 @@ export const QuickActions = ({ assignedCoursesCount, totalContractsCount, signed
         transition={{ delay: 1 }} 
         className='mt-6 pt-6 border-t border-gray-200'
       >
-        <div className='grid grid-cols-1 sm:grid-cols-4 gap-4'>
+        <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
           {[
-            { label: 'Courses', value: assignedCoursesCount, icon: BookOpen, color: 'blue' },
             { label: 'Total Contracts', value: totalContractsCount, icon: FileText, color: 'indigo' },
             { label: 'Signed Contracts', value: signedContractsCount, icon: CheckCircle, color: 'green' },
             { label: 'Waiting Management', value: waitingManagementCount, icon: Info, color: 'amber' }

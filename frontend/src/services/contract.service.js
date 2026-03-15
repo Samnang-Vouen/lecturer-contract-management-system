@@ -51,3 +51,13 @@ export async function updateContractStatus(id, status) {
   const res = await axiosInstance.patch(`/teaching-contracts/${id}/status`, { status });
   return res.data;
 }
+
+export async function createRedoRequest(id, message) {
+  const res = await axiosInstance.post(`/teaching-contracts/${id}/redo-requests`, { message });
+  return res.data;
+}
+
+export async function fetchMyNotifications() {
+  const res = await axiosInstance.get('/notifications');
+  return res.data;
+}

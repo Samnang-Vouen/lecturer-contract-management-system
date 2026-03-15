@@ -27,7 +27,7 @@ router.post(
   '/me/files',
   upload.fields([
     { name: 'cv', maxCount: 1 },
-    { name: 'syllabus', maxCount: 1 },
+    { name: 'syllabus', maxCount: 10 },
   ]),
   uploadLecturerFiles
 );

@@ -25,6 +25,7 @@ import group from './group.route.js';
 import evaluationRoutes from './evaluation.route.js';
 import specialization from './specialization.route.js';
 import scheduleEntryRoutes from './scheduleEntry.route.js';
+import notificationRoutes from './notification.route.js';
 import hourlyRateRoutes from './hourlyRate.route.js';
 
 export function registerRoutes(app) {
@@ -57,4 +58,5 @@ export function registerRoutes(app) {
   app.use('/api/evaluations', evaluationRoutes);
   app.use('/api/specializations', specialization);
   app.use('/api/hourly-rates', hourlyRateRoutes);
+  app.use('/api/notifications', notificationRoutes);
 }

@@ -79,6 +79,11 @@ export default function LecturerManagement() {
     cancelAssignment
   } = useCourseAssignment(setLecturers);
 
+  const handleSaveAssignment = async () => {
+    const ok = await saveAssignment();
+    if (ok) refreshLecturers();
+  };
+
   const {
     openMenuId,
     menuCoords,
@@ -137,10 +142,28 @@ export default function LecturerManagement() {
   const handleAssignCoursesClick = async (lecturer) => {
     closeMenu();
     try {
-      const roleLc = Array.isArray(lecturer?.role)
-        ? lecturer.role.map(r => String(r ?? '').trim().toLowerCase()).filter(Boolean).join(',')
-        : String(lecturer?.role || '').trim().toLowerCase();
-      const isAdvisor = roleLc === 'advisor' || roleLc.includes('advisor');
+      const roleTokens = (() => {
+        const toToken = (r) => {
+          if (r === null || r === undefined) return '';
+          if (typeof r === 'string' || typeof r === 'number') return String(r);
+          if (typeof r === 'object') return r.role ?? r.name ?? r.code ?? r.type ?? r.value ?? '';
+          return String(r);
+        };
+        const rawValues = [lecturer?.role, lecturer?.roles, lecturer?.user?.role, lecturer?.user?.roles];
+        const flattened = [];
+        for (const v of rawValues) {
+          if (!v) continue;
+          if (Array.isArray(v)) for (const item of v) flattened.push(toToken(item));
+          else flattened.push(toToken(v));
+        }
+        return flattened
+          .flatMap((s) => String(s ?? '').split(','))
+          .map((t) => t.trim().toLowerCase())
+          .filter(Boolean);
+      })();
+      const hasAdvisorRole = roleTokens.some((t) => t === 'advisor' || t.includes('advisor'));
+      const hasLecturerRole = roleTokens.some((t) => t === 'lecturer' || t === 'lecture' || t.includes('lectur'));
+      const isAdvisor = hasAdvisorRole && !hasLecturerRole;
       const detail = await (isAdvisor ? getAdvisorDetail(lecturer.id) : getLecturerDetail(lecturer.id));
       await openAssignment(lecturer, detail);
     } catch (e) {
@@ -161,10 +184,33 @@ export default function LecturerManagement() {
 
   const handleSaveProfile = async () => {
     const success = await saveProfile(selectedLecturer, async (id) => {
-      const roleLc = Array.isArray(selectedLecturer?.role)
-        ? selectedLecturer.role.map(r => String(r ?? '').trim().toLowerCase()).filter(Boolean).join(',')
-        : String(selectedLecturer?.role || '').trim().toLowerCase();
-      const isAdvisor = roleLc === 'advisor' || roleLc.includes('advisor');
+      const roleTokens = (() => {
+        const toToken = (r) => {
+          if (r === null || r === undefined) return '';
+          if (typeof r === 'string' || typeof r === 'number') return String(r);
+          if (typeof r === 'object') return r.role ?? r.name ?? r.code ?? r.type ?? r.value ?? '';
+          return String(r);
+        };
+        const rawValues = [
+          selectedLecturer?.role,
+          selectedLecturer?.roles,
+          selectedLecturer?.user?.role,
+          selectedLecturer?.user?.roles
+        ];
+        const flattened = [];
+        for (const v of rawValues) {
+          if (!v) continue;
+          if (Array.isArray(v)) for (const item of v) flattened.push(toToken(item));
+          else flattened.push(toToken(v));
+        }
+        return flattened
+          .flatMap((s) => String(s ?? '').split(','))
+          .map((t) => t.trim().toLowerCase())
+          .filter(Boolean);
+      })();
+      const hasAdvisorRole = roleTokens.some((t) => t === 'advisor' || t.includes('advisor'));
+      const hasLecturerRole = roleTokens.some((t) => t === 'lecturer' || t === 'lecture' || t.includes('lectur'));
+      const isAdvisor = hasAdvisorRole && !hasLecturerRole;
       const raw = await (isAdvisor ? getAdvisorDetail(id) : getLecturerDetail(id));
       const get = (k, alt) => raw[k] ?? raw.data?.[k] ?? raw.profile?.[k] ?? alt;
       setSelectedLecturer(p => ({
@@ -274,7 +320,7 @@ export default function LecturerManagement() {
         availableCourses={coursesCatalog}
         selectedCourses={selectedCourses}
         onToggleCourse={toggleCourseSelection}
-        onSave={saveAssignment}
+        onSave={handleSaveAssignment}
         onCancel={cancelAssignment}
         className={assigning?.name}
       />

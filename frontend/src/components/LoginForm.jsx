@@ -44,10 +44,10 @@ export default function LoginForm() {
             setError("Email and password are required");
             return;
         }
-        if (!EMAIL_REGEX.test(trimmedEmail)) {
+       /*  if (!EMAIL_REGEX.test(trimmedEmail)) {
             setError("Email must be in the format youremail@cadt.edu.kh");
             return;
-        }
+        } */
         if (trimmedPassword.length < 6) {
             setError("Password must be at least 6 characters");
             return;
@@ -68,6 +68,7 @@ export default function LoginForm() {
     };
 
     const handleForgotPassword = () => {
+        navigate('/forgot-password');
         if (!email.trim()) {
             setError("Please enter your email address first");
             return;
@@ -238,10 +239,10 @@ export default function LoginForm() {
                                             onChange={(e) => {
                                                 const val = e.target.value;
                                                 setEmail(val);
-                                                setFieldErrors(fe => ({ 
+                                               /*  setFieldErrors(fe => ({ 
                                                     ...fe, 
                                                     email: val && !EMAIL_REGEX.test(val.toLowerCase()) ? 'Email must be in the format youremail@cadt.edu.kh' : '' 
-                                                }));
+                                                })); */
                                                 if (error) setError('');
                                             }}
                                             onFocus={() => setIsFormFocused(true)}

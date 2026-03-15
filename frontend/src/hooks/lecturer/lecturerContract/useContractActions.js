@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { 
-  getContractPdfBlob, 
-  getContractPdfUrl, 
+import {
+  getContractPdfBlob,
+  getContractPdfUrl,
   getAdvisorContractPdfBlob,
   getAdvisorContractPdfUrl,
-  uploadContractSignature 
+  uploadContractSignature,
+  createRedoRequest,
 } from '../../../services/contract.service';
 import { uploadAdvisorContractSignature } from '../../../services/advisorContract.service';
 import { makePdfFilenameForContract } from '../../../utils/lecturerContractHelpers';
@@ -18,6 +19,7 @@ export const useContractActions = (lecturerProfile, authUser, fetchContracts) =>
   const [selectedContract, setSelectedContract] = useState(null);
   const [viewOpen, setViewOpen] = useState(false);
   const [signOpen, setSignOpen] = useState(false);
+  const [redoOpen, setRedoOpen] = useState(false);
 
   /**
    * Preview contract PDF in new tab
@@ -83,6 +85,29 @@ export const useContractActions = (lecturerProfile, authUser, fetchContracts) =>
   };
 
   /**
+   * Open redo dialog for contract
+   */
+  const openRedoDialog = (contract) => {
+    setSelectedContract(contract);
+    setRedoOpen(true);
+  };
+
+  /**
+   * Submit a redo request for the given contract id with a reason message.
+   * Called after the lecturer fills in the redo reason dialog.
+   */
+  const requestRedo = async (contractId, message) => {
+    try {
+      await createRedoRequest(contractId, message);
+      setRedoOpen(false);
+      await fetchContracts();
+    } catch (e) {
+      // Propagate so the UI can show an error toast
+      throw e;
+    }
+  };
+
+  /**
    * Open view dialog for contract
    */
   const openViewDialog = (contract) => {
@@ -106,10 +131,14 @@ export const useContractActions = (lecturerProfile, authUser, fetchContracts) =>
     setViewOpen,
     signOpen,
     setSignOpen,
+    redoOpen,
+    setRedoOpen,
     previewPdf,
     downloadPdf,
     uploadSignature,
     openViewDialog,
     openSignDialog,
+    openRedoDialog,
+    requestRedo,
   };
 };

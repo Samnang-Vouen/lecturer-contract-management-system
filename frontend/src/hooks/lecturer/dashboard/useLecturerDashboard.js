@@ -7,11 +7,12 @@ import {
   getLecturerCourseMappings,
   getLecturerSalaryAnalysis
 } from '../../../services/lecturerDashboard.service';
-import { chartColors, weeklyOverviewData, gradeDistributionData } from '../../../utils/lecturerDashboard.constants';
+import { chartColors, weeklyOverviewData, gradeDistributionData, NOTIF_LAST_SEEN_KEY } from '../../../utils/lecturerDashboard.constants';
 import { generateTrend } from '../../../utils/lecturerDashboard.utils';
 import { processCourses, processDashboardSummary } from '../../../utils/lecturerDashboard.processors';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { getSocket } from '../../../services/socket';
+import { fetchMyNotifications } from '../../../services/contract.service';
 
 export const useLecturerDashboard = (selectedTimeRange, lastViewedAtRef, showNotificationsRef) => {
   const [isLoading, setIsLoading] = useState(true);
@@ -47,19 +48,40 @@ export const useLecturerDashboard = (selectedTimeRange, lastViewedAtRef, showNot
 
   const { authUser } = useAuthStore();
 
+  const isAdvisorOnly = authUser?.role === 'advisor';
+
   useEffect(() => {
     if (!authUser?.id) return;
     const socket = getSocket();
     const handleConnect = () => socket.emit('join', { id: authUser.id, role: authUser.role });
-    socket.on('connect', handleConnect);
-    socket.on('notification:new', (notif) => {
+    const handleNotif = (notif) => {
       const ts = new Date(notif.createdAt || notif.created_at || Date.now()).getTime();
       const newNotif = { message: notif.message, time: new Date(ts).toLocaleString(), ts, _fromSocket: true, contract_id: notif.contract_id || null };
       setNotifications((prev) => [newNotif, ...prev]);
       if (!showNotificationsRef?.current) setUnreadCount((prev) => prev + 1);
-    });
-    socket.connect();
-    return () => { socket.off('connect', handleConnect); socket.off('notification:new'); socket.disconnect(); };
+    };
+    socket.on('connect', handleConnect);
+    socket.on('notification:new', handleNotif);
+    if (!socket.connected) socket.connect();
+    return () => {
+      socket.off('connect', handleConnect);
+      socket.off('notification:new', handleNotif);
+    };
+  }, [authUser?.id]);
+
+  // Initial fetch on mount
+  useEffect(() => {
+    if (!authUser?.id) return;
+    fetchMyNotifications().then((data) => {
+      const initial = (data || []).map((n) => {
+        const ts = new Date(n.createdAt).getTime();
+        return { message: n.message, time: new Date(ts).toLocaleString(), ts, contract_id: n.contract_id || null };
+      });
+      setNotifications(initial);
+      const seen = (() => { try { return Number(localStorage.getItem(NOTIF_LAST_SEEN_KEY)) || 0; } catch { return 0; } })();
+      const unread = initial.filter((n) => (n.ts || 0) > seen).length;
+      if (unread > 0) setUnreadCount(unread);
+    }).catch(() => {});
   }, [authUser?.id]);
 
   const fetchDashboardData = useCallback(async (showRefresh = false) => {
@@ -71,8 +93,8 @@ export const useLecturerDashboard = (selectedTimeRange, lastViewedAtRef, showNot
         getLecturerDashboardSummary({ timeRange: selectedTimeRange }),
         getLecturerRealtime(),
         getLecturerActivities(),
-        getLecturerCourseMappings(),
-        getLecturerSalaryAnalysis()
+        isAdvisorOnly ? Promise.resolve([]) : getLecturerCourseMappings(),
+        isAdvisorOnly ? Promise.resolve(null) : getLecturerSalaryAnalysis()
       ]);
 
       const nextData = { ...dashboardData };
@@ -129,7 +151,8 @@ export const useLecturerDashboard = (selectedTimeRange, lastViewedAtRef, showNot
       nextData.gradeDistribution = gradeDistributionData(chartColors);
       setDashboardData(nextData);
       setLastUpdated(new Date());
-    } catch (e) {
+    } catch (error) {
+      console.error('Failed to fetch dashboard data', error);
       setDashboardData(prev => ({
         ...prev,
         assignedCourses: { count: 4, change: 1, trend: generateTrend(4) },
@@ -146,7 +169,7 @@ export const useLecturerDashboard = (selectedTimeRange, lastViewedAtRef, showNot
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [selectedTimeRange]);
+  }, [selectedTimeRange, isAdvisorOnly]);
 
   return {
     isLoading,
