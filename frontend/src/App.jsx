@@ -24,6 +24,9 @@ const ContractGeneration = lazy(
 const ScheduleCreation = lazy(
   () => import("./pages/admin/ScheduleCreation.jsx"),
 );
+const UploadEvaluation = lazy(
+  () => import("./pages/admin/UploadEvaluation.jsx"),
+);
 
 const LecturerDashboardLayout = lazy(
   () => import("./pages/LecturerDashboardLayout.jsx"),
@@ -136,6 +139,7 @@ function App() {
             <Route path="courses" element={<CoursesPage />} />
             <Route path="course-mapping" element={<CourseMappingPage />} />
             <Route path="schedule-creation" element={<ScheduleCreation />} />
+            <Route path="upload-evaluation" element={<UploadEvaluation />} />
             <Route path="contracts" element={<ContractGeneration />} />
           </Route>
 
