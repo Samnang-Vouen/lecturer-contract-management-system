@@ -67,7 +67,9 @@ function getMajorAbbreviation(majorName) {
 
 function parseTimeSlotMinutes(label) {
   const raw = String(label || "").trim();
-  const match = raw.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
+  // Normalize backend format '08h:00-09h:30' → '08:00-09:30' and collapse spaces
+  const normalized = raw.replace(/h:/gi, ":").replace(/\s*-\s*/g, "-");
+  const match = normalized.match(/(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})/);
   if (!match) return 0;
 
   const startMinutes = Number(match[1]) * 60 + Number(match[2]);
@@ -128,6 +130,8 @@ export default function ScheduleCreation() {
   const [isLoading, setIsLoading] = useState(true);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [isGenerateAllLoading, setIsGenerateAllLoading] = useState(false);
+  const [isGenerateSelectedLoading, setIsGenerateSelectedLoading] = useState(false);
+
   const [activeDownloadId, setActiveDownloadId] = useState(null);
   const [generatedCount, setGeneratedCount] = useState(0);
   const [groupStatsById, setGroupStatsById] = useState({});
@@ -219,48 +223,16 @@ export default function ScheduleCreation() {
   }, [visibleGroups]);
 
   useEffect(() => {
-    let isActive = true;
-
-    const fetchVisibleGroupStats = async () => {
-      if (!visibleGroups.length) {
-        if (isActive) setGroupStatsById({});
-        return;
-      }
-
-      const nextStats = {};
-
-      await Promise.all(
-        visibleGroups.map(async (group) => {
-          const schedule = getScheduleForGroup(group);
-          const groupId = group?.id;
-          if (!groupId) return;
-
-          if (!schedule?.id) {
-            nextStats[groupId] = { courses: 0, hoursLabel: "0" };
-            return;
-          }
-
-          try {
-            const { data } = await axiosInstance.get(
-              `/schedules/${schedule.id}`,
-            );
-            nextStats[groupId] = getScheduleStats(data?.schedule || {});
-          } catch {
-            nextStats[groupId] = getScheduleStats(schedule);
-          }
-        }),
-      );
-
-      if (isActive) {
-        setGroupStatsById(nextStats);
-      }
-    };
-
-    fetchVisibleGroupStats();
-
-    return () => {
-      isActive = false;
-    };
+    const nextStats = {};
+    visibleGroups.forEach((group) => {
+      const schedule = getScheduleForGroup(group);
+      const groupId = group?.id;
+      if (!groupId) return;
+      nextStats[groupId] = schedule
+        ? getScheduleStats(schedule)
+        : { courses: 0, hoursLabel: "0" };
+    });
+    setGroupStatsById(nextStats);
   }, [visibleGroups, getScheduleForGroup]);
 
   const buildPreviewFromSchedule = useCallback((scheduleDetail) => {
@@ -398,14 +370,50 @@ export default function ScheduleCreation() {
         },
         "all-schedules.pdf",
       );
-      setGeneratedCount((prev) => prev + Math.max(selectedGroupIds.length, 1));
+      setGeneratedCount((prev) => prev + Math.max(visibleGroups.length, 1));
     } catch (error) {
       console.error("[ScheduleCreation] failed to generate all PDFs", error);
       toast.error("Failed to generate all PDFs");
     } finally {
       setIsGenerateAllLoading(false);
     }
-  }, [downloadSchedulePdf, selectedGroupIds.length, selectedMajorName]);
+  }, [downloadSchedulePdf, visibleGroups.length, selectedMajorName]);
+
+  const handleGenerateSelected = useCallback(async () => {
+    if (!selectedGroupIds.length) return;
+    setIsGenerateSelectedLoading(true);
+    let successCount = 0;
+    try {
+      for (const groupId of selectedGroupIds) {
+        const group = visibleGroups.find((g) => g.id === groupId);
+        if (!group) continue;
+        const groupKey = `group-${group.id}`;
+        setActiveDownloadId(groupKey);
+        try {
+          await downloadSchedulePdf(
+            {
+              class_name: group?.Class?.name || undefined,
+              specialization: group?.Class?.Specialization?.name || undefined,
+            },
+            `schedule-${String(group?.name || "group")
+              .replace(/\s+/g, "-")
+              .toLowerCase()}.pdf`,
+          );
+          successCount += 1;
+        } catch (error) {
+          console.error(
+            "[ScheduleCreation] failed to generate selected group PDF",
+            error,
+          );
+          toast.error(`Failed to generate PDF for group ${group.name}`);
+        }
+      }
+      setGeneratedCount((prev) => prev + successCount);
+    } finally {
+      setActiveDownloadId(null);
+      setIsGenerateSelectedLoading(false);
+    }
+  }, [downloadSchedulePdf, selectedGroupIds, visibleGroups]);
 
   const toggleGroupSelection = useCallback((groupId) => {
     setSelectedGroupIds((prev) =>
@@ -514,9 +522,27 @@ export default function ScheduleCreation() {
                     Clear
                   </button>
                 </div>
-                <p className="mt-3 text-xs text-slate-500">
-                  {selectedGroupIds.length} groups selected
+                <p className="mt-2 text-xs text-slate-500">
+                  {selectedGroupIds.length} group
+                  {selectedGroupIds.length !== 1 ? "s" : ""} selected
                 </p>
+                {selectedGroupIds.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleGenerateSelected}
+                    disabled={isGenerateSelectedLoading}
+                    className="mt-2 w-full rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isGenerateSelectedLoading ? (
+                      <span className="flex items-center justify-center gap-1">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Generating...
+                      </span>
+                    ) : (
+                      `Generate Selected PDFs (${selectedGroupIds.length})`
+                    )}
+                  </button>
+                )}
               </div>
 
               {isLoading ? (
@@ -628,7 +654,7 @@ export default function ScheduleCreation() {
                 <colgroup>
                   <col style={{ width: "180px" }} />
                   {weekDays.map((_, idx) => (
-                    <col key={idx} style={{ width: "1fr" }} />
+                    <col key={idx} style={{ width: "auto" }} />
                   ))}
                 </colgroup>
                 <thead>
@@ -662,7 +688,7 @@ export default function ScheduleCreation() {
                             {cell ? (
                               <>
                                 <div className="mx-auto max-w-[150px] space-y-1 text-slate-700">
-                                  <p className="text-s font-bold leading-4">
+                                  <p className="text-sm font-bold leading-4">
                                     {cell.course}
                                   </p>
                                   <p className="text-[13px] text-slate-600">

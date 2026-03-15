@@ -19,11 +19,15 @@ export const seedMajors = async () => {
       }
     );
 
-    await Major.destroy({
-      where: {
-        name: { [Op.notIn]: canonicalNames },
-      },
-    });
+    // Only remove non-canonical majors in non-production environments to
+    // avoid accidentally deleting custom/existing majors in production.
+    if (process.env.NODE_ENV !== 'production') {
+      await Major.destroy({
+        where: {
+          name: { [Op.notIn]: canonicalNames },
+        },
+      });
+    }
 
     const totalCount = await Major.count();
     console.log(`[seedMajors] Canonical majors enforced. Total majors: ${totalCount}`);

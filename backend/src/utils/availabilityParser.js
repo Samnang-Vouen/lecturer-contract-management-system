@@ -120,12 +120,13 @@ export async function getTimeSlotId(timeSlotLabel, TimeSlotModel) {
  *   ...
  * ]
  */
-export async function availabilityToScheduleEntries(availabilityString, TimeSlotModel) {
+export async function availabilityToScheduleEntries(availabilityString, TimeSlotModel, cachedTimeSlotMap = null) {
   const parsedAvailability = parseAvailability(availabilityString);
   const scheduleEntries = [];
 
-  const allTimeSlots = await TimeSlotModel.findAll();
-  const timeSlotMap = new Map(allTimeSlots.map((ts) => [ts.label, ts.id]));
+  const timeSlotMap =
+    cachedTimeSlotMap ||
+    new Map((await TimeSlotModel.findAll()).map((ts) => [ts.label, ts.id]));
 
   for (const { day, timeSlot } of parsedAvailability) {
     const timeSlotId = timeSlotMap.get(timeSlot);

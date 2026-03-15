@@ -10,14 +10,19 @@ const CANONICAL_MAJORS = [
 
 const MAJOR_ALIAS_TO_CANONICAL = {
   'software engineering': 'Software Engineering',
+  'software engineering (se)': 'Software Engineering',
   'data science': 'Data Science',
+  'data science (ds)': 'Data Science',
   'digital business': 'Digital Business',
+  'digital business (db)': 'Digital Business',
   'digital business management': 'Digital Business',
   'telecom and networking engineering': 'Telecom and Networking Engineering',
+  'telecom and networking engineering (tne)': 'Telecom and Networking Engineering',
   'telecommunications engineering': 'Telecom and Networking Engineering',
   'network engineering': 'Telecom and Networking Engineering',
   cybersecurity: 'Cyber Security',
   'cyber security': 'Cyber Security',
+  'cyber security (cs)': 'Cyber Security',
 };
 
 function canonicalizeMajorName(name) {
@@ -51,7 +56,7 @@ export const createMajor = async (req, res) => {
     const canonicalName = canonicalizeMajorName(name);
     if (!canonicalName || !CANONICAL_MAJORS.includes(canonicalName)) {
       return res.status(400).json({
-        error: 'Only the predefined 6 majors are allowed',
+        error: `Only the predefined ${CANONICAL_MAJORS.length} majors are allowed`,
         allowedMajors: CANONICAL_MAJORS,
       });
     }

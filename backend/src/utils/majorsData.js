@@ -1,7 +1,7 @@
 export const majorsData = [
-  { name: 'Software Engineering (SE)' },
-  { name: 'Data Science (DS)' },
-  { name: 'Digital Business (DB)' },
-  { name: 'Telecom and Networking Engineering (TNE)' },
-  { name: 'Cyber Security (CS)' },
+  { name: 'Software Engineering' },
+  { name: 'Data Science' },
+  { name: 'Digital Business' },
+  { name: 'Telecom and Networking Engineering' },
+  { name: 'Cyber Security' },
 ];

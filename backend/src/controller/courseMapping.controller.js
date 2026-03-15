@@ -10,6 +10,7 @@ import ScheduleEntry from '../model/scheduleEntry.model.js';
 import { TimeSlot } from '../model/timeSlot.model.js';
 import { availabilityToScheduleEntries } from '../utils/availabilityParser.js';
 import ExcelJS from 'exceljs';
+import { Op } from 'sequelize';
 
 // Helper to resolve department id based on admin's department
 async function resolveDeptId(req) {
@@ -34,7 +35,7 @@ function startDateFromAcademicYear(academicYear) {
   return `${m[1]}-10-01`;
 }
 
-async function syncScheduleForCourseMapping(mappingId) {
+async function syncScheduleForCourseMapping(mappingId, cachedTimeSlotMap = null) {
   const mapping = await CourseMapping.findByPk(mappingId, {
     include: [
       { model: Group, attributes: ['id', 'name'] },
@@ -42,12 +43,22 @@ async function syncScheduleForCourseMapping(mappingId) {
     ],
   });
   if (!mapping) return;
-  if (!mapping.group_id) return;
-  if (!mapping.availability) return;
-  if (!isAcceptedStatus(mapping.status)) return;
 
-  const slots = await availabilityToScheduleEntries(mapping.availability, TimeSlot);
-  if (!slots.length) return;
+  // If mapping is no longer eligible, remove any existing schedule entries for it
+  if (!mapping.group_id || !mapping.availability || !isAcceptedStatus(mapping.status)) {
+    await ScheduleEntry.destroy({ where: { course_mapping_id: mappingId } });
+    return;
+  }
+
+  const slots = await availabilityToScheduleEntries(
+    mapping.availability,
+    TimeSlot,
+    cachedTimeSlotMap,
+  );
+  if (!slots.length) {
+    await ScheduleEntry.destroy({ where: { course_mapping_id: mappingId } });
+    return;
+  }
 
   let schedule = await Schedule.findOne({ where: { group_id: mapping.group_id } });
   if (!schedule) {
@@ -75,6 +86,7 @@ async function syncScheduleForCourseMapping(mappingId) {
   const room =
     mapping.theory_room_number || mapping.lab_room_number || mapping.room_number || 'TBA';
 
+  // Upsert entries for current availability
   await Promise.all(
     slots.map(async (slot) => {
       const [entry, created] = await ScheduleEntry.findOrCreate({
@@ -99,6 +111,21 @@ async function syncScheduleForCourseMapping(mappingId) {
       }
     })
   );
+
+  // Remove stale entries that are no longer in the current availability
+  const existingEntries = await ScheduleEntry.findAll({
+    where: { schedule_id: schedule.id, course_mapping_id: mapping.id },
+    attributes: ['id', 'day_of_week', 'time_slot_id'],
+  });
+
+  const validKeys = new Set(slots.map((s) => `${s.day_of_week}|${s.time_slot_id}`));
+  const staleIds = existingEntries
+    .filter((e) => !validKeys.has(`${e.day_of_week}|${e.time_slot_id}`))
+    .map((e) => e.id);
+
+  if (staleIds.length) {
+    await ScheduleEntry.destroy({ where: { id: { [Op.in]: staleIds } } });
+  }
 }
 
 export const backfillCourseMappingSchedules = async (req, res) => {
@@ -110,6 +137,10 @@ export const backfillCourseMappingSchedules = async (req, res) => {
       order: [['updated_at', 'DESC']],
     });
 
+    // Pre-fetch all TimeSlots once to avoid repeated DB queries during backfill
+    const allTimeSlots = await TimeSlot.findAll();
+    const cachedTimeSlotMap = new Map(allTimeSlots.map((ts) => [ts.label, ts.id]));
+
     let eligible = 0;
     let synced = 0;
     const failed = [];
@@ -119,7 +150,7 @@ export const backfillCourseMappingSchedules = async (req, res) => {
       if (!isEligible) continue;
       eligible += 1;
       try {
-        await syncScheduleForCourseMapping(row.id);
+        await syncScheduleForCourseMapping(row.id, cachedTimeSlotMap);
         synced += 1;
       } catch (e) {
         failed.push({ id: row.id, error: e?.message || 'Unknown error' });
