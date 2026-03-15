@@ -355,6 +355,7 @@ export async function listAdvisorContracts(req, res) {
     );
     const offset = (page - 1) * limit;
     const { q } = req.query;
+    const statusQuery = req.query.status;
 
     const where = {};
     const actorRole = String(req.user?.role || '').toLowerCase();
@@ -390,20 +391,45 @@ export async function listAdvisorContracts(req, res) {
       include[0].where = { department_name: req.user.department_name };
     }
 
-    // Text search on lecturer display_name or email
+    // Optional status filter (normalized). If a teaching-contract status is provided,
+    // return empty instead of error to keep shared UIs simple.
+    if (statusQuery != null && String(statusQuery).trim() !== '') {
+      const statusNorm = String(statusQuery).trim().toUpperCase().replace(/\s+/g, '_');
+      const allowed = new Set(['DRAFT', 'WAITING_MANAGEMENT', 'REQUEST_REDO', 'COMPLETED', 'CONTRACT_ENDED']);
+      if (!allowed.has(statusNorm)) {
+        return res.json({ data: [], page, limit, total: 0 });
+      }
+
+      if (statusNorm === 'CONTRACT_ENDED') {
+        // Keep behavior consistent with client-side display status: treat past end_date as ended.
+        const now = new Date();
+        const todayOnly = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
+          now.getDate()
+        ).padStart(2, '0')}`;
+        where[Sequelize.Op.or] = [
+          { status: 'CONTRACT_ENDED' },
+          { end_date: { [Sequelize.Op.lte]: todayOnly } },
+        ];
+      } else {
+        where.status = statusNorm;
+      }
+    }
+
+    // Text search on lecturer display_name or email.
+    // Avoid raw SQL / hard-coded table aliases by filtering through the existing joined include.
     if (q) {
       const like = `%${q}%`;
-      if (!where[Sequelize.Op.and]) where[Sequelize.Op.and] = [];
-      where[Sequelize.Op.and].push(
-        Sequelize.literal(`(
-          EXISTS (
-            SELECT 1 FROM Users AS u
-            JOIN LecturerProfiles AS lp ON lp.user_id = u.id
-            WHERE u.id = Advisor_Contracts.lecturer_user_id
-              AND (u.display_name LIKE ${sequelize.escape(like)} OR u.email LIKE ${sequelize.escape(like)})
-          )
-        )`)
-      );
+      const qWhere = {
+        [Sequelize.Op.or]: [
+          { display_name: { [Sequelize.Op.like]: like } },
+          { email: { [Sequelize.Op.like]: like } },
+        ],
+      };
+
+      include[0].required = true;
+      include[0].where = include[0].where
+        ? { [Sequelize.Op.and]: [include[0].where, qWhere] }
+        : qWhere;
     }
 
     const { rows, count } = await AdvisorContract.findAndCountAll({
@@ -468,8 +494,7 @@ export async function updateAdvisorStatus(req, res) {
   try {
     const id = parseInt(req.params.id, 10);
     const body = req.validated?.body || req.body || {};
-    const statusRaw = String(body.status || '').trim().toUpperCase();
-    const status = statusRaw === 'CONTRACT_ENDED' ? 'CONTRACT_ENDED' : statusRaw;
+    const status = String(body.status || '').trim().toUpperCase().replace(/\s+/g, '_');
 
     const found = await AdvisorContract.findByPk(id, {
       include: [

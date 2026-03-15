@@ -5,6 +5,7 @@ import {
   formatMDY,
   formatContractId,
   calculateTotalHours,
+  toPositiveNumber,
   getDisplayStatus,
   getStatusLabel,
 } from '../../../utils/lecturerContractHelpers';
@@ -20,15 +21,6 @@ export default function ContractViewDialog({
   hourlyRate
 }) {
   if (!contract) return null;
-
-  const toPositiveNumber = (value) => {
-    if (value == null) return null;
-    const n =
-      typeof value === 'number'
-        ? value
-        : parseFloat(String(value).replace(/[^0-9.]/g, ''));
-    return Number.isFinite(n) && n > 0 ? n : null;
-  };
 
   const isAdvisor = String(contract?.contract_type || '').toUpperCase() === 'ADVISOR';
 
