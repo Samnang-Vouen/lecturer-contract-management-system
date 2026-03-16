@@ -228,9 +228,45 @@ export default function ScheduleCreation() {
       const schedule = getScheduleForGroup(group);
       const groupId = group?.id;
       if (!groupId) return;
-      nextStats[groupId] = schedule
-        ? getScheduleStats(schedule)
-        : { courses: 0, hoursLabel: "0" };
+
+      if (!schedule) {
+        nextStats[groupId] = { courses: 0, hoursLabel: "0" };
+        return;
+      }
+
+      // Prefer lightweight stats from the /schedules payload if present,
+      // and only fall back to computing from ScheduleEntries.
+      const hasPrecomputedCourses =
+        typeof schedule.courseCount === "number" ||
+        typeof schedule.courses === "number";
+      const hasPrecomputedHours =
+        typeof schedule.hoursLabel === "string" ||
+        typeof schedule.total_hours === "string" ||
+        typeof schedule.totalMinutes === "number";
+
+      if (hasPrecomputedCourses || hasPrecomputedHours) {
+        const courses =
+          (typeof schedule.courseCount === "number"
+            ? schedule.courseCount
+            : typeof schedule.courses === "number"
+            ? schedule.courses
+            : 0) || 0;
+
+        let hoursLabel = "0";
+        if (typeof schedule.hoursLabel === "string") {
+          hoursLabel = schedule.hoursLabel;
+        } else if (typeof schedule.total_hours === "string") {
+          hoursLabel = schedule.total_hours;
+        } else if (typeof schedule.totalMinutes === "number") {
+          // Convert minutes to hours with one decimal place (e.g., 90 -> "1.5").
+          const hours = schedule.totalMinutes / 60;
+          hoursLabel = hours.toFixed(1);
+        }
+
+        nextStats[groupId] = { courses, hoursLabel };
+      } else {
+        nextStats[groupId] = getScheduleStats(schedule);
+      }
     });
     setGroupStatsById(nextStats);
   }, [visibleGroups, getScheduleForGroup]);
