@@ -613,7 +613,7 @@ export default function ScheduleCreation() {
                 <colgroup>
                   <col style={{ width: "180px" }} />
                   {weekDays.map((_, idx) => (
-                    <col key={idx} style={{ width: "1fr" }} />
+                    <col key={idx} style={{ width: "160px" }} />
                   ))}
                 </colgroup>
                 <thead>
