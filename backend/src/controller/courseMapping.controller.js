@@ -95,31 +95,21 @@ async function syncScheduleForCourseMapping(mappingId) {
       mapping.theory_room_number || mapping.lab_room_number || mapping.room_number || 'TBA';
 
     // Upsert entries that are currently in availability
-    await Promise.all(
-      slots.map(async (slot) => {
-        const [entry, created] = await ScheduleEntry.findOrCreate({
-          where: {
-            schedule_id: schedule.id,
-            course_mapping_id: mapping.id,
-            day_of_week: slot.day_of_week,
-            time_slot_id: slot.time_slot_id,
-          },
-          defaults: {
-            schedule_id: schedule.id,
-            course_mapping_id: mapping.id,
-            day_of_week: slot.day_of_week,
-            time_slot_id: slot.time_slot_id,
-            room,
-            session_type: sessionType,
-          },
-          transaction: t,
-        });
+    const upsertEntries = slots.map((slot) => ({
+      schedule_id: schedule.id,
+      course_mapping_id: mapping.id,
+      day_of_week: slot.day_of_week,
+      time_slot_id: slot.time_slot_id,
+      room,
+      session_type: sessionType,
+    }));
 
-        if (!created) {
-          await entry.update({ room, session_type: sessionType }, { transaction: t });
-        }
-      })
-    );
+    if (upsertEntries.length > 0) {
+      await ScheduleEntry.bulkCreate(upsertEntries, {
+        updateOnDuplicate: ['room', 'session_type'],
+        transaction: t,
+      });
+    }
 
     // Delete stale entries for this mapping that are no longer in the current availability
     const currentSlotKeys = slots.map((s) => `${s.day_of_week}__${s.time_slot_id}`);
