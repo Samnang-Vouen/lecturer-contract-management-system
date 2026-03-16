@@ -66,25 +66,24 @@ async function syncScheduleForCourseMapping(mappingId) {
 
   const t = await sequelize.transaction();
   try {
-    let schedule = await Schedule.findOne({ where: { group_id: mapping.group_id }, transaction: t });
-    if (!schedule) {
-      const scheduleName = [
-        mapping.Group?.name || `Group ${mapping.group_id}`,
-        mapping.term || null,
-        mapping.academic_year || null,
-      ]
-        .filter(Boolean)
-        .join(' - ');
-      schedule = await Schedule.create(
-        {
-          group_id: mapping.group_id,
-          name: scheduleName || `Schedule for Group ${mapping.group_id}`,
-          notes: 'Auto-generated from accepted course mappings',
-          start_date: startDateFromAcademicYear(mapping.academic_year),
-        },
-        { transaction: t }
-      );
-    }
+    const scheduleName = [
+      mapping.Group?.name || `Group ${mapping.group_id}`,
+      mapping.term || null,
+      mapping.academic_year || null,
+    ]
+      .filter(Boolean)
+      .join(' - ');
+
+    const [schedule] = await Schedule.findOrCreate({
+      where: { group_id: mapping.group_id },
+      defaults: {
+        group_id: mapping.group_id,
+        name: scheduleName || `Schedule for Group ${mapping.group_id}`,
+        notes: 'Auto-generated from accepted course mappings',
+        start_date: startDateFromAcademicYear(mapping.academic_year),
+      },
+      transaction: t,
+    });
 
     const sessionType =
       (mapping.theory_groups || 0) > 0 && (mapping.lab_groups || 0) > 0
