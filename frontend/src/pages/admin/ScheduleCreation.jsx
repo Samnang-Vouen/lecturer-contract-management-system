@@ -420,28 +420,53 @@ export default function ScheduleCreation() {
     setIsGenerateSelectedLoading(true);
     let successCount = 0;
     try {
+      // Build a map of unique (class_name, specialization) combinations
+      const comboMap = new Map();
       for (const groupId of selectedGroupIds) {
         const group = visibleGroups.find((g) => g.id === groupId);
         if (!group) continue;
-        const groupKey = `group-${group.id}`;
-        setActiveDownloadId(groupKey);
+        const className = group?.Class?.name || undefined;
+        const specialization = group?.Class?.Specialization?.name || undefined;
+        const comboKey = `${className || ""}||${specialization || ""}`;
+        if (!comboMap.has(comboKey)) {
+          comboMap.set(comboKey, {
+            className,
+            specialization,
+            // Use class/specialization label for messages
+            label:
+              className && specialization
+                ? `${className} - ${specialization}`
+                : className || specialization || "schedule",
+          });
+        }
+      }
+
+      for (const [comboKey, combo] of comboMap.entries()) {
+        setActiveDownloadId(`combo-${comboKey}`);
+        const { className, specialization, label } = combo;
         try {
+          const safeClass = String(className || "class")
+            .replace(/\s+/g, "-")
+            .toLowerCase();
+          const safeSpec = specialization
+            ? String(specialization)
+                .replace(/\s+/g, "-")
+                .toLowerCase()
+            : "general";
           await downloadSchedulePdf(
             {
-              class_name: group?.Class?.name || undefined,
-              specialization: group?.Class?.Specialization?.name || undefined,
+              class_name: className,
+              specialization: specialization,
             },
-            `schedule-${String(group?.name || "group")
-              .replace(/\s+/g, "-")
-              .toLowerCase()}.pdf`,
+            `schedule-${safeClass}-${safeSpec}.pdf`,
           );
           successCount += 1;
         } catch (error) {
           console.error(
-            "[ScheduleCreation] failed to generate selected group PDF",
+            "[ScheduleCreation] failed to generate selected schedule PDF",
             error,
           );
-          toast.error(`Failed to generate PDF for group ${group.name}`);
+          toast.error(`Failed to generate PDF for ${label}`);
         }
       }
       setGeneratedCount((prev) => prev + successCount);
