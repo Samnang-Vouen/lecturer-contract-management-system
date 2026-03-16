@@ -16,6 +16,31 @@ function toTime(v) {
   return Number.isFinite(t) ? t : null;
 }
 
+function toLocalStartMs(v) {
+  if (!v) return null;
+  if (v instanceof Date) return toTime(v);
+  const s = String(v).trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (m) {
+    const dt = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 0, 0, 0, 0);
+    return Number.isFinite(dt.getTime()) ? dt.getTime() : null;
+  }
+  return toTime(v);
+}
+
+function toLocalEndMs(v) {
+  if (!v) return null;
+  if (v instanceof Date) return toTime(v);
+  const s = String(v).trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (m) {
+    // DATEONLY should be inclusive of the whole local day.
+    const dt = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 23, 59, 59, 999);
+    return Number.isFinite(dt.getTime()) ? dt.getTime() : null;
+  }
+  return toTime(v);
+}
+
 function normalizeStatus(status) {
   return String(status || '').trim().toUpperCase();
 }
@@ -76,8 +101,8 @@ export const useAdvisorDashboard = () => {
       let expiredContracts = 0;
 
       for (const c of contracts) {
-        const start = toTime(c?.start_date);
-        const end = toTime(c?.end_date);
+        const start = toLocalStartMs(c?.start_date);
+        const end = toLocalEndMs(c?.end_date);
 
         if (end != null && end < now) {
           expiredContracts += 1;

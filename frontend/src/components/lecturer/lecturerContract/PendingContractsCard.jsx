@@ -6,6 +6,7 @@ import {
   formatContractId, 
   calculateTotalHours, 
   formatMDY, 
+  toPositiveNumber,
   getLecturerDepartment,
   isContractExpired
 } from '../../../utils/lecturerContractHelpers';
@@ -33,15 +34,6 @@ export default function PendingContractsCard({
   });
 
   if (actionable.length === 0) return null;
-
-  const toPositiveNumber = (value) => {
-    if (value == null) return null;
-    const n =
-      typeof value === 'number'
-        ? value
-        : parseFloat(String(value).replace(/[^0-9.]/g, ''));
-    return Number.isFinite(n) && n > 0 ? n : null;
-  };
 
   const contract = actionable[0];
   const isAdvisor = String(contract?.contract_type || '').toUpperCase() === 'ADVISOR';

@@ -141,7 +141,7 @@ export async function runSchemaBootstrapping(sequelize) {
           } catch {}
           // Now ensure enum supports the current contract lifecycle
           await sequelize.query(
-            "ALTER TABLE `Teaching_Contracts` MODIFY COLUMN `status` ENUM('WAITING_LECTURER','WAITING_ADVISOR','WAITING_MANAGEMENT','REQUEST_REDO','COMPLETED','CONTRACT ENDED') NOT NULL DEFAULT 'WAITING_LECTURER'"
+            "ALTER TABLE `Teaching_Contracts` MODIFY COLUMN `status` ENUM('WAITING_LECTURER','WAITING_ADVISOR','WAITING_MANAGEMENT','REQUEST_REDO','COMPLETED','CONTRACT_ENDED') NOT NULL DEFAULT 'WAITING_LECTURER'"
           );
         }
       } catch (e) {

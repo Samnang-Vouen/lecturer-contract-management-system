@@ -8,6 +8,7 @@ import {
   formatContractId, 
   calculateTotalHours, 
   formatMDY, 
+  toPositiveNumber,
   getLecturerName, 
   getLecturerEmail, 
   getLecturerDepartment,
@@ -32,15 +33,6 @@ export default function ContractCard({
   onSign,
   onRedo,
 }) {
-  const toPositiveNumber = (value) => {
-    if (value == null) return null;
-    const n =
-      typeof value === 'number'
-        ? value
-        : parseFloat(String(value).replace(/[^0-9.]/g, ''));
-    return Number.isFinite(n) && n > 0 ? n : null;
-  };
-
   const isAdvisor = String(contract?.contract_type || '').toUpperCase() === 'ADVISOR';
   const formattedId = formatContractId(contract);
   const hours = calculateTotalHours(contract);
