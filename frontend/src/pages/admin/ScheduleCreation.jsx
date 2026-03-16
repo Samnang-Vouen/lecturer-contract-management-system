@@ -221,7 +221,7 @@ export default function ScheduleCreation() {
   useEffect(() => {
     let isActive = true;
 
-    const fetchVisibleGroupStats = async () => {
+    const fetchVisibleGroupStats = () => {
       if (!visibleGroups.length) {
         if (isActive) setGroupStatsById({});
         return;
@@ -229,27 +229,18 @@ export default function ScheduleCreation() {
 
       const nextStats = {};
 
-      await Promise.all(
-        visibleGroups.map(async (group) => {
-          const schedule = getScheduleForGroup(group);
-          const groupId = group?.id;
-          if (!groupId) return;
+      visibleGroups.forEach((group) => {
+        const schedule = getScheduleForGroup(group);
+        const groupId = group?.id;
+        if (!groupId) return;
 
-          if (!schedule?.id) {
-            nextStats[groupId] = { courses: 0, hoursLabel: "0" };
-            return;
-          }
+        if (!schedule?.id) {
+          nextStats[groupId] = { courses: 0, hoursLabel: "0" };
+          return;
+        }
 
-          try {
-            const { data } = await axiosInstance.get(
-              `/schedules/${schedule.id}`,
-            );
-            nextStats[groupId] = getScheduleStats(data?.schedule || {});
-          } catch {
-            nextStats[groupId] = getScheduleStats(schedule);
-          }
-        }),
-      );
+        nextStats[groupId] = getScheduleStats(schedule);
+      });
 
       if (isActive) {
         setGroupStatsById(nextStats);
