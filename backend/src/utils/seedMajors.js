@@ -19,9 +19,10 @@ export const seedMajors = async () => {
       }
     );
 
-    // Only remove non-canonical majors in non-production environments to
-    // avoid accidentally deleting custom/existing majors in production.
-    if (process.env.NODE_ENV !== 'production') {
+    // Only remove non-canonical majors in development or test environments to
+    // avoid accidentally deleting custom/existing majors in production
+    // or when NODE_ENV is unset/misconfigured.
+    if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
       await Major.destroy({
         where: {
           name: { [Op.notIn]: canonicalNames },
