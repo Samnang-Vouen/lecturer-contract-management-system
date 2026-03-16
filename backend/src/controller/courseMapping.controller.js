@@ -1,4 +1,5 @@
 // Course Mapping controller (lecturer-course-class assignments)
+import { Op } from 'sequelize';
 import CourseMapping from '../model/courseMapping.model.js';
 import ClassModel from '../model/class.model.js';
 import Course from '../model/course.model.js';
@@ -10,6 +11,7 @@ import ScheduleEntry from '../model/scheduleEntry.model.js';
 import { TimeSlot } from '../model/timeSlot.model.js';
 import { availabilityToScheduleEntries } from '../utils/availabilityParser.js';
 import ExcelJS from 'exceljs';
+import sequelize from '../config/db.js';
 
 // Helper to resolve department id based on admin's department
 async function resolveDeptId(req) {
@@ -41,16 +43,29 @@ async function syncScheduleForCourseMapping(mappingId) {
       { model: Course, attributes: ['id', 'course_name'] },
     ],
   });
-  if (!mapping) return;
-  if (!mapping.group_id) return;
-  if (!mapping.availability) return;
-  if (!isAcceptedStatus(mapping.status)) return;
+
+  // If mapping is not eligible, remove any stale schedule entries and return
+  const isEligible =
+    mapping &&
+    mapping.group_id &&
+    mapping.availability &&
+    isAcceptedStatus(mapping.status);
+
+  if (!isEligible) {
+    await ScheduleEntry.destroy({ where: { course_mapping_id: mappingId } });
+    return;
+  }
 
   const slots = await availabilityToScheduleEntries(mapping.availability, TimeSlot);
-  if (!slots.length) return;
 
-  let schedule = await Schedule.findOne({ where: { group_id: mapping.group_id } });
-  if (!schedule) {
+  // If availability yields no valid slots, clean up and return
+  if (!slots.length) {
+    await ScheduleEntry.destroy({ where: { course_mapping_id: mappingId } });
+    return;
+  }
+
+  const t = await sequelize.transaction();
+  try {
     const scheduleName = [
       mapping.Group?.name || `Group ${mapping.group_id}`,
       mapping.term || null,
@@ -58,47 +73,64 @@ async function syncScheduleForCourseMapping(mappingId) {
     ]
       .filter(Boolean)
       .join(' - ');
-    schedule = await Schedule.create({
-      group_id: mapping.group_id,
-      name: scheduleName || `Schedule for Group ${mapping.group_id}`,
-      notes: 'Auto-generated from accepted course mappings',
-      start_date: startDateFromAcademicYear(mapping.academic_year),
+
+    const [schedule] = await Schedule.findOrCreate({
+      where: { group_id: mapping.group_id },
+      defaults: {
+        group_id: mapping.group_id,
+        name: scheduleName || `Schedule for Group ${mapping.group_id}`,
+        notes: 'Auto-generated from accepted course mappings',
+        start_date: startDateFromAcademicYear(mapping.academic_year),
+      },
+      transaction: t,
     });
-  }
 
-  const sessionType =
-    (mapping.theory_groups || 0) > 0 && (mapping.lab_groups || 0) > 0
-      ? 'Lab + Theory'
-      : (mapping.lab_groups || 0) > 0
-        ? 'Lab'
-        : 'Theory';
-  const room =
-    mapping.theory_room_number || mapping.lab_room_number || mapping.room_number || 'TBA';
+    const sessionType =
+      (mapping.theory_groups || 0) > 0 && (mapping.lab_groups || 0) > 0
+        ? 'Lab + Theory'
+        : (mapping.lab_groups || 0) > 0
+          ? 'Lab'
+          : 'Theory';
+    const room =
+      mapping.theory_room_number || mapping.lab_room_number || mapping.room_number || 'TBA';
 
-  await Promise.all(
-    slots.map(async (slot) => {
-      const [entry, created] = await ScheduleEntry.findOrCreate({
-        where: {
-          schedule_id: schedule.id,
-          course_mapping_id: mapping.id,
-          day_of_week: slot.day_of_week,
-          time_slot_id: slot.time_slot_id,
-        },
-        defaults: {
-          schedule_id: schedule.id,
-          course_mapping_id: mapping.id,
-          day_of_week: slot.day_of_week,
-          time_slot_id: slot.time_slot_id,
-          room,
-          session_type: sessionType,
-        },
+    // Upsert entries that are currently in availability
+    const upsertEntries = slots.map((slot) => ({
+      schedule_id: schedule.id,
+      course_mapping_id: mapping.id,
+      day_of_week: slot.day_of_week,
+      time_slot_id: slot.time_slot_id,
+      room,
+      session_type: sessionType,
+    }));
+
+    if (upsertEntries.length > 0) {
+      await ScheduleEntry.bulkCreate(upsertEntries, {
+        updateOnDuplicate: ['room', 'session_type'],
+        transaction: t,
       });
+    }
 
-      if (!created) {
-        await entry.update({ room, session_type: sessionType });
-      }
-    })
-  );
+    // Delete stale entries for this mapping that are no longer in the current availability
+    const currentSlotKeys = slots.map((s) => `${s.day_of_week}__${s.time_slot_id}`);
+    const existingEntries = await ScheduleEntry.findAll({
+      where: { course_mapping_id: mapping.id, schedule_id: schedule.id },
+      attributes: ['id', 'day_of_week', 'time_slot_id'],
+      transaction: t,
+    });
+    const staleIds = existingEntries
+      .filter((e) => !currentSlotKeys.includes(`${e.day_of_week}__${e.time_slot_id}`))
+      .map((e) => e.id);
+    if (staleIds.length) {
+      await ScheduleEntry.destroy({ where: { id: { [Op.in]: staleIds } }, transaction: t });
+    }
+
+    await t.commit();
+  } catch (err) {
+    await t.rollback();
+    console.error(`[syncScheduleForCourseMapping] Transaction failed for mapping ${mappingId}:`, err);
+    throw err;
+  }
 }
 
 export const backfillCourseMappingSchedules = async (req, res) => {
