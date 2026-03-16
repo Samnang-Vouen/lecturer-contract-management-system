@@ -392,9 +392,14 @@ export default function ScheduleCreation() {
   const handleGenerateAll = useCallback(async () => {
     setIsGenerateAllLoading(true);
     try {
+      const normalizedSpecialization =
+        typeof selectedMajorName === "string"
+          ? selectedMajorName.replace(/\s*\([^)]*\)\s*$/, "").trim()
+          : undefined;
+
       await downloadSchedulePdf(
         {
-          specialization: selectedMajorName || undefined,
+          specialization: normalizedSpecialization || undefined,
         },
         "all-schedules.pdf",
       );
