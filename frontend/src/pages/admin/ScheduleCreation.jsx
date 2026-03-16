@@ -67,9 +67,7 @@ function getMajorAbbreviation(majorName) {
 
 function parseTimeSlotMinutes(label) {
   const raw = String(label || "").trim();
-  // Normalize backend format '08h:00-09h:30' → '08:00-09:30' and collapse spaces
-  const normalized = raw.replace(/h:/gi, ":").replace(/\s*-\s*/g, "-");
-  const match = normalized.match(/(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})/);
+  const match = raw.match(/(\d{1,2})h?:(\d{2})\s*-\s*(\d{1,2})h?:(\d{2})/);
   if (!match) return 0;
 
   const startMinutes = Number(match[1]) * 60 + Number(match[2]);
@@ -229,43 +227,29 @@ export default function ScheduleCreation() {
       const groupId = group?.id;
       if (!groupId) return;
 
-      if (!schedule) {
-        nextStats[groupId] = { courses: 0, hoursLabel: "0" };
+    const fetchVisibleGroupStats = () => {
+      if (!visibleGroups.length) {
+        if (isActive) setGroupStatsById({});
         return;
       }
 
-      // Prefer lightweight stats from the /schedules payload if present,
-      // and only fall back to computing from ScheduleEntries.
-      const hasPrecomputedCourses =
-        typeof schedule.courseCount === "number" ||
-        typeof schedule.courses === "number";
-      const hasPrecomputedHours =
-        typeof schedule.hoursLabel === "string" ||
-        typeof schedule.total_hours === "string" ||
-        typeof schedule.totalMinutes === "number";
+      const nextStats = {};
 
-      if (hasPrecomputedCourses || hasPrecomputedHours) {
-        const courses =
-          (typeof schedule.courseCount === "number"
-            ? schedule.courseCount
-            : typeof schedule.courses === "number"
-            ? schedule.courses
-            : 0) || 0;
+      visibleGroups.forEach((group) => {
+        const schedule = getScheduleForGroup(group);
+        const groupId = group?.id;
+        if (!groupId) return;
 
-        let hoursLabel = "0";
-        if (typeof schedule.hoursLabel === "string") {
-          hoursLabel = schedule.hoursLabel;
-        } else if (typeof schedule.total_hours === "string") {
-          hoursLabel = schedule.total_hours;
-        } else if (typeof schedule.totalMinutes === "number") {
-          // Convert minutes to hours with one decimal place (e.g., 90 -> "1.5").
-          const hours = schedule.totalMinutes / 60;
-          hoursLabel = hours.toFixed(1);
+        if (!schedule?.id) {
+          nextStats[groupId] = { courses: 0, hoursLabel: "0" };
+          return;
         }
 
-        nextStats[groupId] = { courses, hoursLabel };
-      } else {
         nextStats[groupId] = getScheduleStats(schedule);
+      });
+
+      if (isActive) {
+        setGroupStatsById(nextStats);
       }
     });
     setGroupStatsById(nextStats);
@@ -400,9 +384,14 @@ export default function ScheduleCreation() {
   const handleGenerateAll = useCallback(async () => {
     setIsGenerateAllLoading(true);
     try {
+      const normalizedSpecialization =
+        typeof selectedMajorName === "string"
+          ? selectedMajorName.replace(/\s*\([^)]*\)\s*$/, "").trim()
+          : undefined;
+
       await downloadSchedulePdf(
         {
-          specialization: selectedMajorName || undefined,
+          specialization: normalizedSpecialization || undefined,
         },
         "all-schedules.pdf",
       );
@@ -567,25 +556,9 @@ export default function ScheduleCreation() {
                 <h2 className="text-sm font-semibold text-slate-800">
                   Bulk Generation
                 </h2>
-                <div className="mt-3 flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleSelectAllVisible}
-                    className="rounded-md bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700"
-                  >
-                    Select All
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleClearSelection}
-                    className="rounded-md bg-red-100 px-3 py-1 text-xs font-semibold text-red-600"
-                  >
-                    Clear
-                  </button>
-                </div>
-                <p className="mt-2 text-xs text-slate-500">
-                  {selectedGroupIds.length} group
-                  {selectedGroupIds.length !== 1 ? "s" : ""} selected
+                <p className="mt-3 text-xs text-slate-500">
+                  All visible groups matching the selected filters will be
+                  included when generating PDFs.
                 </p>
                 {selectedGroupIds.length > 0 && (
                   <button
@@ -715,7 +688,7 @@ export default function ScheduleCreation() {
                 <colgroup>
                   <col style={{ width: "180px" }} />
                   {weekDays.map((_, idx) => (
-                    <col key={idx} style={{ width: "auto" }} />
+                    <col key={idx} style={{ width: "160px" }} />
                   ))}
                 </colgroup>
                 <thead>

@@ -21,6 +21,7 @@ import {
   CalendarDays,
   CalendarCheck,
   FileBarChart,
+  FolderUp,
   Shield,
   ChevronDown,
   Briefcase,
@@ -453,6 +454,24 @@ export function Sidebar({
                   >
                     <FileText className="h-4 w-4" />
                     <span>Contract Generation</span>
+                  </div>
+                </Link>
+
+                <Link
+                  to="/admin/upload-evaluation"
+                  onClick={isMobile ? onClose : undefined}
+                >
+                  <div
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200 hover:bg-blue-50",
+                      location.pathname.includes("/admin/upload-evaluation")
+                        ? "bg-blue-50 text-blue-600"
+                        : "text-gray-600 hover:text-blue-600",
+                    )}
+                    style={sidebarFont}
+                  >
+                    <FolderUp className="h-4 w-4" />
+                    <span>Upload Evaluation</span>
                   </div>
                 </Link>
               </>

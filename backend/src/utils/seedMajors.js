@@ -12,6 +12,11 @@ export const seedMajors = async () => {
     console.log('[seedMajors] Enforcing canonical majors list...');
     const canonicalNames = majorsData.map((major) => major.name);
 
+    const shouldEnforceCanonicalMajors =
+      process.env.SEED_MAJORS_ENFORCE_CANONICAL === 'true' ||
+      process.env.NODE_ENV === 'development' ||
+      process.env.NODE_ENV === 'test';
+
     await Major.bulkCreate(
       canonicalNames.map((name) => ({ name })),
       {
@@ -19,15 +24,17 @@ export const seedMajors = async () => {
       }
     );
 
-    // Only remove non-canonical majors in development or test environments to
-    // avoid accidentally deleting custom/existing majors in production
-    // or when NODE_ENV is unset/misconfigured.
-    if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+    if (shouldEnforceCanonicalMajors) {
+      console.log('[seedMajors] Deleting non-canonical majors (enforcement enabled)...');
       await Major.destroy({
         where: {
           name: { [Op.notIn]: canonicalNames },
         },
       });
+    } else {
+      console.log(
+        '[seedMajors] Skipping deletion of non-canonical majors (set SEED_MAJORS_ENFORCE_CANONICAL=true to enable).'
+      );
     }
 
     const totalCount = await Major.count();
