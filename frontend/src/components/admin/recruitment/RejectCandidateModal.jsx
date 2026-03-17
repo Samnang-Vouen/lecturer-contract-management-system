@@ -1,6 +1,7 @@
-import React from 'react';
+import React, {useEffect} from 'react';
 import { XCircle } from 'lucide-react';
 import LoadingSpinner from './LoadingSpinner';
+import { createPortal } from 'react-dom';
 
 export default function RejectCandidateModal({
   isOpen,
@@ -11,11 +12,27 @@ export default function RejectCandidateModal({
   reason,
   onReasonChange
 }) {
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen]);
+
   if (!isOpen || !candidate) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl border border-white/60 w-full max-w-2xl p-6">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      onMouseDown={onClose}
+      role="presentation"
+    >
+      <div className="bg-white rounded-2xl shadow-2xl border border-white/60 w-full max-w-2xl p-6"
+      onMouseDown={(e) => e.stopPropagation()} 
+      >
         <div className="flex items-center gap-4 mb-6">
           <div className="w-12 h-12 bg-gradient-to-r from-red-500 to-red-600 rounded-xl flex items-center justify-center">
             <XCircle className="w-6 h-6 text-white" />
@@ -67,6 +84,7 @@ export default function RejectCandidateModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

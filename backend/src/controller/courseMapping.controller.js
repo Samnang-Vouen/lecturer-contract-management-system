@@ -380,6 +380,36 @@ export const listCourseMappings = async (req, res) => {
   }
 };
 
+// GET /api/course-mappings/academic-years
+// Returns distinct academic_year values from accepted course mappings.
+export const listCourseMappingAcademicYears = async (req, res) => {
+  try {
+    const deptId = await resolveDeptId(req);
+    const where = {
+      academic_year: { [Op.ne]: null },
+      status: 'Accepted',
+    };
+    if (deptId) where.dept_id = deptId;
+
+    const rows = await CourseMapping.findAll({
+      attributes: ['academic_year'],
+      where,
+      group: ['academic_year'],
+      order: [['academic_year', 'DESC']],
+      raw: true,
+    });
+
+    const years = rows
+      .map((r) => String(r?.academic_year || '').trim())
+      .filter(Boolean);
+
+    return res.json({ data: years });
+  } catch (e) {
+    console.error('[listCourseMappingAcademicYears]', e);
+    return res.status(500).json({ message: 'Failed to list academic years', error: e.message });
+  }
+};
+
 export const createCourseMapping = async (req, res) => {
   try {
     const {

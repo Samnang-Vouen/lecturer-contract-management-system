@@ -22,6 +22,9 @@ const ClassModel = sequelize.define(
     term: { type: DataTypes.STRING(50), allowNull: true }, // e.g. "Term 1"
     year_level: { type: DataTypes.STRING(50), allowNull: true }, // e.g. "Year 2"
     academic_year: { type: DataTypes.STRING(20), allowNull: true }, // e.g. "2025-2026"
+    // Term date range (YYYY-MM-DD)
+    start_term: { type: DataTypes.DATEONLY, allowNull: true },
+    end_term: { type: DataTypes.DATEONLY, allowNull: true },
     total_class: { type: DataTypes.INTEGER, allowNull: true },
     // Use TEXT with JSON serialization for broader MySQL/MariaDB compatibility (older versions lack JSON type)
     courses: {

@@ -8,6 +8,7 @@ import lecturerRoutes from './lecturer.route.js';
 import lecturerSelfRoutes from './lecturerSelf.route.js';
 import lecturerProfileRoutes from './lecturerProfile.route.js';
 import onboardingRoutes from './onboarding.route.js';
+import advisorOnboardingRoutes from './advisorOnboarding.route.js';
 import classRoutes from './class.route.js';
 import courseRoutes from './course.route.js';
 import catalogRoutes from './catalog.route.js';
@@ -37,6 +38,7 @@ export function registerRoutes(app) {
   app.use('/api/interview-questions', interviewRoutes);
   app.use('/api/users', userRoutes);
   app.use('/api/lecturers/onboarding', onboardingRoutes);
+  app.use('/api/advisors/onboarding', advisorOnboardingRoutes);
   app.use('/api/lecturers', lecturerRoutes);
   app.use('/api/advisors', advisorRoutes);
   app.use('/api/lecturer', lecturerSelfRoutes);

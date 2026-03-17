@@ -99,7 +99,7 @@ export function useMappingValidation({ isOpen, isEditMode, form, groupsForSelect
       if (!teachingType?.theoryHour) errs.push('Select Theory hours (15h or 30h).');
 
       if (hasClass) {
-        if (!isEditMode && hasGroups) {
+        if (hasGroups) {
           const thIds = Array.isArray(form.theory_group_ids) ? form.theory_group_ids.map(String) : [];
           if (thIds.length === 0) errs.push('Select at least one Theory group.');
           const thRoomMap =
@@ -110,7 +110,7 @@ export function useMappingValidation({ isOpen, isEditMode, form, groupsForSelect
               errs.push(`Theory room is required for ${gName || `Group #${gid}`}.`);
             }
           });
-        } else if (!isEditMode) {
+        } else {
           if (!String(form.theory_room_number || '').trim()) errs.push('Theory Room is required.');
         }
       }
@@ -118,7 +118,7 @@ export function useMappingValidation({ isOpen, isEditMode, form, groupsForSelect
 
     if (teachingType?.labSelected) {
       if (hasClass) {
-        if (!isEditMode && hasGroups) {
+        if (hasGroups) {
           const lbIds = Array.isArray(form.lab_group_ids) ? form.lab_group_ids.map(String) : [];
           if (lbIds.length === 0) errs.push('Select at least one Lab group.');
           const lbRoomMap =
@@ -129,7 +129,7 @@ export function useMappingValidation({ isOpen, isEditMode, form, groupsForSelect
               errs.push(`Lab room is required for ${gName || `Group #${gid}`}.`);
             }
           });
-        } else if (!isEditMode) {
+        } else {
           if (!String(form.lab_room_number || '').trim()) errs.push('Lab Room is required.');
         }
       }

@@ -1,5 +1,5 @@
 import Major from '../model/major.model.js';
-import { Op } from 'sequelize';
+import { Op, col, fn, where } from 'sequelize';
 
 const CANONICAL_MAJORS = [
   'Software Engineering',
@@ -30,6 +30,12 @@ function canonicalizeMajorName(name) {
 
   const normalized = withoutAbbreviation.toLowerCase();
   return MAJOR_ALIAS_TO_CANONICAL[normalized] || null;
+}
+
+function canonicalMajorPrefixWhere(canonicalName) {
+  return where(fn('LOWER', col('name')), {
+    [Op.like]: `${String(canonicalName).toLowerCase()}%`,
+  });
 }
 
 export const getMajors = async (req, res) => {
@@ -63,11 +69,7 @@ export const createMajor = async (req, res) => {
 
     // Check if major already exists (case-insensitive, allow seeded names with abbreviations)
     const existingMajor = await Major.findOne({
-      where: {
-        name: {
-          [Op.iLike]: `${canonicalName}%`,
-        },
-      },
+      where: canonicalMajorPrefixWhere(canonicalName),
     });
 
     if (existingMajor) {
@@ -92,11 +94,7 @@ export const findOrCreateMajors = async (majorNames) => {
 
     // Try to find existing major (case-insensitive, allow seeded names with abbreviations)
     let major = await Major.findOne({
-      where: {
-        name: {
-          [Op.iLike]: `${canonicalName}%`,
-        },
-      },
+      where: canonicalMajorPrefixWhere(canonicalName),
     });
 
     // If not found, create it
@@ -107,11 +105,7 @@ export const findOrCreateMajors = async (majorNames) => {
         // Handle unique constraint error in case of race condition
         if (error.name === 'SequelizeUniqueConstraintError') {
           major = await Major.findOne({
-            where: {
-              name: {
-                [Op.iLike]: `${canonicalName}%`,
-              },
-            },
+            where: canonicalMajorPrefixWhere(canonicalName),
           });
         } else {
           throw error;

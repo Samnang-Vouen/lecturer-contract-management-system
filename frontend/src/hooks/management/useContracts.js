@@ -3,6 +3,17 @@ import { listContracts } from '../../services/contract.service';
 import { listAdvisorContracts } from '../../services/advisorContract.service';
 import { parseDateOnlyToLocalDate } from '../../utils/lecturerContractHelpers';
 
+function mapAdvisorStatusFilter(status) {
+  const normalized = String(status || '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '_');
+
+  if (normalized === 'WAITING_ADVISOR') return 'DRAFT';
+  if (normalized === 'WAITING_LECTURER') return '__NO_MATCH__';
+  return normalized || undefined;
+}
+
 /**
  * Custom hook to manage contract fetching and filtering
  */
@@ -44,7 +55,7 @@ export const useContracts = () => {
       if (statusRaw === 'REQUEST_REDO') return 'REQUEST_REDO';
       if (statusRaw === 'COMPLETED' || (hasAdvisorSig && hasManagementSig)) return 'COMPLETED';
       if (statusRaw === 'WAITING_MANAGEMENT' || (hasAdvisorSig && !hasManagementSig)) return 'WAITING_MANAGEMENT';
-      return 'DRAFT';
+      return 'WAITING_ADVISOR';
     })();
 
     return {
@@ -57,6 +68,7 @@ export const useContracts = () => {
   const fetchContracts = async () => {
     try {
       setLoading(true);
+      const advisorStatus = mapAdvisorStatusFilter(status);
       const [teachingResult, advisorResult] = await Promise.allSettled([
         listContracts({
           page,
@@ -69,7 +81,7 @@ export const useContracts = () => {
           page,
           limit,
           q: q || undefined,
-          status: status || undefined,
+          status: advisorStatus,
         }),
       ]);
 

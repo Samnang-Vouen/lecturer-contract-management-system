@@ -166,6 +166,48 @@ function toDateOnly(v) {
   }
 }
 
+async function requireOwnedAdvisorContract(req, res, contractId, options = {}) {
+  const contract = await AdvisorContract.findByPk(contractId, options);
+  if (!contract) {
+    res.status(HTTP_STATUS.NOT_FOUND).json({ message: 'Not found' });
+    return null;
+  }
+
+  if (Number(contract.lecturer_user_id) !== Number(req.user?.id)) {
+    res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied' });
+    return null;
+  }
+
+  return contract;
+}
+
+async function requireAdvisorContractViewAccess(req, res, contractId, options = {}) {
+  const contract = await AdvisorContract.findByPk(contractId, options);
+  if (!contract) {
+    res.status(HTTP_STATUS.NOT_FOUND).json({ message: 'Not found' });
+    return null;
+  }
+
+  const role = String(req.user?.role || '').toLowerCase();
+  if (Number(contract.lecturer_user_id) === Number(req.user?.id)) {
+    return contract;
+  }
+  if (role === 'superadmin') {
+    return contract;
+  }
+  if (role === 'admin' || role === 'management') {
+    const owner = await User.findByPk(contract.lecturer_user_id, {
+      attributes: ['department_name'],
+    });
+    if (String(owner?.department_name || '') === String(req.user?.department_name || '')) {
+      return contract;
+    }
+  }
+
+  res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied' });
+  return null;
+}
+
 // Signature upload (multipart). Mirrors teaching contract signature handling.
 const advisorSignatureStorage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -193,28 +235,14 @@ export async function uploadAdvisorContractSignature(req, res) {
       return res.status(HTTP_STATUS.BAD_REQUEST).json({ message: "Invalid 'who' (must be advisor|management)" });
     }
 
-    const found = await AdvisorContract.findByPk(id, {
-      include: [
-        {
-          model: User,
-          as: 'lecturer',
-          attributes: ['id', 'department_name', 'display_name', 'email'],
-          required: false,
-        },
-      ],
-    });
-    if (!found) return res.status(HTTP_STATUS.NOT_FOUND).json({ message: 'Not found' });
+    // Advisors must own the contract to sign it; management/admin can sign if they
+    // have department-scoped access similar to requireAdvisorContractViewAccess.
+    const found =
+      who === 'advisor'
+        ? await requireOwnedAdvisorContract(req, res, id)
+        : await requireAdvisorContractViewAccess(req, res, id);
+    if (!found) return;
     if (!req.file) return res.status(HTTP_STATUS.BAD_REQUEST).json({ message: 'No file uploaded' });
-
-    const actorRole = String(req.user?.role || '').toLowerCase();
-    if ((actorRole === 'lecturer' || actorRole === 'advisor') && found.lecturer_user_id !== req.user.id) {
-      return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied' });
-    }
-    if (['admin', 'management'].includes(actorRole)) {
-      if (String(found.lecturer?.department_name || '') !== String(req.user?.department_name || '')) {
-        return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied' });
-      }
-    }
 
     // Move file into person-specific folder
     let ownerName = 'unknown';
@@ -362,13 +390,6 @@ export async function listAdvisorContracts(req, res) {
     if (actorRole === 'lecturer' || actorRole === 'advisor') {
       where.lecturer_user_id = req.user.id;
     }
-    if (['admin', 'management'].includes(actorRole)) {
-      // Scope to department
-      const dept = req.user?.department_name || null;
-      if (!dept) return res.json({ data: [], page, limit, total: 0 });
-      // Filter via joined lecturer
-      // Keep where empty and apply include-required filter
-    }
 
     const include = [
       {
@@ -386,9 +407,11 @@ export async function listAdvisorContracts(req, res) {
       },
     ];
 
-    if (['admin', 'management'].includes(actorRole)) {
+    if (actorRole === 'admin' || actorRole === 'management') {
+      const dept = req.user?.department_name || null;
+      if (!dept) return res.json({ data: [], page, limit, total: 0 });
       include[0].required = true;
-      include[0].where = { department_name: req.user.department_name };
+      include[0].where = { department_name: dept };
     }
 
     // Optional status filter (normalized). If a teaching-contract status is provided,
@@ -453,6 +476,11 @@ export async function listAdvisorContracts(req, res) {
 export async function getAdvisorContract(req, res) {
   try {
     const id = parseInt(req.params.id, 10);
+    const allowedContract = await requireAdvisorContractViewAccess(req, res, id, {
+      attributes: ['id', 'lecturer_user_id'],
+    });
+    if (!allowedContract) return;
+
     const found = await AdvisorContract.findByPk(id, {
       include: [
         {
@@ -471,16 +499,6 @@ export async function getAdvisorContract(req, res) {
     });
     if (!found) return res.status(HTTP_STATUS.NOT_FOUND).json({ message: 'Not found' });
 
-    const actorRole = String(req.user?.role || '').toLowerCase();
-    if ((actorRole === 'lecturer' || actorRole === 'advisor') && found.lecturer_user_id !== req.user.id) {
-      return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied' });
-    }
-    if (['admin', 'management'].includes(actorRole)) {
-      if (String(found.lecturer?.department_name || '') !== String(req.user?.department_name || '')) {
-        return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied' });
-      }
-    }
-
     return res.json(found);
   } catch (e) {
     console.error('[getAdvisorContract]', e);
@@ -490,33 +508,75 @@ export async function getAdvisorContract(req, res) {
   }
 }
 
+async function requireAdvisorStatusUpdateAccess(req, res, contractId) {
+  try {
+    const currentUser = req.user;
+    if (!currentUser) {
+      res.status(HTTP_STATUS.UNAUTHORIZED).json({ message: 'Unauthorized' });
+      return null;
+    }
+
+    const found = await AdvisorContract.findByPk(contractId, {
+      include: [
+        {
+          model: User,
+          as: 'lecturer',
+          attributes: ['id', 'email', 'display_name', 'department_name'],
+          required: false,
+        },
+      ],
+    });
+
+    if (!found) {
+      res.status(HTTP_STATUS.NOT_FOUND).json({ message: 'Not found' });
+      return null;
+    }
+
+    const isOwner = found.lecturer_user_id === currentUser.id;
+
+    let privilegedRole = null;
+    const elevatedRoles = ['admin', 'management', 'superadmin'];
+    for (const roleName of elevatedRoles) {
+      // Reuse existing role-checking helper; ignore transaction for this check.
+      const hasRole = await ensureUserHasRole(currentUser.id, roleName);
+      if (hasRole) {
+        privilegedRole = roleName;
+        break;
+      }
+    }
+
+    if (!isOwner && !privilegedRole) {
+      res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Forbidden' });
+      return null;
+    }
+
+    if (!isOwner && privilegedRole !== 'superadmin') {
+      const lecturerDept = found.lecturer ? found.lecturer.department_name : null;
+      const userDept = currentUser.department_name;
+      if (!lecturerDept || !userDept || lecturerDept !== userDept) {
+        res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Forbidden: cross-department access denied' });
+        return null;
+      }
+    }
+
+    return found;
+  } catch (e) {
+    console.error('[requireAdvisorStatusUpdateAccess]', e);
+    res
+      .status(HTTP_STATUS.SERVER_ERROR)
+      .json({ message: 'Failed to authorize advisor status update', error: e.message });
+    return null;
+  }
+}
+
 export async function updateAdvisorStatus(req, res) {
   try {
     const id = parseInt(req.params.id, 10);
     const body = req.validated?.body || req.body || {};
     const status = String(body.status || '').trim().toUpperCase().replace(/\s+/g, '_');
 
-    const found = await AdvisorContract.findByPk(id, {
-      include: [
-        {
-          model: User,
-          as: 'lecturer',
-          attributes: ['id', 'department_name'],
-          required: false,
-        },
-      ],
-    });
-    if (!found) return res.status(HTTP_STATUS.NOT_FOUND).json({ message: 'Not found' });
-
-    const actorRole = String(req.user?.role || '').toLowerCase();
-    if ((actorRole === 'lecturer' || actorRole === 'advisor') && found.lecturer_user_id !== req.user.id) {
-      return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied' });
-    }
-    if (['admin', 'management'].includes(actorRole)) {
-      if (String(found.lecturer?.department_name || '') !== String(req.user?.department_name || '')) {
-        return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied' });
-      }
-    }
+    const found = await requireAdvisorStatusUpdateAccess(req, res, id);
+    if (!found) return;
 
     await found.update({ status });
     return res.json({ message: 'Updated', id, status });
@@ -536,33 +596,14 @@ export async function editAdvisorContract(req, res) {
     const id = parseInt(req.params.id, 10);
     const body = req.validated?.body || req.body || {};
 
-    const found = await AdvisorContract.findByPk(id, {
-      include: [
-        {
-          model: User,
-          as: 'lecturer',
-          attributes: ['id', 'department_name'],
-          required: false,
-        },
-      ],
+    const found = await AdvisorContract.findOne({
+      where: { id },
       transaction: tx,
       lock: tx.LOCK.UPDATE,
     });
     if (!found) {
       await tx.rollback();
-      return res.status(HTTP_STATUS.NOT_FOUND).json({ message: 'Not found' });
-    }
-
-    const actorRole = String(req.user?.role || '').toLowerCase();
-    if (actorRole !== 'admin') {
-      await tx.rollback();
-      return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied' });
-    }
-    if (['admin', 'management'].includes(actorRole)) {
-      if (String(found.lecturer?.department_name || '') !== String(req.user?.department_name || '')) {
-        await tx.rollback();
-        return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied' });
-      }
+      return res.status(404).json({ message: 'Advisor contract not found' });
     }
 
     if (String(found.status || '').toUpperCase() !== 'REQUEST_REDO') {
@@ -612,6 +653,11 @@ export async function editAdvisorContract(req, res) {
 export async function generateAdvisorPdf(req, res) {
   try {
     const id = parseInt(req.params.id, 10);
+    const allowedContract = await requireAdvisorContractViewAccess(req, res, id, {
+      attributes: ['id', 'lecturer_user_id'],
+    });
+    if (!allowedContract) return;
+
     const found = await AdvisorContract.findByPk(id, {
       include: [
         {
@@ -630,16 +676,6 @@ export async function generateAdvisorPdf(req, res) {
       ],
     });
     if (!found) return res.status(HTTP_STATUS.NOT_FOUND).json({ message: 'Not found' });
-
-    const actorRole = String(req.user?.role || '').toLowerCase();
-    if ((actorRole === 'lecturer' || actorRole === 'advisor') && found.lecturer_user_id !== req.user.id) {
-      return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied' });
-    }
-    if (['admin', 'management'].includes(actorRole)) {
-      if (String(found.lecturer?.department_name || '') !== String(req.user?.department_name || '')) {
-        return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied' });
-      }
-    }
 
     let html = loadTemplate('Advisor_Contract.html');
     html = embedLogo(html);

@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Eye, XCircle, Mail, Phone, GraduationCap, Calendar, Star, MessageCircle } from 'lucide-react';
 import { formatDate, getStatusColor, ratingColorClass } from '../../../utils/recruitmentHelpers';
 
@@ -9,11 +10,33 @@ export default function ViewCandidateModal({
   categories,
   candidateResponses
 }) {
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen]);
+
   if (!isOpen || !candidate) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl border border-white/60 w-full max-w-4xl flex flex-col" style={{ maxHeight: '90vh' }}>
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      onMouseDown={onClose}
+      role="presentation"
+    >
+      <div
+        className="bg-white rounded-2xl shadow-2xl border border-white/60 w-full max-w-4xl flex flex-col"
+        style={{ maxHeight: '90vh' }}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Candidate Details"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         <div className="p-6 border-b border-slate-200/50 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div>
@@ -146,6 +169,7 @@ export default function ViewCandidateModal({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

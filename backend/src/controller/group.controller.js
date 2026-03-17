@@ -25,7 +25,7 @@ export const getGroup = async (req, res) => {
       include: [
         {
           model: ClassModel,
-          attributes: ['name'],
+          attributes: ['name', 'start_term', 'end_term'],
           required: !!class_name || !!specialization || !!dept_name,
           where: class_name ? { name: class_name } : undefined,
           include: [

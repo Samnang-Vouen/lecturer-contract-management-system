@@ -1,6 +1,29 @@
 // Schema bootstrapping moved from server.js for single-responsibility startup
 
 export async function runSchemaBootstrapping(sequelize) {
+  // Ensure Classes has term date range columns (non-destructive add-if-missing)
+  try {
+    const table = 'Classes';
+    const addIfMissing = async (col, ddl) => {
+      const [rows] = await sequelize.query(`SHOW COLUMNS FROM \`${table}\` LIKE '${col}'`);
+      if (!rows.length) {
+        console.log(`[schema] Adding missing column ${table}.${col}`);
+        await sequelize.query(ddl);
+      }
+    };
+
+    await addIfMissing(
+      'start_term',
+      'ALTER TABLE `Classes` ADD COLUMN `start_term` DATE NULL AFTER `academic_year`'
+    );
+    await addIfMissing(
+      'end_term',
+      'ALTER TABLE `Classes` ADD COLUMN `end_term` DATE NULL AFTER `start_term`'
+    );
+  } catch (e) {
+    console.warn('[schema] ensure Classes start/end term columns failed:', e.message);
+  }
+
   // Ensure lecturer_profiles has candidate_id column (used to link hourly rates reliably)
   try {
     const table = 'lecturer_profiles';
@@ -68,6 +91,22 @@ export async function runSchemaBootstrapping(sequelize) {
     );
   } catch (e) {
     console.warn('[schema] ensure Course_Mappings theory/lab columns failed:', e.message);
+  }
+
+  // Ensure schedules has persisted custom cell note storage
+  try {
+    const table = 'schedules';
+    const [rows] = await sequelize.query(
+      `SHOW COLUMNS FROM \`${table}\` LIKE 'custom_cells'`
+    );
+    if (!rows.length) {
+      console.log(`[schema] Adding missing column ${table}.custom_cells`);
+      await sequelize.query(
+        `ALTER TABLE \`${table}\` ADD COLUMN \`custom_cells\` TEXT NULL AFTER \`notes\``
+      );
+    }
+  } catch (e) {
+    console.warn('[schema] ensure schedules custom_cells failed:', e.message);
   }
 
   // Ensure new columns exist on legacy Teaching_Contracts table

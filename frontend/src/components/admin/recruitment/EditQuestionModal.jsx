@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Edit2 } from 'lucide-react';
 import LoadingSpinner from './LoadingSpinner';
 
@@ -12,11 +13,32 @@ export default function EditQuestionModal({
   loadingSuggestions,
   onSelectSuggestion
 }) {
+  useEffect(() => {
+    if (!isOpen || !question) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen, question]);
+
   if (!isOpen || !question) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl border border-white/60 w-full max-w-2xl p-6">
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      onMouseDown={onClose}
+      role="presentation"
+    >
+      <div
+        className="bg-white rounded-2xl shadow-2xl border border-white/60 w-full max-w-2xl p-6"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Edit Question"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center gap-4 mb-6">
           <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
             <Edit2 className="w-6 h-6 text-white" />
@@ -80,6 +102,7 @@ export default function EditQuestionModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

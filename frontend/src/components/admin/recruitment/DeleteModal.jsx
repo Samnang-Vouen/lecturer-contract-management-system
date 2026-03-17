@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Trash2 } from 'lucide-react';
 import LoadingSpinner from './LoadingSpinner';
 
@@ -10,11 +11,32 @@ export default function DeleteModal({
   title,
   message
 }) {
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl border border-white/60 w-full max-w-md p-6">
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      onMouseDown={onClose}
+      role="presentation"
+    >
+      <div
+        className="bg-white rounded-2xl shadow-2xl border border-white/60 w-full max-w-md p-6"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Delete Confirmation"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         <div className="text-center mb-6">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Trash2 className="w-8 h-8 text-red-600" />
@@ -41,6 +63,7 @@ export default function DeleteModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

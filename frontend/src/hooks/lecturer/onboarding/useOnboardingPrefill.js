@@ -8,7 +8,7 @@ import { composeEnglishWithTitle } from '../../../utils/nameFormatting';
  */
 export const useOnboardingPrefill = (formData, setFormData, handlePhoneChange) => {
   const { authUser } = useAuthStore();
-  const candidateContactFetched = useRef(false);
+  const contactPrefillFetched = useRef(false);
 
   // Auto-fill school email from logged in user
   useEffect(() => {
@@ -17,45 +17,75 @@ export const useOnboardingPrefill = (formData, setFormData, handlePhoneChange) =
     }
   }, [authUser, formData.schoolEmail, setFormData]);
 
-  // Prefill phone and personal email from candidate record
+  // Prefill contact fields from existing profile first, then candidate record as fallback.
   useEffect(() => {
-    if (candidateContactFetched.current) return;
+    if (contactPrefillFetched.current) return;
     
     let cancelled = false;
     
-    const fetchCandidateContact = async () => {
+    const fetchContactDetails = async () => {
       try {
         const needsPhone = !formData.phoneNumber;
         const needsEmail = !formData.personalEmail;
         if (!needsPhone && !needsEmail) {
-          candidateContactFetched.current = true;
+          contactPrefillFetched.current = true;
+          return;
+        }
+
+        let profilePhone = '';
+        let profileEmail = '';
+
+        try {
+          const profile = await getMyLecturerProfile();
+          if (cancelled) return;
+
+          profilePhone = profile?.phone_number || '';
+          profileEmail = profile?.personal_email || '';
+
+          setFormData(prev => ({
+            ...prev,
+            phoneNumber: needsPhone && profilePhone ? profilePhone : prev.phoneNumber,
+            personalEmail: needsEmail && profileEmail ? profileEmail : prev.personalEmail
+          }));
+
+          if (needsPhone && profilePhone) {
+            handlePhoneChange(profilePhone);
+          }
+        } catch (e) {
+          // ignore: profile may not exist yet
+        }
+
+        const stillNeedsPhone = needsPhone && !profilePhone;
+        const stillNeedsEmail = needsEmail && !profileEmail;
+        if (!stillNeedsPhone && !stillNeedsEmail) {
+          contactPrefillFetched.current = true;
           return;
         }
 
         const res = await getMyCandidateContact();
         if (cancelled) return;
 
-        candidateContactFetched.current = true;
+        contactPrefillFetched.current = true;
 
         const phone = res?.phone || '';
         const email = res?.personalEmail || '';
 
         setFormData(prev => ({
           ...prev,
-          phoneNumber: needsPhone && phone ? phone : prev.phoneNumber,
-          personalEmail: needsEmail && email ? email : prev.personalEmail
+          phoneNumber: stillNeedsPhone && phone ? phone : prev.phoneNumber,
+          personalEmail: stillNeedsEmail && email ? email : prev.personalEmail
         }));
 
-        if (needsPhone && phone) {
+        if (stillNeedsPhone && phone) {
           handlePhoneChange(phone);
         }
       } catch (e) {
         // Silently ignore - candidate record may not exist if lecturer wasn't recruited through the system
-        candidateContactFetched.current = true;
+        contactPrefillFetched.current = true;
       }
     };
 
-    fetchCandidateContact();
+    fetchContactDetails();
     
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps

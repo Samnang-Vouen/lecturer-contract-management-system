@@ -46,7 +46,19 @@ export async function submitLecturerOnboarding(formData) {
   return res.data;
 }
 
+export async function submitAdvisorOnboarding(formData) {
+  const res = await axios.post('/advisors/onboarding', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return res.data;
+}
+
 export async function getLecturerOnboardingStatus() {
   const res = await axios.get('/lecturers/onboarding/status');
+  return res.data;
+}
+
+export async function getAdvisorOnboardingStatus() {
+  const res = await axios.get('/advisors/onboarding/status');
   return res.data;
 }
