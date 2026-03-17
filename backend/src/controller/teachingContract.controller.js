@@ -131,6 +131,29 @@ async function requireOwnedTeachingContract(req, res, contractId, options = {}) 
   return contract;
 }
 
+async function requireTeachingContractViewAccess(req, res, contractId, options = {}) {
+  const contract = await TeachingContract.findByPk(contractId, options);
+  if (!contract) {
+    res.status(HTTP_STATUS.NOT_FOUND).json({ message: 'Not found' });
+    return null;
+  }
+
+  const role = String(req.user?.role || '').toLowerCase();
+  if (Number(contract.lecturer_user_id) === Number(req.user?.id)) {
+    return contract;
+  }
+  if (role === 'superadmin') {
+    return contract;
+  }
+  if (role === 'admin' || role === 'management') {
+    const ok = await isContractInManagerDept(contract.id, req);
+    if (ok) return contract;
+  }
+
+  res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied' });
+  return null;
+}
+
 export async function createDraftContract(req, res) {
   try {
     const { lecturer_user_id, academic_year, term, year_level, start_date, end_date } = req.body;
@@ -306,10 +329,10 @@ export async function createDraftContract(req, res) {
 export async function getContract(req, res) {
   try {
     const id = parseInt(req.params.id, 10);
-    const ownedContract = await requireOwnedTeachingContract(req, res, id, {
+    const allowedContract = await requireTeachingContractViewAccess(req, res, id, {
       attributes: ['id', 'lecturer_user_id'],
     });
-    if (!ownedContract) return;
+    if (!allowedContract) return;
 
     const contract = await TeachingContract.findByPk(id, {
       include: [
@@ -370,8 +393,10 @@ export async function listContracts(req, res) {
       where.status = CONTRACT_STATUS_ALIAS_MAP[s] || s;
     }
 
-    // Only the contract owner may access teaching contracts.
-    where.lecturer_user_id = req.user.id;
+    const role = String(req.user?.role || '').toLowerCase();
+    if (role === 'lecturer') {
+      where.lecturer_user_id = req.user.id;
+    }
 
     // We'll use include joins for admin scoping instead of raw EXISTS to avoid alias issues
     const Sequelize = (await import('sequelize')).default;
@@ -402,6 +427,27 @@ export async function listContracts(req, res) {
         ],
       },
     ];
+
+    if (role === 'admin' || role === 'management') {
+      const deptId = await resolveManagerDeptId(req);
+      if (!deptId) {
+        return res.json({ data: [], page, limit, total: 0 });
+      }
+      include[0] = {
+        model: TeachingContractCourse,
+        as: 'contractCourses',
+        required: true,
+        include: [
+          {
+            model: Course,
+            required: true,
+            where: { dept_id: deptId },
+            attributes: ['id', 'dept_id', 'course_code', 'course_name'],
+            include: [{ model: Department, required: false, attributes: ['id', 'dept_name'] }],
+          },
+        ],
+      };
+    }
 
     // Basic text search on lecturer fields
     if (q) {
@@ -534,10 +580,10 @@ export async function listContracts(req, res) {
 export async function generatePdf(req, res) {
   try {
     const id = parseInt(req.params.id, 10);
-    const ownedContract = await requireOwnedTeachingContract(req, res, id, {
+    const allowedContract = await requireTeachingContractViewAccess(req, res, id, {
       attributes: ['id', 'lecturer_user_id'],
     });
-    if (!ownedContract) return;
+    if (!allowedContract) return;
 
     const contract = await TeachingContract.findByPk(id, {
       include: [
@@ -897,7 +943,7 @@ export async function updateStatus(req, res) {
 export async function listRedoRequests(req, res) {
   try {
     const id = parseInt(req.params.id, 10);
-    const contract = await requireOwnedTeachingContract(req, res, id, {
+    const contract = await requireTeachingContractViewAccess(req, res, id, {
       attributes: ['id', 'lecturer_user_id'],
     });
     if (!contract) return;

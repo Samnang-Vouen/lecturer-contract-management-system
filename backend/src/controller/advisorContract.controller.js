@@ -181,6 +181,33 @@ async function requireOwnedAdvisorContract(req, res, contractId, options = {}) {
   return contract;
 }
 
+async function requireAdvisorContractViewAccess(req, res, contractId, options = {}) {
+  const contract = await AdvisorContract.findByPk(contractId, options);
+  if (!contract) {
+    res.status(HTTP_STATUS.NOT_FOUND).json({ message: 'Not found' });
+    return null;
+  }
+
+  const role = String(req.user?.role || '').toLowerCase();
+  if (Number(contract.lecturer_user_id) === Number(req.user?.id)) {
+    return contract;
+  }
+  if (role === 'superadmin') {
+    return contract;
+  }
+  if (role === 'admin' || role === 'management') {
+    const owner = await User.findByPk(contract.lecturer_user_id, {
+      attributes: ['department_name'],
+    });
+    if (String(owner?.department_name || '') === String(req.user?.department_name || '')) {
+      return contract;
+    }
+  }
+
+  res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied' });
+  return null;
+}
+
 // Signature upload (multipart). Mirrors teaching contract signature handling.
 const advisorSignatureStorage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -354,7 +381,10 @@ export async function listAdvisorContracts(req, res) {
     const statusQuery = req.query.status;
 
     const where = {};
-    where.lecturer_user_id = req.user.id;
+    const actorRole = String(req.user?.role || '').toLowerCase();
+    if (actorRole === 'lecturer' || actorRole === 'advisor') {
+      where.lecturer_user_id = req.user.id;
+    }
 
     const include = [
       {
@@ -371,6 +401,13 @@ export async function listAdvisorContracts(req, res) {
         required: false,
       },
     ];
+
+    if (actorRole === 'admin' || actorRole === 'management') {
+      const dept = req.user?.department_name || null;
+      if (!dept) return res.json({ data: [], page, limit, total: 0 });
+      include[0].required = true;
+      include[0].where = { department_name: dept };
+    }
 
     // Optional status filter (normalized). If a teaching-contract status is provided,
     // return empty instead of error to keep shared UIs simple.
@@ -434,10 +471,10 @@ export async function listAdvisorContracts(req, res) {
 export async function getAdvisorContract(req, res) {
   try {
     const id = parseInt(req.params.id, 10);
-    const ownedContract = await requireOwnedAdvisorContract(req, res, id, {
+    const allowedContract = await requireAdvisorContractViewAccess(req, res, id, {
       attributes: ['id', 'lecturer_user_id'],
     });
-    if (!ownedContract) return;
+    if (!allowedContract) return;
 
     const found = await AdvisorContract.findByPk(id, {
       include: [
@@ -549,10 +586,10 @@ export async function editAdvisorContract(req, res) {
 export async function generateAdvisorPdf(req, res) {
   try {
     const id = parseInt(req.params.id, 10);
-    const ownedContract = await requireOwnedAdvisorContract(req, res, id, {
+    const allowedContract = await requireAdvisorContractViewAccess(req, res, id, {
       attributes: ['id', 'lecturer_user_id'],
     });
-    if (!ownedContract) return;
+    if (!allowedContract) return;
 
     const found = await AdvisorContract.findByPk(id, {
       include: [
