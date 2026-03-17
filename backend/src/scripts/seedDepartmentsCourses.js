@@ -8,7 +8,7 @@ import { Op } from 'sequelize';
 // ============================================================================
 const desiredDepartments = [
   'Computer Science',
-  'Telecommunications and Network',
+  'Telecommunications and Networking',
   'Digital Business',
   'Foundation'
 ];
@@ -43,11 +43,11 @@ const desiredCourses = [
     description: 'Design and implementation of database systems'
   },
 
-  // Telecommunications and Network Department
+  // Telecommunications and Networking Department
   {
     course_code: 'NET101',
     course_name: 'Network Fundamentals',
-    dept_name: 'Telecommunications and Network',
+    dept_name: 'Telecommunications and Networking',
     credits: 2,
     hours: 30,
     description: 'Basic concepts of computer networking'
