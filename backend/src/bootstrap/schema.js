@@ -93,6 +93,22 @@ export async function runSchemaBootstrapping(sequelize) {
     console.warn('[schema] ensure Course_Mappings theory/lab columns failed:', e.message);
   }
 
+  // Ensure schedules has persisted custom cell note storage
+  try {
+    const table = 'schedules';
+    const [rows] = await sequelize.query(
+      `SHOW COLUMNS FROM \`${table}\` LIKE 'custom_cells'`
+    );
+    if (!rows.length) {
+      console.log(`[schema] Adding missing column ${table}.custom_cells`);
+      await sequelize.query(
+        `ALTER TABLE \`${table}\` ADD COLUMN \`custom_cells\` TEXT NULL AFTER \`notes\``
+      );
+    }
+  } catch (e) {
+    console.warn('[schema] ensure schedules custom_cells failed:', e.message);
+  }
+
   // Ensure new columns exist on legacy Teaching_Contracts table
   async function ensureTeachingContractColumns() {
     try {

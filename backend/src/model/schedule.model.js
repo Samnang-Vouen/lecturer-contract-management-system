@@ -31,6 +31,12 @@ const Schedule = sequelize.define(
       allowNull: true,
     },
 
+    custom_cells: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      comment: 'JSON object of custom text keyed by time slot and day',
+    },
+
     start_date: {
       type: DataTypes.DATEONLY,
       allowNull: true,
