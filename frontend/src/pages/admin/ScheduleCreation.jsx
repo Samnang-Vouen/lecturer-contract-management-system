@@ -149,16 +149,43 @@ export default function ScheduleCreation() {
       try {
         setPreviewGroupName(group?.name || "");
 
-        const params = {
+        const baseParams = {
           group_id: group?.id,
           status: "Accepted",
-          limit: 100,
           academic_year:
             selectedAcademicYear !== "all" ? selectedAcademicYear : undefined,
         };
 
-        const { data } = await axiosInstance.get("/course-mappings", { params });
-        const mappings = safeArray(data?.data);
+        const limit = 100;
+        const allMappings = [];
+        let page = 1;
+        let hasMore = true;
+        const maxPages = 50; // safety guard to avoid infinite loops
+
+        while (hasMore && page <= maxPages) {
+          const { data } = await axiosInstance.get("/course-mappings", {
+            params: {
+              ...baseParams,
+              limit,
+              page,
+            },
+          });
+
+          const pageMappings = safeArray(data?.data);
+          allMappings.push(...pageMappings);
+
+          // Continue if backend indicates there are more pages
+          hasMore = Boolean(data?.hasMore);
+          page += 1;
+
+          // If backend does not set hasMore correctly but returns fewer than limit,
+          // stop to avoid unnecessary extra calls.
+          if (!hasMore && pageMappings.length < limit) {
+            break;
+          }
+        }
+
+        const mappings = allMappings;
 
         const grid = {};
         mappings.forEach((mapping) => {
