@@ -10,13 +10,20 @@
 <style>
   @page {
     size: A4;
-    margin: 10mm;
+    margin: 40px;
+  }
+
+  @font-face {
+    font-family: 'Times New Roman';
+    src:
+      local('Times New Roman'), local('TimesNewRomanPSMT'), local('TimesNewRomanPS'),
+      local('TimesNewRoman');
+    font-weight: normal;
+    font-style: normal;
   }
 
   @media print {
     html, body {
-      width: 210mm;
-      height: 297mm;
       margin: 0;
       padding: 0;
       background: #fff;
@@ -27,9 +34,7 @@
     }
 
     .page {
-      width: 210mm;
-      min-height: 297mm;
-      padding: 12mm;
+      padding: 0;
       box-shadow: none;
       margin: 0;
       background: #fff;
@@ -41,34 +46,31 @@
   body {
     font-family: "Kantumruy Pro", sans-serif;
     font-optical-sizing: auto;
-    background: #c8c8c8;
-    display: flex;
-    justify-content: center;
-    padding: 30px 20px;
+    font-size: 13px;
+    line-height: 1.9;
+    background: #fff;
+    margin: 0;
+    padding: 0;
   }
 
   .page {
-    background: white;
-    width: 1120px;
-    padding: 26px 30px 32px;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.18);
-    font-size: 9px;
+    background: #fff;
+    padding: 0;
   }
 
-  /* Header (match Lecturer_Contract_Summary layout) */
   .header {
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    gap: 10px;
-    margin-bottom: 12px;
+    gap: 12px;
+    margin-bottom: 18px;
   }
 
   .header-bottom {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 20px;
+    gap: 24px;
   }
 
   .logo-box {
@@ -80,19 +82,19 @@
 
   .cadt-logo-img {
     display: block;
-    width: 300px;
+    width: 220px;
     max-width: 100%;
     height: auto;
   }
 
   .dept-info {
-    font-size: 8px;
+    font-size: 12px;
     font-weight: 600;
-    color:#1a3a6e;
+    color: #003366;
     line-height: 1.8;
     margin-top: 0;
     text-align: center;
-    padding-right: 14px;
+    padding-right: 12px;
   }
 
   .center-header {
@@ -102,99 +104,107 @@
   }
 
   .kingdom-line {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 700;
     line-height: 1.7;
   }
 
   .ornament {
-    font-size: 10px;
+    font-size: 11px;
     letter-spacing: 8px;
     color: #666;
-    margin: 2px 0 6px;
+    margin: 4px 0 6px;
   }
 
   .doc-title-main {
-    font-size: 10px;
+    font-size: 14px;
     font-weight: 700;
     line-height: 1.9;
     text-align: center;
-    margin: 14px 0 6px;
+    margin: 16px 0 10px;
+  }
+
+  .doc-title-main p {
+    margin: 0;
   }
 
   .doc-title-main .red { color: #c00000; }
 
-  /* MAIN TABLE */
   .main-table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 10px;
-    font-size: 7.5px;
+    margin-top: 15px;
+    font-size: 9.5px;
   }
 
   .main-table th,
   .main-table td {
-    border: 1px solid #555;
-    padding: 3px 3px;
+    border: 1px solid #000;
+    padding: 6px 5px;
     text-align: center;
     vertical-align: middle;
-    line-height: 1.5;
+    line-height: 1.6;
   }
 
   .main-table thead th {
-    background: #dce6f1;
+    background: #b3d1ff;
+    color: #003366;
     font-weight: 700;
-    font-size: 7px;
+    font-size: 10px;
   }
 
   .group-hdr th {
-    background: #c5d9f1;
+    background: #b3d1ff;
+    color: #003366;
     font-weight: 700;
-    font-size: 7.5px;
+    font-size: 10px;
   }
 
   .main-table td.txt-left {
     text-align: left;
-    padding-left: 5px;
+    padding-left: 8px;
   }
 
   .total-row td {
-    background: #dce6f1;
+    background: #b3d1ff;
+    color: #003366;
     font-weight: 700;
   }
 
-  .money { color: #1b3a70; font-weight: 600; }
+  .money {
+    color: #003366;
+    font-weight: 700;
+  }
 
-  /* Signature Section */
   .signature-section {
     display: flex;
     justify-content: space-between;
-    margin-top: 20px;
-    gap: 10px;
+    margin-top: 24px;
+    gap: 18px;
   }
 
   .sig-box {
     flex: 1;
     text-align: center;
-    font-size: 8.5px;
-    line-height: 2;
+    font-size: 12px;
+    line-height: 1.9;
   }
 
   .sig-box .sig-title {
     font-weight: 700;
-    padding-bottom: 3px;
-    margin-bottom: 4px;
-    font-size: 8.5px;
+    padding-top: 6px;
+    display: inline-block;
+    min-width: 200px;
+    font-size: 13px;
   }
 
   .sig-box .sig-date-line {
     color: #333;
-    white-space: nowrap;
-    font-size: 8px;
+    font-size: 12px;
   }
 
   .sig-space {
-    height: 50px;
+    height: 70px;
   }
 
   .bottom-seen {
@@ -205,14 +215,14 @@
 
   .bottom-seen .seen-col {
     width: 33%;
-    font-size: 7.5px;
+    font-size: 12px;
     line-height: 1.9;
     text-align: center;
   }
 
   .seen-col .sig-label {
     font-weight: 700;
-    font-size: 8px;
+    font-size: 13px;
     display: block;
     margin-top: 34px;
     border-top: 1px solid #333;
