@@ -27,7 +27,14 @@ export default function ConfirmDeleteDialog({
 
   return createPortal(
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => onOpenChange(false)} />
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={() => {
+          if (!loading) {
+            onOpenChange(false);
+          }
+        }}
+      />
       <div className="relative flex min-h-screen items-center justify-center p-4">
         <div className="w-full max-w-md rounded-2xl border border-white/60 bg-white p-6 shadow-2xl">
           <div className="mb-6 text-center">
