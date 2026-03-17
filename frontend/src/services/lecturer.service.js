@@ -74,3 +74,15 @@ export async function createLecturerFromCandidate(candidateId, payload) {
   const res = await axiosInstance.post(`/lecturers/from-candidate/${candidateId}`, payload);
   return res.data;
 }
+
+export const importLecturersFromExcel = async (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const response = await axiosInstance.post('/lecturers/import/excel', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};

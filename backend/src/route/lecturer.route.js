@@ -15,6 +15,7 @@ import {
   updateLecturerCourses,
   updateLecturerProfile,
   uploadLecturerPayroll,
+  importLecturersFromExcel,
 } from '../controller/lecturer.controller.js';
 import { ensureUserHasRoleParam } from '../middleware/ensureUserRoleParam.middleware.js';
 
@@ -72,5 +73,12 @@ router.patch('/:id/status', ensureUserHasRoleParam('lecturer'), toggleUserStatus
 
 // Delete lecturer
 router.delete('/:id', ensureUserHasRoleParam('lecturer'), deleteUser);
+
+// Import lecturers from Excel
+router.post(
+  '/import/excel',
+  upload.single('file'),
+  importLecturersFromExcel
+);
 
 export default router;

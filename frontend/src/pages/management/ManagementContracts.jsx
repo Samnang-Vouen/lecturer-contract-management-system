@@ -93,7 +93,8 @@ export default function ManagementContracts() {
         <PendingSignaturesAlert 
           contracts={contracts} 
           onPreview={previewPdf} 
-          onSign={handleSignClick} 
+          onSign={handleSignClick}
+          onReSign={handleRedoClick} 
           uploading={uploading} 
         />
 

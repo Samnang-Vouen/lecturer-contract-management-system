@@ -102,13 +102,11 @@ export default function LecturerManagement() {
     if (isProfileDialogOpen) {
       const o = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = o;
-      };
+      return () => { document.body.style.overflow = o; };
     }
   }, [isProfileDialogOpen]);
 
-  // Handle lecturer creation
+  // ── Handle lecturer creation (manual) ──────────────────────────────────────
   const handleLecturerCreated = (lec) => {
     const raw = lec.email.split('@')[0].replace(/\./g, ' ');
     const display = raw.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
@@ -128,16 +126,17 @@ export default function LecturerManagement() {
     setLecturers(prev => [normalized, ...prev]);
   };
 
-  // Handle menu actions
-  const handleViewClick = (lecturer) => {
-    closeMenu();
-    openView(lecturer);
+  // ── Handle Excel import success ────────────────────────────────────────────
+  // `importedItems` is the success[] array returned by the backend.
+  // We optimistically prepend the new rows then do a full refresh so counts
+  // and other server-derived fields are accurate.
+  const handleImported = (importedItems) => {
+    refreshLecturers();
   };
 
-  const handleEditClick = (lecturer) => {
-    closeMenu();
-    openEdit(lecturer);
-  };
+  // ── Menu action handlers ───────────────────────────────────────────────────
+  const handleViewClick = (lecturer) => { closeMenu(); openView(lecturer); };
+  const handleEditClick = (lecturer) => { closeMenu(); openEdit(lecturer); };
 
   const handleAssignCoursesClick = async (lecturer) => {
     closeMenu();
@@ -172,15 +171,8 @@ export default function LecturerManagement() {
     }
   };
 
-  const handleToggleStatusClick = (lecturer) => {
-    handleDeactivate(lecturer);
-    closeMenu();
-  };
-
-  const handleDeleteClick = (lecturer) => {
-    requestDelete(lecturer);
-    closeMenu();
-  };
+  const handleToggleStatusClick = (lecturer) => { handleDeactivate(lecturer); closeMenu(); };
+  const handleDeleteClick = (lecturer) => { requestDelete(lecturer); closeMenu(); };
 
   const handleSaveProfile = async () => {
     const success = await saveProfile(selectedLecturer, async (id) => {
@@ -192,10 +184,8 @@ export default function LecturerManagement() {
           return String(r);
         };
         const rawValues = [
-          selectedLecturer?.role,
-          selectedLecturer?.roles,
-          selectedLecturer?.user?.role,
-          selectedLecturer?.user?.roles
+          selectedLecturer?.role, selectedLecturer?.roles,
+          selectedLecturer?.user?.role, selectedLecturer?.user?.roles
         ];
         const flattened = [];
         for (const v of rawValues) {
@@ -219,10 +209,7 @@ export default function LecturerManagement() {
         hourlyRateThisYear: get('hourlyRateThisYear', p.hourlyRateThisYear)
       }));
     });
-    
-    if (success) {
-      setIsProfileDialogOpen(false);
-    }
+    if (success) setIsProfileDialogOpen(false);
   };
 
   const handlePayrollUploadWrapper = async (file) => {
@@ -235,18 +222,22 @@ export default function LecturerManagement() {
     });
   };
 
+  // ────────────────────────────────────────────────────────────────────────────
   return (
     <div className='p-4 md:p-6 lg:p-8 space-y-6 bg-gray-50 min-h-screen'>
       <div className='bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden'>
         <div className='p-6 sm:p-8'>
-          <LecturerHeader onOpenCreateModal={() => setIsCreateModalOpen(true)} />
+          {/*
+            Pass both callbacks into LecturerHeader so it can render
+            the two action buttons side-by-side.
+          */}
+          <LecturerHeader
+            onOpenCreateModal={() => setIsCreateModalOpen(true)}
+          />
         </div>
       </div>
 
-      <LecturerSearch
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-      />
+      <LecturerSearch searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
 
       <LecturerTable
         lecturers={lecturers}
@@ -260,6 +251,7 @@ export default function LecturerManagement() {
         onOpenCoursesPopover={openCoursesPopover}
       />
 
+      {/* Manual create modal */}
       <CreateLecturerModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
