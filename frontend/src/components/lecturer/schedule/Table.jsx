@@ -1,50 +1,42 @@
-const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
-
-const TIME_SLOTS = [
-  "08:00 - 09:30",
-  "09:50 - 11:20",
-  "12:10 - 13:40",
-  "13:50 - 15:20",
-  "15:30 - 17:00",
-];
-
-const SCHEDULE_DATA = {
-  "08:00 - 09:30": {
-    Tuesday: [{ course: "Programming Fundamentals", group: "Group 1", room: "Lab-AI02" }],
-    Thursday: [{ course: "Programming Fundamentals", group: "Group 2", room: "Lab-A001" }],
-  },
-  "09:50 - 11:20": {
-    Tuesday: [{ course: "Programming Fundamentals", group: "Group 1", room: "Lab-AI02" }],
-    Thursday: [{ course: "Programming Fundamentals", group: "Group 2", room: "Lab-A001" }],
-    Friday: [{ course: "Programming Fundamentals", group: "Group 3", room: "Lab-AI02" }],
-  },
-  "12:10 - 13:40": {
-    Tuesday: [{ course: "Introduction to Computer Science", group: "Group 2", room: "Room-A205" }],
-    Friday: [{ course: "Programming Fundamentals", group: "Group 3", room: "Lab-AI02" }],
-  },
-  "13:50 - 15:20": {},
-  "15:30 - 17:00": {
-    Monday: [{ course: "Introduction to Computer Science", group: "Group 1", room: "Lab-AI01" }],
-    Wednesday: [{ course: "Introduction to Computer Science", group: "Group 3", room: "Room-A201" }],
-  },
-};
-
-export default function ScheduleTable() {
+export default function ScheduleTable({
+  days = [],
+  timeSlots = [],
+  grid = {},
+  specialSlots = {},
+  groupName = '-',
+  generatedCount = 0,
+  loading = false,
+  error = '',
+}) {
   return (
     <div className="bg-white rounded-2xl border border-gray-200 p-4 md:p-6">
-      <h2 className="text-xl font-bold text-gray-900 mb-4">Schedule Preview</h2>
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">Schedule Preview</h2>
+          <p className="text-sm text-gray-500">Group: {groupName}</p>
+        </div>
+        <p className="text-sm text-gray-500">Generated: {generatedCount}</p>
+      </div>
+
+      {error ? (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+          {error}
+        </div>
+      ) : null}
+
+      {loading ? <div className="py-8 text-center text-sm text-gray-500">Loading schedule...</div> : null}
 
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
           <thead>
             <tr>
-              <th className="border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700 text-center w-[120px]">
+              <th className="w-[120px] border border-gray-200 bg-gray-50 px-4 py-3 text-center text-sm font-semibold text-gray-700">
                 Time
               </th>
-              {DAYS.map((day) => (
+              {days.map((day) => (
                 <th
                   key={day}
-                  className="border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700 text-center"
+                  className="border border-gray-200 bg-gray-50 px-4 py-3 text-center text-sm font-semibold text-gray-700"
                 >
                   {day}
                 </th>
@@ -52,30 +44,38 @@ export default function ScheduleTable() {
             </tr>
           </thead>
           <tbody>
-            {TIME_SLOTS.map((slot) => (
+            {timeSlots.map((slot) => (
               <tr key={slot}>
-                <td className="border border-gray-200 px-4 py-6 text-sm font-medium text-gray-700 text-center align-middle whitespace-nowrap">
+                <td className="whitespace-nowrap border border-gray-200 px-4 py-6 text-center align-middle text-sm font-medium text-gray-700">
                   {slot}
                 </td>
-                {DAYS.map((day) => {
-                  const entries = SCHEDULE_DATA[slot]?.[day] || [];
-                  return (
-                    <td
-                      key={day}
-                      className="border border-gray-200 px-3 py-4 align-middle min-w-[140px]"
-                    >
-                      {entries.map((entry, i) => (
-                        <div key={i} className="text-center space-y-0.5">
-                          <div className="text-sm font-semibold text-gray-900 leading-snug">
-                            {entry.course}
+
+                {specialSlots[slot] ? (
+                  <td
+                    colSpan={days.length}
+                    className="border border-gray-200 px-3 py-4 text-center align-middle text-sm text-gray-600"
+                  >
+                    {specialSlots[slot]}
+                  </td>
+                ) : (
+                  days.map((day) => {
+                    const entries = grid?.[day]?.[slot] || [];
+                    return (
+                      <td key={day} className="min-w-[140px] border border-gray-200 px-3 py-4 align-middle">
+                        {entries.map((entry, index) => (
+                          <div key={entry.id || `${slot}-${day}-${index}`} className="space-y-1 text-center">
+                            <div className="leading-snug text-sm font-semibold text-gray-900">
+                              {entry.course}
+                            </div>
+                            <div className="text-xs text-gray-500">{entry.lecturer}</div>
+                            <div className="text-xs text-gray-400">Room: {entry.room}</div>
+                            <div className="text-xs text-gray-400">Session: {entry.sessionType}</div>
                           </div>
-                          <div className="text-xs text-gray-500">{entry.group}</div>
-                          <div className="text-xs text-gray-400 mt-1">{entry.room}</div>
-                        </div>
-                      ))}
-                    </td>
-                  );
-                })}
+                        ))}
+                      </td>
+                    );
+                  })
+                )}
               </tr>
             ))}
           </tbody>

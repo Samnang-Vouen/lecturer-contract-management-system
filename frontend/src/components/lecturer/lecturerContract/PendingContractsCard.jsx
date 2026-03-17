@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, FileText, Eye, PenTool } from 'lucide-react';
+import { Clock, FileText, Eye, PenTool, FilePen } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../ui/Card';
 import Button from '../../ui/Button';
 import { 
@@ -86,32 +86,35 @@ export default function PendingContractsCard({
                 <span className="text-gray-600">Hours:</span> {hours}h
               </div>
               <div>
-                <span className="text-gray-600">Rate:</span>{' '}
-                {rateForContract != null ? `$${rateForContract}/hr` : '—'}
+                <span className="text-gray-600">Rate:</span>{" "}
+                {rateForContract != null ? `$${rateForContract}/hr` : "—"}
               </div>
               <div className="sm:col-span-2">
-                <span className="text-gray-600">Total:</span>{' '}
-                {rateForContract != null 
-                  ? `$${Math.round(rateForContract * hours).toLocaleString()}` 
-                  : '—'}
+                <span className="text-gray-600">Total:</span>{" "}
+                {rateForContract != null
+                  ? `$${Math.round(rateForContract * hours).toLocaleString()}`
+                  : "—"}
               </div>
             </div>
           </div>
 
           {/* Right: actions */}
           <div className="flex flex-wrap gap-2">
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={() => onPreview(contract.id, contract)} 
-              title="Preview contract" 
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onPreview(contract.id, contract)}
+              title="Preview contract"
               className="border-amber-200 gap-2"
             >
               <Eye className="w-4 h-4" /> Review
             </Button>
-            <Button 
-              size="sm" 
-              onClick={() => onSign(contract)} 
+            <Button size="sm" onClick={() => onRedo(contract)}>
+              <FilePen className="w-4 h-4 mr-1.5" /> Request Redo
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => onSign(contract)}
               className="bg-amber-600 hover:bg-amber-700 gap-2"
             >
               <PenTool className="w-4 h-4 mr-1.5" /> Sign Now

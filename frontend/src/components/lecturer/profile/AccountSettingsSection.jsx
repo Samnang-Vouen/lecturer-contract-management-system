@@ -20,11 +20,11 @@ export default function AccountSettingsSection({
   onChangePassword 
 }) {
   return (
-    <Card className="shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 bg-white rounded-2xl border border-gray-100/70">
+    <Card className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <SectionHeader title="Account Settings" icon={<Lock className="h-4 w-4" />} accent="red" />
-      <CardContent className="pt-5 space-y-4">
+      <CardContent className="p-6 sm:p-8 space-y-5">
         <div className="grid gap-2">
-          <Label className="text-xs font-medium text-gray-600">Current Password</Label>
+          <Label className="text-sm font-semibold text-slate-700">Current Password</Label>
           <div className="relative">
             <Input 
               id="currentPassword" 
@@ -33,13 +33,13 @@ export default function AccountSettingsSection({
               value={passwordForm.currentPassword} 
               onChange={e => setPasswordForm(f => ({ ...f, currentPassword: e.target.value }))} 
               placeholder="••••••" 
-              className="pr-10" 
+              className="pr-12 border-slate-200 focus:border-indigo-500 focus:ring-indigo-500" 
             />
             <button
               type="button"
               aria-label="Toggle current password visibility"
               onClick={() => onToggleVisibility('current')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-700 focus:outline-none"
+              className="absolute inset-y-0 right-0 px-3 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
             >
               {showCurrent ? (
                 <Eye className={`h-4 w-4 transition-transform ${animCurrent ? 'scale-110 rotate-12' : ''}`} />
@@ -50,7 +50,7 @@ export default function AccountSettingsSection({
           </div>
         </div>
         <div className="grid gap-2">
-          <Label className="text-xs font-medium text-gray-600">New Password</Label>
+          <Label className="text-sm font-semibold text-slate-700">New Password</Label>
           <div className="relative">
             <Input 
               id="newPassword" 
@@ -59,13 +59,13 @@ export default function AccountSettingsSection({
               value={passwordForm.newPassword} 
               onChange={e => setPasswordForm(f => ({ ...f, newPassword: e.target.value }))} 
               placeholder="At least 6 characters" 
-              className="pr-10" 
+              className="pr-12 border-slate-200 focus:border-indigo-500 focus:ring-indigo-500" 
             />
             <button
               type="button"
               aria-label="Toggle new password visibility"
               onClick={() => onToggleVisibility('new')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-700 focus:outline-none"
+              className="absolute inset-y-0 right-0 px-3 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
             >
               {showNew ? (
                 <Eye className={`h-4 w-4 transition-transform ${animNew ? 'scale-110 rotate-12' : ''}`} />
@@ -76,7 +76,7 @@ export default function AccountSettingsSection({
           </div>
         </div>
         <div className="grid gap-2">
-          <Label className="text-xs font-medium text-gray-600">Confirm New Password</Label>
+          <Label className="text-sm font-semibold text-slate-700">Confirm New Password</Label>
           <div className="relative">
             <Input 
               id="confirmPassword" 
@@ -85,13 +85,13 @@ export default function AccountSettingsSection({
               value={passwordForm.confirm} 
               onChange={e => setPasswordForm(f => ({ ...f, confirm: e.target.value }))} 
               placeholder="Repeat new password" 
-              className="pr-10" 
+              className="pr-12 border-slate-200 focus:border-indigo-500 focus:ring-indigo-500" 
             />
             <button
               type="button"
               aria-label="Toggle confirm password visibility"
               onClick={() => onToggleVisibility('confirm')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-700 focus:outline-none"
+              className="absolute inset-y-0 right-0 px-3 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
             >
               {showConfirm ? (
                 <Eye className={`h-4 w-4 transition-transform ${animConfirm ? 'scale-110 rotate-12' : ''}`} />
@@ -101,7 +101,12 @@ export default function AccountSettingsSection({
             </button>
           </div>
         </div>
-        <Button type="button" onClick={onChangePassword} disabled={passwordSaving}>
+        <Button
+          type="button"
+          onClick={onChangePassword}
+          disabled={passwordSaving}
+          className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200"
+        >
           {passwordSaving ? 'Updating...' : 'Update Password'}
         </Button>
       </CardContent>
