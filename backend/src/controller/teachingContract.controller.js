@@ -837,9 +837,23 @@ export async function updateStatus(req, res) {
       CONTRACT_STATUS_ALIAS_MAP[String(statusRaw || '').trim().toUpperCase()] ||
       String(statusRaw || '').trim();
     // Validation handled by middleware; status is already safe
-    const contract = await requireOwnedTeachingContract(req, res, id);
-    if (!contract) return;
     const role = String(req.user?.role || '').toLowerCase();
+
+    let contract;
+    if (role === 'lecturer') {
+      // Lecturers can only update their own contracts
+      contract = await requireOwnedTeachingContract(req, res, id);
+      if (!contract) return;
+    } else {
+      // Admin/management/superadmin access is controlled by route-level auth;
+      // here we just need to load the contract by id.
+      contract = await TeachingContract.findByPk(id);
+      if (!contract) {
+        return res
+          .status(HTTP_STATUS.NOT_FOUND)
+          .json({ message: 'Teaching contract not found' });
+      }
+    }
 
     // Completed contracts are immutable status-wise
     if (contract.status === 'COMPLETED' && status !== 'COMPLETED') {
@@ -968,7 +982,9 @@ export async function createRedoRequest(req, res) {
     const body = req.validated?.body || req.body || {};
     const message = String(body.message || '').trim();
 
-    const contract = await requireOwnedTeachingContract(req, res, id);
+    const contract = await requireTeachingContractViewAccess(req, res, id, {
+      attributes: ['id', 'lecturer_user_id'],
+    });
     if (!contract) return;
 
     const role = String(req.user?.role || '').toLowerCase();
@@ -1019,6 +1035,40 @@ export async function createRedoRequest(req, res) {
   }
 }
 
+async function requireContractForRedoResolution(req, res, contractId) {
+  const role = String(req.user?.role || '').toLowerCase();
+
+  // Lecturers must own the contract, preserving existing ownership semantics.
+  if (role === 'lecturer') {
+    return requireOwnedTeachingContract(req, res, contractId);
+  }
+
+  // Only management/admin/superadmin (as configured in the router) are allowed beyond this point.
+  if (!['management', 'admin', 'superadmin'].includes(role)) {
+    res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Forbidden' });
+    return null;
+  }
+
+  const contract = await TeachingContract.findByPk(contractId);
+  if (!contract) {
+    res.status(HTTP_STATUS.NOT_FOUND).json({ message: 'Teaching contract not found' });
+    return null;
+  }
+
+  // For management users, enforce department-based access when department information is available.
+  if (role === 'management') {
+    const userDeptId = req.user?.department_id ?? req.user?.departmentId ?? null;
+    const contractDeptId = contract.department_id ?? contract.departmentId ?? null;
+
+    if (userDeptId && contractDeptId && String(userDeptId) !== String(contractDeptId)) {
+      res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Forbidden: cross-department access denied' });
+      return null;
+    }
+  }
+
+  return contract;
+}
+
 export async function updateRedoRequestStatus(req, res) {
   try {
     const contractId = parseInt(req.params.id, 10);
@@ -1026,7 +1076,7 @@ export async function updateRedoRequestStatus(req, res) {
     const body = req.validated?.body || req.body || {};
     const { resolved } = body;
 
-    const contract = await requireOwnedTeachingContract(req, res, contractId);
+    const contract = await requireContractForRedoResolution(req, res, contractId);
     if (!contract) return;
 
     const row = await ContractRedoRequest.findOne({
@@ -1053,11 +1103,18 @@ export async function editContract(req, res) {
   try {
     const id = parseInt(req.params.id, 10);
     const body = req.validated?.body || req.body || {};
-
-    const contract = await requireOwnedTeachingContract(req, res, id);
-    if (!contract) return;
-
     const role = String(req.user?.role || '').toLowerCase();
+
+    let contract;
+    if (role === 'admin') {
+      contract = await TeachingContract.findByPk(id);
+      if (!contract) {
+        return res.status(HTTP_STATUS.NOT_FOUND).json({ message: 'Contract not found' });
+      }
+    } else {
+      contract = await requireOwnedTeachingContract(req, res, id);
+      if (!contract) return;
+    }
 
     if (contract.status !== 'REQUEST_REDO') {
       return res
@@ -1218,8 +1275,10 @@ export async function editContract(req, res) {
 export async function deleteContract(req, res) {
   try {
     const id = parseInt(req.params.id, 10);
-    const contract = await requireOwnedTeachingContract(req, res, id);
-    if (!contract) return;
+    const contract = await TeachingContract.findByPk(id);
+    if (!contract) {
+      return res.status(HTTP_STATUS.NOT_FOUND).json({ message: 'Contract not found' });
+    }
     if (contract.status === 'COMPLETED') {
       return res.status(HTTP_STATUS.BAD_REQUEST).json({ message: 'Completed contracts cannot be deleted' });
     }
@@ -1267,8 +1326,16 @@ export async function uploadSignature(req, res) {
   try {
     const id = parseInt(req.params.id, 10);
     const who = (req.body.who || 'lecturer').toLowerCase();
-    const contract = await requireOwnedTeachingContract(req, res, id);
-    if (!contract) return;
+    let contract;
+    if (who === 'lecturer') {
+      contract = await requireOwnedTeachingContract(req, res, id);
+      if (!contract) return;
+    } else {
+      contract = await TeachingContract.findByPk(id);
+      if (!contract) {
+        return res.status(HTTP_STATUS.NOT_FOUND).json({ message: 'Contract not found' });
+      }
+    }
     if (!req.file) return res.status(HTTP_STATUS.BAD_REQUEST).json({ message: 'No file uploaded' });
 
     // Move file into person-specific folder: lecturer's name if who=lecturer, else management user's name

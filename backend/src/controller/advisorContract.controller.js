@@ -235,7 +235,12 @@ export async function uploadAdvisorContractSignature(req, res) {
       return res.status(HTTP_STATUS.BAD_REQUEST).json({ message: "Invalid 'who' (must be advisor|management)" });
     }
 
-    const found = await requireOwnedAdvisorContract(req, res, id);
+    // Advisors must own the contract to sign it; management/admin can sign if they
+    // have department-scoped access similar to requireAdvisorContractViewAccess.
+    const found =
+      who === 'advisor'
+        ? await requireOwnedAdvisorContract(req, res, id)
+        : await requireAdvisorContractViewAccess(req, res, id);
     if (!found) return;
     if (!req.file) return res.status(HTTP_STATUS.BAD_REQUEST).json({ message: 'No file uploaded' });
 
@@ -503,13 +508,74 @@ export async function getAdvisorContract(req, res) {
   }
 }
 
+async function requireAdvisorStatusUpdateAccess(req, res, contractId) {
+  try {
+    const currentUser = req.user;
+    if (!currentUser) {
+      res.status(HTTP_STATUS.UNAUTHORIZED).json({ message: 'Unauthorized' });
+      return null;
+    }
+
+    const found = await AdvisorContract.findByPk(contractId, {
+      include: [
+        {
+          model: User,
+          as: 'lecturer',
+          attributes: ['id', 'email', 'display_name', 'department_name'],
+          required: false,
+        },
+      ],
+    });
+
+    if (!found) {
+      res.status(HTTP_STATUS.NOT_FOUND).json({ message: 'Not found' });
+      return null;
+    }
+
+    const isOwner = found.lecturer_user_id === currentUser.id;
+
+    let privilegedRole = null;
+    const elevatedRoles = ['admin', 'management', 'superadmin'];
+    for (const roleName of elevatedRoles) {
+      // Reuse existing role-checking helper; ignore transaction for this check.
+      const hasRole = await ensureUserHasRole(currentUser.id, roleName);
+      if (hasRole) {
+        privilegedRole = roleName;
+        break;
+      }
+    }
+
+    if (!isOwner && !privilegedRole) {
+      res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Forbidden' });
+      return null;
+    }
+
+    if (!isOwner && privilegedRole !== 'superadmin') {
+      const lecturerDept = found.lecturer ? found.lecturer.department_name : null;
+      const userDept = currentUser.department_name;
+      if (!lecturerDept || !userDept || lecturerDept !== userDept) {
+        res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Forbidden: cross-department access denied' });
+        return null;
+      }
+    }
+
+    return found;
+  } catch (e) {
+    console.error('[requireAdvisorStatusUpdateAccess]', e);
+    res
+      .status(HTTP_STATUS.SERVER_ERROR)
+      .json({ message: 'Failed to authorize advisor status update', error: e.message });
+    return null;
+  }
+}
+
 export async function updateAdvisorStatus(req, res) {
   try {
     const id = parseInt(req.params.id, 10);
     const body = req.validated?.body || req.body || {};
     const status = String(body.status || '').trim().toUpperCase().replace(/\s+/g, '_');
 
-    const found = await requireOwnedAdvisorContract(req, res, id);
+    const found = await requireAdvisorStatusUpdateAccess(req, res, id);
     if (!found) return;
 
     await found.update({ status });
@@ -530,13 +596,14 @@ export async function editAdvisorContract(req, res) {
     const id = parseInt(req.params.id, 10);
     const body = req.validated?.body || req.body || {};
 
-    const found = await requireOwnedAdvisorContract(req, res, id, {
+    const found = await AdvisorContract.findOne({
+      where: { id },
       transaction: tx,
       lock: tx.LOCK.UPDATE,
     });
     if (!found) {
       await tx.rollback();
-      return;
+      return res.status(404).json({ message: 'Advisor contract not found' });
     }
 
     if (String(found.status || '').toUpperCase() !== 'REQUEST_REDO') {
