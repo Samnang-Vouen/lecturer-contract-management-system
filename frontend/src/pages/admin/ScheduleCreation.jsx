@@ -128,6 +128,8 @@ export default function ScheduleCreation() {
   const [isLoading, setIsLoading] = useState(true);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [isGenerateAllLoading, setIsGenerateAllLoading] = useState(false);
+  const [isGenerateSelectedLoading, setIsGenerateSelectedLoading] = useState(false);
+
   const [activeDownloadId, setActiveDownloadId] = useState(null);
   const [generatedCount, setGeneratedCount] = useState(0);
   const [groupStatsById, setGroupStatsById] = useState({});
@@ -219,7 +221,11 @@ export default function ScheduleCreation() {
   }, [visibleGroups]);
 
   useEffect(() => {
-    let isActive = true;
+    const nextStats = {};
+    visibleGroups.forEach((group) => {
+      const schedule = getScheduleForGroup(group);
+      const groupId = group?.id;
+      if (!groupId) return;
 
     const fetchVisibleGroupStats = () => {
       if (!visibleGroups.length) {
@@ -245,13 +251,8 @@ export default function ScheduleCreation() {
       if (isActive) {
         setGroupStatsById(nextStats);
       }
-    };
-
-    fetchVisibleGroupStats();
-
-    return () => {
-      isActive = false;
-    };
+    });
+    setGroupStatsById(nextStats);
   }, [visibleGroups, getScheduleForGroup]);
 
   const buildPreviewFromSchedule = useCallback((scheduleDetail) => {
@@ -394,14 +395,75 @@ export default function ScheduleCreation() {
         },
         "all-schedules.pdf",
       );
-      setGeneratedCount((prev) => prev + Math.max(selectedGroupIds.length, 1));
+      setGeneratedCount((prev) => prev + 1);
     } catch (error) {
       console.error("[ScheduleCreation] failed to generate all PDFs", error);
       toast.error("Failed to generate all PDFs");
     } finally {
       setIsGenerateAllLoading(false);
     }
-  }, [downloadSchedulePdf, selectedGroupIds.length, selectedMajorName]);
+  }, [downloadSchedulePdf, selectedMajorName]);
+
+  const handleGenerateSelected = useCallback(async () => {
+    if (!selectedGroupIds.length) return;
+    setIsGenerateSelectedLoading(true);
+    let successCount = 0;
+    try {
+      // Build a map of unique (class_name, specialization) combinations
+      const comboMap = new Map();
+      for (const groupId of selectedGroupIds) {
+        const group = visibleGroups.find((g) => g.id === groupId);
+        if (!group) continue;
+        const className = group?.Class?.name || undefined;
+        const specialization = group?.Class?.Specialization?.name || undefined;
+        const comboKey = `${className || ""}||${specialization || ""}`;
+        if (!comboMap.has(comboKey)) {
+          comboMap.set(comboKey, {
+            className,
+            specialization,
+            // Use class/specialization label for messages
+            label:
+              className && specialization
+                ? `${className} - ${specialization}`
+                : className || specialization || "schedule",
+          });
+        }
+      }
+
+      for (const [comboKey, combo] of comboMap.entries()) {
+        setActiveDownloadId(`combo-${comboKey}`);
+        const { className, specialization, label } = combo;
+        try {
+          const safeClass = String(className || "class")
+            .replace(/\s+/g, "-")
+            .toLowerCase();
+          const safeSpec = specialization
+            ? String(specialization)
+                .replace(/\s+/g, "-")
+                .toLowerCase()
+            : "general";
+          await downloadSchedulePdf(
+            {
+              class_name: className,
+              specialization: specialization,
+            },
+            `schedule-${safeClass}-${safeSpec}.pdf`,
+          );
+          successCount += 1;
+        } catch (error) {
+          console.error(
+            "[ScheduleCreation] failed to generate selected schedule PDF",
+            error,
+          );
+          toast.error(`Failed to generate PDF for ${label}`);
+        }
+      }
+      setGeneratedCount((prev) => prev + successCount);
+    } finally {
+      setActiveDownloadId(null);
+      setIsGenerateSelectedLoading(false);
+    }
+  }, [downloadSchedulePdf, selectedGroupIds, visibleGroups]);
 
   const toggleGroupSelection = useCallback((groupId) => {
     setSelectedGroupIds((prev) =>
@@ -498,6 +560,23 @@ export default function ScheduleCreation() {
                   All visible groups matching the selected filters will be
                   included when generating PDFs.
                 </p>
+                {selectedGroupIds.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleGenerateSelected}
+                    disabled={isGenerateSelectedLoading}
+                    className="mt-2 w-full rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isGenerateSelectedLoading ? (
+                      <span className="flex items-center justify-center gap-1">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Generating...
+                      </span>
+                    ) : (
+                      `Generate Selected PDFs (${selectedGroupIds.length})`
+                    )}
+                  </button>
+                )}
               </div>
 
               {isLoading ? (
