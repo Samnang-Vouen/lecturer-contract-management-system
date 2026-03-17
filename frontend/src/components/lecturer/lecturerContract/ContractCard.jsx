@@ -59,6 +59,7 @@ export default function ContractCard({
   const displayStatus = getDisplayStatus(contract);
   const statusConfig = getStatusLabel(displayStatus);
   const isEnded = String(displayStatus || '').trim().toUpperCase() === 'CONTRACT_ENDED';
+  const canRedo = String(contract?.status || '').toUpperCase() === 'WAITING_LECTURER';
   const canSign = isAdvisor
     ? (!isEnded && String(contract?.status || '').toUpperCase() === 'DRAFT' && !contract?.advisor_signed_at)
     : (
@@ -233,14 +234,16 @@ export default function ContractCard({
             >
               <Eye className="w-3.5 h-3.5" />
             </button>
-            <button
-              onClick={() => onRedo(contract)}
-              className="p-2 rounded-lg bg-blue-600 border border-blue-600 hover:bg-blue-700 text-white transition-all duration-200 shadow-sm"
-              title="Redo"
-              aria-label="Redo"
-            >
-              <FilePen className="w-3.5 h-3.5" />
-            </button>
+            {canRedo && (
+              <button
+                onClick={() => onRedo(contract)}
+                className="p-2 rounded-lg bg-blue-600 border border-blue-600 hover:bg-blue-700 text-white transition-all duration-200 shadow-sm"
+                title="Redo"
+                aria-label="Redo"
+              >
+                <FilePen className="w-3.5 h-3.5" />
+              </button>
+            )}
             {canSign && (
               <button
                 onClick={() => onSign(contract)}
