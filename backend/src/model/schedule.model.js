@@ -13,6 +13,7 @@ const Schedule = sequelize.define(
     group_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      unique: true,
       references: {
         model: 'group',
         key: 'id',
