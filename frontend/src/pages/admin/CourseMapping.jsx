@@ -443,10 +443,11 @@ export default function CourseMappingPage() {
         if (hasAnyAssignedSessions) {
           payload.availability_assignments_by_group = assignmentsByGroupRaw;
         } else if (hadAnyAssignedSessionsBefore) {
-          // If user cleared structured sessions in group-mode, explicitly clear legacy structured fields.
-          // (Backend doesn't clear existing structured availability when given an empty object.)
+          // If user cleared structured sessions in group-mode, send an empty object so the backend
+          // explicitly clears any existing structured availability for this mapping.
+          payload.availability_assignments_by_group = {};
+          // Also clear the legacy aggregate availability string to keep the data model consistent.
           payload.availability = null;
-          payload.availability_assignments = [];
         } else {
           // Group-mode mapping but no structured sessions: fall back to legacy string.
           payload.availability = form.availability || '';
