@@ -4,6 +4,29 @@ import Group from '../model/group.model.js';
 import Specialization from '../model/specialization.model.js';
 import { Department } from '../model/index.js';
 
+function normalizeDateOnly(value) {
+  if (value === undefined) return undefined; // not provided
+  if (value === null) return null;
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+
+  const s = String(value ?? '').trim();
+  if (!s) return null;
+  // Accept only YYYY-MM-DD
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return undefined;
+  return s;
+}
+
+function assertTermDateRange(start_term, end_term) {
+  if (start_term && end_term && String(start_term) > String(end_term)) {
+    const err = new Error('Start term must be on or before End term');
+    err.statusCode = 400;
+    throw err;
+  }
+}
+
 async function resolveSpecializationIdFromPayload(payload, deptId) {
   if (!payload || typeof payload !== 'object') return undefined;
 
@@ -169,6 +192,27 @@ const ClassController = {
       if (!payload.name) {
         return res.status(400).json({ error: 'Name is required' });
       }
+
+      const start_term = normalizeDateOnly(payload.start_term ?? payload.startTerm);
+      const end_term = normalizeDateOnly(payload.end_term ?? payload.endTerm);
+      if (start_term === undefined)
+        return res
+          .status(400)
+          .json({ error: 'Invalid Start term date format (expected YYYY-MM-DD)' });
+      if (end_term === undefined)
+        return res
+          .status(400)
+          .json({ error: 'Invalid End term date format (expected YYYY-MM-DD)' });
+
+      if (!start_term) return res.status(400).json({ error: 'Start term is required' });
+      if (!end_term) return res.status(400).json({ error: 'End term is required' });
+
+      try {
+        assertTermDateRange(start_term, end_term);
+      } catch (e) {
+        return res.status(e.statusCode || 400).json({ error: e.message || 'Invalid term date range' });
+      }
+
       // Normalize numeric fields
       const totalClass = Number.isFinite(+payload.total_class) ? +payload.total_class : null;
       console.log(
@@ -195,6 +239,8 @@ const ClassController = {
         term: payload.term,
         year_level: payload.year_level,
         academic_year: payload.academic_year,
+        start_term,
+        end_term,
         total_class: totalClass,
         dept_id: deptId,
         specialization_id: specializationId ?? null,
@@ -251,6 +297,29 @@ const ClassController = {
       delete req.body.specializationName;
       delete req.body.specializationId;
       delete req.body.Specialization;
+
+      // Normalize start_term / end_term if present
+      if (Object.prototype.hasOwnProperty.call(req.body, 'start_term') || Object.prototype.hasOwnProperty.call(req.body, 'startTerm')) {
+        const v = normalizeDateOnly(req.body.start_term ?? req.body.startTerm);
+        if (v === undefined) return res.status(400).json({ error: 'Invalid Start term date format (expected YYYY-MM-DD)' });
+        req.body.start_term = v;
+      }
+      if (Object.prototype.hasOwnProperty.call(req.body, 'end_term') || Object.prototype.hasOwnProperty.call(req.body, 'endTerm')) {
+        const v = normalizeDateOnly(req.body.end_term ?? req.body.endTerm);
+        if (v === undefined) return res.status(400).json({ error: 'Invalid End term date format (expected YYYY-MM-DD)' });
+        req.body.end_term = v;
+      }
+      delete req.body.startTerm;
+      delete req.body.endTerm;
+
+      // Validate range using incoming values + existing values
+      const effectiveStart = req.body.start_term !== undefined ? req.body.start_term : classItem.start_term;
+      const effectiveEnd = req.body.end_term !== undefined ? req.body.end_term : classItem.end_term;
+      try {
+        assertTermDateRange(effectiveStart, effectiveEnd);
+      } catch (e) {
+        return res.status(e.statusCode || 400).json({ error: e.message || 'Invalid term date range' });
+      }
 
       if (req.body.total_class !== undefined) {
         const parsed = Number.parseInt(req.body.total_class, 10);
@@ -355,9 +424,31 @@ const ClassController = {
       const term = String(payload.term ?? source.term ?? '').trim();
       const year_level = String(payload.year_level ?? source.year_level ?? '').trim();
       const academic_year = String(payload.academic_year ?? source.academic_year ?? '').trim();
+
+      const start_term = normalizeDateOnly(payload.start_term ?? payload.startTerm ?? source.start_term);
+      const end_term = normalizeDateOnly(payload.end_term ?? payload.endTerm ?? source.end_term);
+
       if (!term) return res.status(400).json({ error: 'Term is required' });
       if (!year_level) return res.status(400).json({ error: 'Year level is required' });
       if (!academic_year) return res.status(400).json({ error: 'Academic year is required' });
+
+      if (start_term === undefined)
+        return res
+          .status(400)
+          .json({ error: 'Invalid Start term date format (expected YYYY-MM-DD)' });
+      if (end_term === undefined)
+        return res
+          .status(400)
+          .json({ error: 'Invalid End term date format (expected YYYY-MM-DD)' });
+
+      if (!start_term) return res.status(400).json({ error: 'Start term is required' });
+      if (!end_term) return res.status(400).json({ error: 'End term is required' });
+
+      try {
+        assertTermDateRange(start_term, end_term);
+      } catch (e) {
+        return res.status(e.statusCode || 400).json({ error: e.message || 'Invalid term date range' });
+      }
 
       const parsedTotal = Number.parseInt(String(payload.total_class ?? source.total_class ?? ''), 10);
       const total_class = Number.isFinite(parsedTotal) && parsedTotal > 0 ? parsedTotal : null;
@@ -376,6 +467,8 @@ const ClassController = {
         term,
         year_level,
         academic_year,
+        start_term,
+        end_term,
         total_class,
         dept_id: effectiveDeptId,
         specialization_id: specialization_id ?? null,

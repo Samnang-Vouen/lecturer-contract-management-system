@@ -19,7 +19,7 @@ export const seedSpecializations = async () => {
     // Get departments first
     const cs = await Department.findOne({ where: { dept_name: 'Computer Science' } });
     const db = await Department.findOne({ where: { dept_name: 'Digital Business' } });
-    const tn = await Department.findOne({ where: { dept_name: 'Telecommunication and Networking' } });
+    const tn = await Department.findOne({ where: { dept_name: 'Telecommunications and Network' } });
 
     if (!cs || !db || !tn) {
       console.error('[seedSpecializations] Required departments not found. Please seed departments first.');
@@ -34,7 +34,7 @@ export const seedSpecializations = async () => {
       { name: 'E-commerce', dept_id: db.id },
       // Telecommunication and Networking specializations
       { name: 'Cyber Security', dept_id: tn.id },
-      { name: 'Telecommunication and Networking', dept_id: tn.id },
+      { name: 'Telecommunications and Network', dept_id: tn.id },
     ];
 
     await Specialization.bulkCreate(specializationsData, {

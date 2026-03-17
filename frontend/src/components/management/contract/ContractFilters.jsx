@@ -43,6 +43,7 @@ export default function ContractFilters({ q, setQ, status, setStatus, setPage })
             >
               <SelectItem value="">All Status</SelectItem>
               <SelectItem value="WAITING_MANAGEMENT">Waiting Management</SelectItem>
+              <SelectItem value="WAITING_ADVISOR">Waiting Advisor</SelectItem>
               <SelectItem value="WAITING_LECTURER">Waiting Lecturer</SelectItem>
               <SelectItem value="COMPLETED">Completed</SelectItem>
             </Select>

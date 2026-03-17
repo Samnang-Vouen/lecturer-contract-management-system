@@ -6,6 +6,7 @@ import {
   uploadEvaluation,
   getEvaluationResults,
   getLecturerEvaluationPDF,
+  getEvaluationSummary,
 } from '../controller/evaluation.controller.js';
 //import { protect, authorizeRoles } from '../middleware/auth.middleware.js';
 
@@ -54,6 +55,7 @@ const upload = multer({
 
 router.get('/:evaluationId/lecturer/:lecturerId/pdf', getLecturerEvaluationPDF);
 router.get('/:evaluationId/results', getEvaluationResults);
+router.get('/summary/list', getEvaluationSummary);
 router.post('/upload', upload.single('file'), uploadEvaluation);
 
 export default router;

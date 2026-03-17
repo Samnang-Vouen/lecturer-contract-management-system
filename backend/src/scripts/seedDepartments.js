@@ -3,7 +3,8 @@ import Department from '../model/department.model.js';
 const departmentsData = [
   { dept_name: 'Computer Science', dept_name_khmer: 'វិទ្យាសាស្ត្រកុំព្យូទ័រ' },
   { dept_name: 'Digital Business', dept_name_khmer: 'អាជីវកម្មឌីជីថល' },
-  { dept_name: 'Telecommunication and Networking', dept_name_khmer: 'ទូរគមនាគមន៍ និងបណ្តាញ' },
+  { dept_name: 'Telecommunications and Networking', dept_name_khmer: 'ទូរគមនាគមន៍ និងបណ្តាញ' },
+  { dept_name: 'Foundation', dept_name_khmer: 'ថ្នាក់មូលដ្ធាន' },
 ];
 
 export const seedDepartments = async () => {

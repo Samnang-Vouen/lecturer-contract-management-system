@@ -23,6 +23,9 @@ export default function ClassesTable({
   const [openMenuId, setOpenMenuId] = React.useState(null);
   const [menuCoords, setMenuCoords] = React.useState({ x: 0, y: 0 });
 
+  const isDateOnly = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v ?? '').trim());
+  const fmtDateOnly = (v) => (isDateOnly(v) ? String(v).trim() : '—');
+
   const closeMenu = () => setOpenMenuId(null);
 
   const openMenu = (classId, event) => {
@@ -227,7 +230,19 @@ export default function ClassesTable({
                         : <span className="text-gray-400 italic">—</span>
                     )}
                 </TableCell>
-                <TableCell className="text-gray-700 text-sm text-center whitespace-nowrap">{classItem.term}</TableCell>
+                <TableCell className="text-gray-700 text-sm text-center whitespace-nowrap">
+                  <div className="flex flex-col items-center leading-tight">
+                    <div className="text-gray-800">{classItem.term || '—'}</div>
+                    <div className="mt-1 inline-flex items-center gap-1 rounded-md border border-blue-100 bg-blue-50 px-2 py-0.5 text-[11px] text-blue-800">
+                      <span className="text-blue-700">Start:</span>
+                      <span className="font-medium tabular-nums">{fmtDateOnly(classItem?.start_term)}</span>
+                    </div>
+                    <div className="mt-1 inline-flex items-center gap-1 rounded-md border border-blue-100 bg-blue-50 px-2 py-0.5 text-[11px] text-blue-800">
+                      <span className="text-blue-700">End:</span>
+                      <span className="font-medium tabular-nums">{fmtDateOnly(classItem?.end_term)}</span>
+                    </div>
+                  </div>
+                </TableCell>
                 <TableCell className="text-gray-700 text-sm text-center whitespace-nowrap">{classItem.year_level}</TableCell>
                 <TableCell className="text-gray-700 text-sm text-center whitespace-nowrap">{classItem.academic_year}</TableCell>
                 <TableCell className="text-center">

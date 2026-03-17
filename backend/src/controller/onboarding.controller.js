@@ -34,7 +34,18 @@ export const submitOnboarding = async (req, res) => {
 
     const existing = await LecturerProfile.findOne({ where: { user_id: userId } });
     if (existing && existing.onboarding_complete) {
-      return res.status(400).json({ message: 'Onboarding already completed' });
+      return res.status(200).json({
+        message: 'Onboarding already completed',
+        alreadyCompleted: true,
+        profile: {
+          id: existing.id,
+          user_id: existing.user_id,
+          departments: [],
+          courses: [],
+          unmatched_departments: [],
+          unmatched_courses: [],
+        },
+      });
     }
 
     const body = req.body;

@@ -5,11 +5,14 @@ import Label from "../../ui/Label";
 import Select, { SelectItem } from "../../ui/Select";
 import Button from "../../ui/Button";
 import Badge from "../../ui/Badge";
-import { BookOpen } from "lucide-react";
+import { BookOpen, Calendar } from "lucide-react";
 
 export default function ClassFormDialog({ open, onOpenChange, onSubmit, classData, setClassData, isEdit, mode, onAssignCourses, selectedCourses = [], courseCatalog = [], specializationOptions = [] }) {
   const effectiveMode = mode || (isEdit ? 'edit' : 'add');
   const isEditMode = effectiveMode === 'edit';
+
+  const startTermRef = React.useRef(null);
+  const endTermRef = React.useRef(null);
   // Academic years: start from current year, next 4 (total 5), formatted YYYY-YYYY
   const academicYearOptions = React.useMemo(() => {
     const start = new Date().getFullYear();
@@ -128,6 +131,8 @@ export default function ClassFormDialog({ open, onOpenChange, onSubmit, classDat
     return parseInt(s, 10) > 0;
   };
 
+  const isDateOnly = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v ?? '').trim());
+
   const getSpecializationAbbrev = React.useCallback((name) => {
     const s = String(name || '').trim();
     if (!s) return '';
@@ -204,6 +209,9 @@ export default function ClassFormDialog({ open, onOpenChange, onSubmit, classDat
       String(classData?.term || '').trim() !== '' &&
       String(classData?.year_level || '').trim() !== '' &&
       String(classData?.academic_year || '').trim() !== '' &&
+      isDateOnly(classData?.start_term) &&
+      isDateOnly(classData?.end_term) &&
+      String(classData?.start_term || '') <= String(classData?.end_term || '') &&
       isPositiveInt(classData?.total_class)
     );
 
@@ -344,6 +352,65 @@ export default function ClassFormDialog({ open, onOpenChange, onSubmit, classDat
                   <SelectItem key={ay} value={ay}>{ay}</SelectItem>
                 ))}
               </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="start_term" className="text-sm font-medium text-gray-700">Start Term <span className="text-red-500" aria-hidden="true">*</span></Label>
+              <div className="relative group">
+                <Input
+                  ref={startTermRef}
+                  id="start_term"
+                  type="date"
+                  className="w-full cursor-pointer pr-10 focus:ring-blue-500 h-10 sm:h-9 text-sm"
+                  value={classData?.start_term ?? ''}
+                  onChange={(e) => setClassData({ ...classData, start_term: e.target.value })}
+                />
+                <button
+                  type="button"
+                  aria-label="Pick start term"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30"
+                  onClick={() => {
+                    try {
+                      startTermRef.current?.showPicker?.();
+                    } catch {
+                      startTermRef.current?.focus?.();
+                    }
+                  }}
+                >
+                  <Calendar className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="end_term" className="text-sm font-medium text-gray-700">End Term <span className="text-red-500" aria-hidden="true">*</span></Label>
+              <div className="relative group">
+                <Input
+                  ref={endTermRef}
+                  id="end_term"
+                  type="date"
+                  className="w-full cursor-pointer pr-10 focus:ring-blue-500 h-10 sm:h-9 text-sm"
+                  value={classData?.end_term ?? ''}
+                  min={isDateOnly(classData?.start_term) ? String(classData?.start_term) : undefined}
+                  onChange={(e) => setClassData({ ...classData, end_term: e.target.value })}
+                />
+                <button
+                  type="button"
+                  aria-label="Pick end term"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30"
+                  onClick={() => {
+                    try {
+                      endTermRef.current?.showPicker?.();
+                    } catch {
+                      endTermRef.current?.focus?.();
+                    }
+                  }}
+                >
+                  <Calendar className="w-4 h-4" />
+                </button>
+              </div>
+              {isDateOnly(classData?.start_term) && isDateOnly(classData?.end_term) && String(classData?.start_term) > String(classData?.end_term) ? (
+                <div className="text-xs text-red-500">End Term must be after Start Term.</div>
+              ) : null}
             </div>
             <div className="space-y-1">
               <Label htmlFor="total_class" className="text-sm font-medium text-gray-700">Total Groups <span className="text-red-500" aria-hidden="true">*</span></Label>

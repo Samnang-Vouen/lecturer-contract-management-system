@@ -12,6 +12,8 @@ export const getStatusLabel = (status) => {
   switch (st) {
     case 'DRAFT':
       return { label: 'draft', class: 'bg-gray-100 text-gray-700 border-gray-200', icon: Clock };
+    case 'WAITING_ADVISOR':
+      return { label: 'waiting advisor', class: 'bg-amber-50 text-amber-700 border-amber-200', icon: Clock };
     case 'WAITING_MANAGEMENT':
       return { label: 'waiting management', class: 'bg-blue-50 text-blue-700 border-blue-200', icon: Clock };
     case 'WAITING_LECTURER':

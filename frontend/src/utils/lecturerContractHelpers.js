@@ -13,8 +13,8 @@ import { FileText, Clock, CircleCheck, AlertCircle } from 'lucide-react';
 export const formatMDY = (value) => {
   if (!value) return '';
   try {
-    const d = new Date(value);
-    if (isNaN(d.getTime())) return '';
+    const d = parseDateOnlyToLocalDate(value);
+    if (!d) return '';
     return d.toLocaleDateString('en-US', { 
       year: 'numeric', 
       month: 'numeric', 
@@ -22,6 +22,35 @@ export const formatMDY = (value) => {
     });
   } catch { 
     return ''; 
+  }
+};
+
+/**
+ * Parse backend DATEONLY values (YYYY-MM-DD) as a local Date.
+ * JS `new Date('YYYY-MM-DD')` is interpreted as UTC and can shift the local day.
+ * @param {unknown} value
+ * @returns {Date|null}
+ */
+export const parseDateOnlyToLocalDate = (value) => {
+  if (!value) return null;
+  try {
+    if (value instanceof Date) {
+      const t = value.getTime();
+      return Number.isFinite(t) ? new Date(t) : null;
+    }
+    const s = String(value).trim();
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+    if (m) {
+      const y = Number(m[1]);
+      const mo = Number(m[2]) - 1;
+      const d = Number(m[3]);
+      const dt = new Date(y, mo, d);
+      return Number.isFinite(dt.getTime()) ? dt : null;
+    }
+    const dt = new Date(value);
+    return Number.isFinite(dt.getTime()) ? dt : null;
+  } catch {
+    return null;
   }
 };
 
@@ -66,6 +95,22 @@ export const calculateTotalHours = (contract) => {
     return totalHoursPerStudent + totalJudgingHours;
   }
   return (contract.courses || []).reduce((acc, course) => acc + (course.hours || 0), 0);
+};
+
+/**
+ * Parse a value into a positive number.
+ * Accepts numbers or strings (e.g. "$50/hr", "50").
+ * Returns null when the value is missing, invalid, or not > 0.
+ * @param {unknown} value
+ * @returns {number|null}
+ */
+export const toPositiveNumber = (value) => {
+  if (value == null) return null;
+  const n =
+    typeof value === 'number'
+      ? value
+      : parseFloat(String(value).replace(/[^0-9.]/g, ''));
+  return Number.isFinite(n) && n > 0 ? n : null;
 };
 
 const normalizeTitle = (rawTitle) => {
@@ -225,8 +270,8 @@ export const isContractExpired = (contract) => {
   if (!end) return false;
   
   try {
-    const endD = new Date(end);
-    if (isNaN(endD.getTime())) return false;
+    const endD = parseDateOnlyToLocalDate(end);
+    if (!endD) return false;
     
     const today = new Date();
     endD.setHours(0, 0, 0, 0);
@@ -321,7 +366,7 @@ export const makePdfFilenameForContract = (contract, lecturerProfile, authUser) 
   
   // Sanitize filename
   let safe = full
-    .replace(/[\/:*?"<>|]+/g, ' ')
+    .replace(/[/:*?"<>|]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
     .replace(/\s+/g, '_')

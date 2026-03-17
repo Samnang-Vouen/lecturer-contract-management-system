@@ -32,7 +32,7 @@ export const composeEnglishWithTitle = (rawTitle, rawName) => {
   
   // If name already starts with the title (with or without dot), normalize to mapped form
   const bare = String(rawTitle || '').replace(/\./g, '');
-  const re = new RegExp(`^\s*(${bare}|${bare}\.)\s+`, 'i');
+  const re = new RegExp(`^\\s*(${bare}|${bare}\\.)\\s+`, 'i');
   if (re.test(name)) {
     return name.replace(re, `${t} `).trim();
   }

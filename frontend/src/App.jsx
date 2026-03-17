@@ -1,43 +1,73 @@
-import { useEffect, Suspense, lazy } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
-import { Loader } from 'lucide-react';
-import { Toaster } from 'react-hot-toast';
+import { useEffect, Suspense, lazy } from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
+import { Loader } from "lucide-react";
+import { Toaster } from "react-hot-toast";
 
-import { useAuthStore } from './store/useAuthStore.js';
-import RequireRole from './components/RequireRole.jsx';
+import { useAuthStore } from "./store/useAuthStore.js";
+import RequireRole from "./components/RequireRole.jsx";
 // Route-level code splitting: lazy-load all pages/layouts
-const AdminDashboardLayout = lazy(() => import('./pages/Admindashboard.jsx'));
-const AdminHome = lazy(() => import('./pages/admin/AdminHome.jsx'));
-const Recruitment = lazy(() => import('./pages/admin/RecruitmentDynamic.jsx'));
-const AdminProfile = lazy(() => import('./pages/admin/AdminProfile.jsx'));
-const LecturerManagement = lazy(() => import('./pages/admin/LecturerManagement.jsx'));
-const ClassesManagement = lazy(() => import('./pages/admin/ClassesManagement.jsx'));
-const CoursesPage = lazy(() => import('./pages/admin/CoursesManagement.jsx'));
-const CourseMappingPage = lazy(() => import('./pages/admin/CourseMapping.jsx'));
-const ContractGeneration = lazy(() => import('./pages/admin/ContractGeneration.jsx'));
+const AdminDashboardLayout = lazy(() => import("./pages/Admindashboard.jsx"));
+const AdminHome = lazy(() => import("./pages/admin/AdminHome.jsx"));
+const Recruitment = lazy(() => import("./pages/admin/RecruitmentDynamic.jsx"));
+const AdminProfile = lazy(() => import("./pages/admin/AdminProfile.jsx"));
+const LecturerManagement = lazy(
+  () => import("./pages/admin/LecturerManagement.jsx"),
+);
+const ClassesManagement = lazy(
+  () => import("./pages/admin/ClassesManagement.jsx"),
+);
+const CoursesPage = lazy(() => import("./pages/admin/CoursesManagement.jsx"));
+const CourseMappingPage = lazy(() => import("./pages/admin/CourseMapping.jsx"));
+const ContractGeneration = lazy(
+  () => import("./pages/admin/ContractGeneration.jsx"),
+);
+const ScheduleCreation = lazy(
+  () => import("./pages/admin/ScheduleCreation.jsx"),
+);
+const UploadEvaluation = lazy(
+  () => import("./pages/admin/UploadEvaluation.jsx"),
+);
 
-const LecturerDashboardLayout = lazy(() => import('./pages/LecturerDashboardLayout.jsx'));
-const LecturerDashboard = lazy(() => import('./pages/lecturer/LecturerDashboard.jsx'));
-const LecturerProfile = lazy(() => import('./pages/lecturer/LecturerProfile.jsx'));
-const LecturerContracts = lazy(() => import('./pages/lecturer/LecturerContracts.jsx'));
-const LecturerSchedule = lazy(() => import('./pages/lecturer/LecturerSchedule.jsx'));
-const Onboarding = lazy(() => import('./pages/lecturer/Onboarding.jsx'));
+const LecturerDashboardLayout = lazy(
+  () => import("./pages/LecturerDashboardLayout.jsx"),
+);
+const LecturerDashboard = lazy(
+  () => import("./pages/lecturer/LecturerDashboard.jsx"),
+);
+const LecturerProfile = lazy(
+  () => import("./pages/lecturer/LecturerProfile.jsx"),
+);
+const LecturerContracts = lazy(
+  () => import("./pages/lecturer/LecturerContracts.jsx"),
+);
+const LecturerSchedule = lazy(
+  () => import("./pages/lecturer/LecturerSchedule.jsx"),
+);
+const Onboarding = lazy(() => import("./pages/lecturer/Onboarding.jsx"));
 
-const AdvisorDashboard = lazy(() => import('./pages/advisor/AdvisorDashboard.jsx'));
-const AdvisorProfile = lazy(() => import('./pages/advisor/AdvisorProfile.jsx'));
+const AdvisorProfile = lazy(() => import("./pages/advisor/AdvisorProfile.jsx"));
 
-const ManagementDashboardLayout = lazy(() => import('./pages/ManagementDashboard.jsx'));
-const ManagementHome = lazy(() => import('./pages/management/ManagementHome.jsx'));
-const ManagementProfile = lazy(() => import('./pages/management/ManagementProfile.jsx'));
-const ManagementContracts = lazy(() => import('./pages/management/ManagementContracts.jsx'));
+const ManagementDashboardLayout = lazy(
+  () => import("./pages/ManagementDashboard.jsx"),
+);
+const ManagementHome = lazy(
+  () => import("./pages/management/ManagementHome.jsx"),
+);
+const ManagementProfile = lazy(
+  () => import("./pages/management/ManagementProfile.jsx"),
+);
+const ManagementContracts = lazy(
+  () => import("./pages/management/ManagementContracts.jsx"),
+);
 
-const SuperAdminDashboard = lazy(() => import('./pages/SuperAdminDashboard.jsx'));
-const UserManagement = lazy(() => import('./pages/UserManagement.jsx'));
-const SuperAdminProfile = lazy(() => import('./pages/superadmin/SuperAdminProfile.jsx'));
-const LoginForm = lazy(() => import('./components/LoginForm.jsx'));
-const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage.jsx'));
-const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage.jsx'));
-
+const SuperAdminDashboard = lazy(
+  () => import("./pages/SuperAdminDashboard.jsx"),
+);
+const UserManagement = lazy(() => import("./pages/UserManagement.jsx"));
+const SuperAdminProfile = lazy(
+  () => import("./pages/superadmin/SuperAdminProfile.jsx"),
+);
+const LoginForm = lazy(() => import("./components/LoginForm.jsx"));
 
 function App() {
   const authUser = useAuthStore((s) => s.authUser);
@@ -112,6 +142,8 @@ function App() {
             <Route path="classes" element={<ClassesManagement />} />
             <Route path="courses" element={<CoursesPage />} />
             <Route path="course-mapping" element={<CourseMappingPage />} />
+            <Route path="schedule-creation" element={<ScheduleCreation />} />
+            <Route path="upload-evaluation" element={<UploadEvaluation />} />
             <Route path="contracts" element={<ContractGeneration />} />
           </Route>
 
@@ -140,6 +172,7 @@ function App() {
             }
           >
             <Route index element={<AdvisorDashboard />} />
+            <Route index element={<LecturerDashboard />} />
             <Route path="profile" element={<AdvisorProfile />} />
             <Route path="my-contracts" element={<LecturerContracts />} />
           </Route>
@@ -178,4 +211,4 @@ function App() {
   );
 }
 
-export default App
+export default App;

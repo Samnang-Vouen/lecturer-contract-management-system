@@ -1,7 +1,8 @@
-import React from 'react';
+import React, {useEffect} from 'react';
 import { CheckCircle } from 'lucide-react';
 import { sanitizeTextOnly } from '../../../utils/recruitmentHelpers';
 import LoadingSpinner from './LoadingSpinner';
+import { createPortal } from 'react-dom';
 
 export default function AcceptCandidateModal({
   isOpen,
@@ -12,13 +13,29 @@ export default function AcceptCandidateModal({
   decision,
   onDecisionChange
 }) {
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen]);
+
   if (!isOpen || !candidate) return null;
 
   const isValid = decision.hourlyRate && decision.evaluator && decision.rateReason.trim();
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl border border-white/60 w-full max-w-2xl p-6">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      onMouseDown={onClose}
+      role="presentation"
+    >
+      <div className="bg-white rounded-2xl shadow-2xl border border-white/60 w-full max-w-2xl p-6"
+      onMouseDown={(e) => e.stopPropagation()} 
+      >
         <div className="flex items-center gap-4 mb-6">
           <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center">
             <CheckCircle className="w-6 h-6 text-white" />
@@ -99,6 +116,7 @@ export default function AcceptCandidateModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
