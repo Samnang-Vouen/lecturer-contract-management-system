@@ -931,12 +931,16 @@ export const generateFilteredScheduleHTML = async (req, res) => {
     }
 
     const dir = ensureUploadsScheduleDir();
-    const outputPath = path.join(dir, 'schedule.html');
+    const uniqueId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const filename = `schedule-${uniqueId}.html`;
+    const outputPath = path.join(dir, filename);
     fs.writeFileSync(outputPath, html, 'utf8');
 
     return res.status(200).json({
       message: 'Schedule HTML generated and saved',
-      file: 'uploads/schedules/schedule.html',
+      // Relative path that the client can use to request the PDF later
+      file: path.join('uploads', 'schedules', filename),
+      filename,
       groupCount,
       mappingCount,
     });
@@ -951,9 +955,20 @@ export const generateFilteredScheduleHTML = async (req, res) => {
 export const generateSchedulePDFFromSavedHTML = async (req, res) => {
   let browser;
   try {
-    const filePath = path.join(process.cwd(), 'uploads', 'schedules', 'schedule.html');
+    const requestedFile = String(req.query?.file || '').trim();
+    if (!requestedFile) {
+      return res.status(400).json({ message: 'Missing required "file" query parameter.' });
+    }
+
+    // Prevent directory traversal by taking only the basename
+    const safeFilename = path.basename(requestedFile);
+    if (!safeFilename.toLowerCase().endsWith('.html')) {
+      return res.status(400).json({ message: 'Invalid file parameter. Expected an .html file.' });
+    }
+
+    const filePath = path.join(process.cwd(), 'uploads', 'schedules', safeFilename);
     if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ message: 'schedule.html not found. Generate HTML first.' });
+      return res.status(404).json({ message: 'Specified schedule HTML file not found. Generate HTML first.' });
     }
 
     const html = fs.readFileSync(filePath, 'utf8');
@@ -974,7 +989,7 @@ export const generateSchedulePDFFromSavedHTML = async (req, res) => {
     return res.send(pdfBuffer);
   } catch (err) {
     console.error('[generateSchedulePDFFromSavedHTML]', err);
-    return res.status(500).json({ message: 'Failed to convert schedule.html to PDF', error: err.message });
+    return res.status(500).json({ message: 'Failed to convert schedule HTML to PDF', error: err.message });
   } finally {
     if (browser) await browser.close();
   }

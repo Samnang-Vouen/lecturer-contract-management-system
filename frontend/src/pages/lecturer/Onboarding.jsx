@@ -347,6 +347,17 @@ export default function Onboarding() {
       } else {
         toast.success('Onboarding completed successfully!');
       }
+
+      const redirectPath = isAdvisor ? '/advisor' : '/lecturer';
+      if (res?.alreadyCompleted) {
+        // No need to delay when onboarding was already completed
+        navigate(redirectPath, { replace: true });
+      } else if (!unmatched.length) {
+        // On successful completion (no unmatched courses), delay slightly for the toast
+        setTimeout(() => {
+          navigate(redirectPath, { replace: true });
+        }, 1500);
+      }
       
       // Notify other tabs
       try {

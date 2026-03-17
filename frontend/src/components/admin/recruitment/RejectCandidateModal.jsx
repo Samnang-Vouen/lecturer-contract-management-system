@@ -12,18 +12,18 @@ export default function RejectCandidateModal({
   reason,
   onReasonChange
 }) {
-  if (!isOpen) return null;
-  
-    useEffect(() => {
-      if (!isOpen) return;
-  
-      const originalOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-  
-      return () => {
-        document.body.style.overflow = originalOverflow;
-      };
-    }, [isOpen]);
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen]);
+
+  if (!isOpen || !candidate) return null;
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"

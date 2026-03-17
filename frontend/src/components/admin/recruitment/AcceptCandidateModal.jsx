@@ -13,18 +13,18 @@ export default function AcceptCandidateModal({
   decision,
   onDecisionChange
 }) {
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen]);
+
   if (!isOpen || !candidate) return null;
-    
-      useEffect(() => {
-        if (!isOpen) return;
-    
-        const originalOverflow = document.body.style.overflow;
-        document.body.style.overflow = 'hidden';
-    
-        return () => {
-          document.body.style.overflow = originalOverflow;
-        };
-      }, [isOpen]);
 
   const isValid = decision.hourlyRate && decision.evaluator && decision.rateReason.trim();
 

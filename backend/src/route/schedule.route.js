@@ -15,9 +15,9 @@ const router = express.Router();
 
 // IMPORTANT: /pdf must come before /:id to avoid route conflicts
 // HTML generation / conversion endpoints must also come before /:id
-router.get('/pdf', generateFilteredSchedulePDF);
-router.post('/generate-html', generateFilteredScheduleHTML);
-router.get('/generated-pdf', generateSchedulePDFFromSavedHTML);
+router.get('/pdf', protect, authorizeRoles('admin', 'superadmin'), generateFilteredSchedulePDF);
+router.post('/generate-html', protect, authorizeRoles('admin', 'superadmin'), generateFilteredScheduleHTML);
+router.get('/generated-pdf', protect, authorizeRoles('admin', 'superadmin'), generateSchedulePDFFromSavedHTML);
 router.get('/', getSchedules);
 router.get('/:id', getScheduleById);
 router.post('/', createSchedule);

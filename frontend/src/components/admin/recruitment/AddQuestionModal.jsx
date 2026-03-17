@@ -15,8 +15,6 @@ export default function AddQuestionModal({
   loadingSuggestions,
   onSelectSuggestion
 }) {
-  if (!isOpen) return null;
-
   useEffect(() => {
     if (!isOpen) return;
 
@@ -27,6 +25,8 @@ export default function AddQuestionModal({
       document.body.style.overflow = originalOverflow;
     };
   }, [isOpen]);
+
+  if (!isOpen) return null;
 
   return createPortal(
     <div

@@ -13,10 +13,8 @@ export default function EditQuestionModal({
   loadingSuggestions,
   onSelectSuggestion
 }) {
-  if (!isOpen || !question) return null;
-
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !question) return;
 
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -24,7 +22,9 @@ export default function EditQuestionModal({
     return () => {
       document.body.style.overflow = originalOverflow;
     };
-  }, [isOpen]);
+  }, [isOpen, question]);
+
+  if (!isOpen || !question) return null;
 
   return createPortal(
     <div

@@ -11,8 +11,6 @@ export default function DeleteModal({
   title,
   message
 }) {
-  if (!isOpen) return null;
-
   useEffect(() => {
     if (!isOpen) return;
 
@@ -23,6 +21,8 @@ export default function DeleteModal({
       document.body.style.overflow = originalOverflow;
     };
   }, [isOpen]);
+
+  if (!isOpen) return null;
 
   return createPortal(
     <div
