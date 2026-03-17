@@ -1,24 +1,63 @@
 /**
  * Utility functions to parse availability from course mappings
- * and convert session numbers to time slots
+ * and convert session numbers to time slots.
+ *
+ * Keep day/session normalization and session-to-time mapping here so
+ * controllers and other modules share a single source of truth.
  */
 
-/**
- * Session to time slot mapping
- * Each session is 1 hour and 30 minutes
- * S1 = 08h:00-09h:30
- * S2 = 09h:50-11h:30 (after 20min break)
- * S3 = 12h:10-13h:40 (after lunch)
- * S4 = 13h:50-15h:20 (after 10min break)
- * S5 = 15h:30-17h:00 (after 10min break)
- */
-const SESSION_TO_TIMESLOT = {
-  S1: '08h:00-09h:30',
-  S2: '09h:50-11h:30',
-  S3: '12h:10-13h:40',
-  S4: '13h:50-15h:20',
-  S5: '15h:30-17h:00',
+export const VALID_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
+// Canonical mapping for session codes.
+// - timeSlot matches TimeSlot.label in DB.
+// - startTime/endTime are used for structured assignment payloads.
+export const SESSION_TO_RANGE = {
+  S1: { startTime: '08:00', endTime: '09:30', timeSlot: '08h:00-09h:30' },
+  S2: { startTime: '09:50', endTime: '11:30', timeSlot: '09h:50-11h:30' },
+  S3: { startTime: '12:10', endTime: '13:40', timeSlot: '12h:10-13h:40' },
+  S4: { startTime: '13:50', endTime: '15:20', timeSlot: '13h:50-15h:20' },
+  S5: { startTime: '15:30', endTime: '17:00', timeSlot: '15h:30-17h:00' },
 };
+
+// Backward-compatible mapping used by parseAvailability.
+const SESSION_TO_TIMESLOT = Object.fromEntries(
+  Object.entries(SESSION_TO_RANGE).map(([k, v]) => [k, v.timeSlot])
+);
+
+export function normalizeDay(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return null;
+  const lower = s.toLowerCase();
+  const found = VALID_DAYS.find((d) => d.toLowerCase() === lower);
+  return found || null;
+}
+
+export function normalizeSession(raw) {
+  const s = String(raw || '').trim().toUpperCase();
+  if (!s) return null;
+  return SESSION_TO_RANGE[s] ? s : null;
+}
+
+export function buildAvailabilityStringFromSessions(sessions) {
+  const byDay = new Map();
+  for (const s of Array.isArray(sessions) ? sessions : []) {
+    const day = normalizeDay(s?.day);
+    const session = normalizeSession(s?.session || s?.sessionId);
+    if (!day || !session) continue;
+    if (!byDay.has(day)) byDay.set(day, new Set());
+    byDay.get(day).add(session);
+  }
+
+  const sessionOrder = ['S1', 'S2', 'S3', 'S4', 'S5'];
+  const parts = [];
+  for (const day of VALID_DAYS) {
+    const set = byDay.get(day);
+    if (!set || set.size === 0) continue;
+    const codes = Array.from(set).sort((a, b) => sessionOrder.indexOf(a) - sessionOrder.indexOf(b));
+    parts.push(`${day}: ${codes.join(', ')}`);
+  }
+  return parts.join('; ');
+}
 
 /**
  * Parse availability string from course mapping
@@ -53,32 +92,27 @@ export function parseAvailability(availabilityString) {
 
     if (!dayPart || !sessionsPart) continue;
 
-    // Normalize day name (capitalize first letter)
-    const day = dayPart.charAt(0).toUpperCase() + dayPart.slice(1).toLowerCase();
-
-    // Validate day
-    const validDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-    if (!validDays.includes(day)) {
-      console.warn(`Invalid day: ${day}`);
+    const day = normalizeDay(dayPart);
+    if (!day) {
+      console.warn(`Invalid day: ${dayPart}`);
       continue;
     }
 
-    // Split sessions by comma
-    const sessions = sessionsPart.split(',').map((s) => s.trim().toUpperCase());
+    const sessions = sessionsPart.split(',').map((s) => s.trim());
 
     for (const session of sessions) {
       if (!session) continue;
 
-      // Validate session
-      if (!SESSION_TO_TIMESLOT[session]) {
+      const sessionCode = normalizeSession(session);
+      if (!sessionCode) {
         console.warn(`Invalid session: ${session}`);
         continue;
       }
 
       result.push({
         day,
-        session,
-        timeSlot: SESSION_TO_TIMESLOT[session],
+        session: sessionCode,
+        timeSlot: SESSION_TO_TIMESLOT[sessionCode],
       });
     }
   }

@@ -410,9 +410,26 @@ export default function CourseMappingPage() {
         return;
       }
 
+      const rowsForEdit = Array.isArray(editing?._rowsForEdit) ? editing._rowsForEdit : [];
+      const isGroupMode = rowsForEdit.some((r) => r?.group_id);
+      const assignmentsByGroupRaw =
+        form.availability_assignments_by_group && typeof form.availability_assignments_by_group === 'object'
+          ? form.availability_assignments_by_group
+          : {};
+      const hasAnyAssignedSessions = Object.values(assignmentsByGroupRaw).some((v) => {
+        const th = Array.isArray(v?.THEORY) ? v.THEORY : Array.isArray(v?.theory) ? v.theory : [];
+        const lb = Array.isArray(v?.LAB) ? v.LAB : Array.isArray(v?.lab) ? v.lab : [];
+        return (Array.isArray(th) && th.length > 0) || (Array.isArray(lb) && lb.length > 0);
+      });
+      const hadAnyAssignedSessionsBefore = rowsForEdit.some(
+        (r) => Array.isArray(r?.availability_assignments) && r.availability_assignments.length > 0
+      );
+
+      // Legacy/aggregated mappings may not support structured per-group assignments.
+      // Only send availability_assignments_by_group when editing a group-mode mapping and we actually have per-group data.
+      // Otherwise, fall back to the legacy 'availability' field so edits persist.
       const payload = {
         lecturer_profile_id: form.lecturer_profile_id,
-        availability_assignments_by_group: form.availability_assignments_by_group || {},
         status: form.status,
         contacted_by: form.contacted_by,
         room_number: (form.room_number || '').toUpperCase(),
@@ -421,6 +438,23 @@ export default function CourseMappingPage() {
         comment: (form.comment || '').slice(0, 160),
         ...teachingPayload,
       };
+
+      if (isGroupMode) {
+        if (hasAnyAssignedSessions) {
+          payload.availability_assignments_by_group = assignmentsByGroupRaw;
+        } else if (hadAnyAssignedSessionsBefore) {
+          // If user cleared structured sessions in group-mode, send an empty object so the backend
+          // explicitly clears any existing structured availability for this mapping.
+          payload.availability_assignments_by_group = {};
+          // Also clear the legacy aggregate availability string to keep the data model consistent.
+          payload.availability = null;
+        } else {
+          // Group-mode mapping but no structured sessions: fall back to legacy string.
+          payload.availability = form.availability || '';
+        }
+      } else {
+        payload.availability = form.availability || '';
+      }
 
       if (Array.isArray(editing?.ids) && editing.ids.length) {
         await updateMapping(editing.ids, payload);

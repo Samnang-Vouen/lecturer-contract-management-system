@@ -9,60 +9,21 @@ import Group from '../model/group.model.js';
 import Schedule from '../model/schedule.model.js';
 import ScheduleEntry from '../model/scheduleEntry.model.js';
 import { TimeSlot } from '../model/timeSlot.model.js';
-import { availabilityToScheduleEntries } from '../utils/availabilityParser.js';
+import {
+  availabilityToScheduleEntries,
+  buildAvailabilityStringFromSessions,
+  normalizeDay,
+  normalizeSession,
+  SESSION_TO_RANGE,
+} from '../utils/availabilityParser.js';
 import ExcelJS from 'exceljs';
 import sequelize from '../config/db.js';
-
-const VALID_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-const SESSION_TO_RANGE = {
-  S1: { startTime: '08:00', endTime: '09:30', timeSlot: '08h:00-09h:30' },
-  S2: { startTime: '09:50', endTime: '11:30', timeSlot: '09h:50-11h:30' },
-  S3: { startTime: '12:10', endTime: '13:40', timeSlot: '12h:10-13h:40' },
-  S4: { startTime: '13:50', endTime: '15:20', timeSlot: '13h:50-15h:20' },
-  S5: { startTime: '15:30', endTime: '17:00', timeSlot: '15h:30-17h:00' },
-};
-
-function normalizeDay(raw) {
-  const s = String(raw || '').trim();
-  if (!s) return null;
-  const lower = s.toLowerCase();
-  const found = VALID_DAYS.find((d) => d.toLowerCase() === lower);
-  return found || null;
-}
-
-function normalizeSession(raw) {
-  const s = String(raw || '').trim().toUpperCase();
-  if (!s) return null;
-  if (SESSION_TO_RANGE[s]) return s;
-  return null;
-}
 
 function parseGroupNumberFromName(name, fallback) {
   const n = parseInt(String(name || '').match(/(\d+)/)?.[1] || '', 10);
   if (Number.isInteger(n) && n > 0) return n;
   const fb = parseInt(String(fallback || ''), 10);
   return Number.isInteger(fb) && fb > 0 ? fb : 1;
-}
-
-function buildAvailabilityStringFromSessions(sessions) {
-  const byDay = new Map();
-  for (const s of Array.isArray(sessions) ? sessions : []) {
-    const day = normalizeDay(s?.day);
-    const session = normalizeSession(s?.session || s?.sessionId);
-    if (!day || !session) continue;
-    if (!byDay.has(day)) byDay.set(day, new Set());
-    byDay.get(day).add(session);
-  }
-
-  const sessionOrder = ['S1', 'S2', 'S3', 'S4', 'S5'];
-  const parts = [];
-  for (const day of VALID_DAYS) {
-    const set = byDay.get(day);
-    if (!set || set.size === 0) continue;
-    const codes = Array.from(set).sort((a, b) => sessionOrder.indexOf(a) - sessionOrder.indexOf(b));
-    parts.push(`${day}: ${codes.join(', ')}`);
-  }
-  return parts.join('; ');
 }
 
 function normalizeAssignmentsByGroup(raw) {
@@ -900,124 +861,149 @@ export const updateCourseMapping = async (req, res) => {
     const patch = {};
     for (const k of allowed) if (k in req.body) patch[k] = req.body[k];
 
-    const assignmentsByGroupPatch = normalizeAssignmentsByGroup(patch.availability_assignments_by_group);
-    const hasStructuredPatch = Object.keys(assignmentsByGroupPatch || {}).length > 0;
-    const structuredPerGroupId = new Map();
+    // availability_assignments_by_group is not a DB column; never pass it into m.update().
+    // Also treat presence (even an empty object) as an explicit structured availability operation.
+    const structuredModeRequested = Object.prototype.hasOwnProperty.call(
+      req.body,
+      'availability_assignments_by_group'
+    );
+    const assignmentsByGroupPatch = structuredModeRequested
+      ? normalizeAssignmentsByGroup(req.body.availability_assignments_by_group)
+      : {};
+    const structuredClearAll = structuredModeRequested && Object.keys(assignmentsByGroupPatch || {}).length === 0;
+    delete patch.availability_assignments_by_group;
 
-    if (hasStructuredPatch) {
+    const structuredPerGroupId = new Map();
+    if (structuredModeRequested) {
       const errors = [];
       const usedSlots = new Map();
 
-      for (const m of mappings) {
-        const gid = m?.group_id ? String(m.group_id) : null;
-        if (!gid) {
-          errors.push('Structured availability requires group-specific mappings (group_id is missing).');
-          continue;
-        }
-        const inTheory = (parseInt(String(m?.theory_groups ?? 0), 10) || 0) > 0;
-        const inLab = (parseInt(String(m?.lab_groups ?? 0), 10) || 0) > 0;
-
-        const rowTheoryHours = String(m?.theory_hours || '').trim().toLowerCase() === '30h' ? '30h' : '15h';
-        const rowTheoryMin = inTheory ? 1 : 0;
-        const rowTheoryMax = inTheory ? (rowTheoryHours === '30h' ? 2 : 1) : 0;
-
-        const th = assignmentsByGroupPatch?.[gid]?.THEORY || [];
-        const lb = assignmentsByGroupPatch?.[gid]?.LAB || [];
-
-        if (inTheory && (th.length < rowTheoryMin || th.length > rowTheoryMax)) {
-          const range = rowTheoryMin === rowTheoryMax ? `exactly ${rowTheoryMin}` : `${rowTheoryMin}–${rowTheoryMax}`;
-          errors.push(`Group ${gid}: Theory requires ${range} session${rowTheoryMax !== 1 ? 's' : ''}`);
-        }
-        if (!inTheory && th.length) errors.push(`Group ${gid}: Theory sessions provided but mapping has no Theory`);
-        if (inLab && lb.length !== 2) errors.push(`Group ${gid}: Lab requires exactly 2 sessions`);
-        if (!inLab && lb.length) errors.push(`Group ${gid}: Lab sessions provided but mapping has no Lab`);
-
-        const consume = (arr, groupType) => {
-          const seenLocal = new Set();
-          for (const s of arr) {
-            const day = normalizeDay(s?.day);
-            const session = normalizeSession(s?.session || s?.sessionId);
-            if (!day || !session) {
-              errors.push(`Group ${gid}: invalid ${groupType} session`);
-              continue;
-            }
-            const key = `${day}|${session}`;
-            if (seenLocal.has(key)) {
-              errors.push(`Group ${gid}: duplicate slot ${day} ${session} in ${groupType}`);
-              continue;
-            }
-            seenLocal.add(key);
-
-            const prev = usedSlots.get(key);
-            if (!prev) {
-              usedSlots.set(key, { groupType, groupId: gid, theoryHours: groupType === 'THEORY' ? rowTheoryHours : null });
-              continue;
-            }
-
-            // Lab can never overlap with anything
-            if (groupType === 'LAB' || prev.groupType === 'LAB') {
-              errors.push(
-                `Slot ${day} ${session} is assigned to multiple groups (${prev.groupType} group ${prev.groupId} and ${groupType} group ${gid})`
-              );
-              continue;
-            }
-
-            // Theory vs Theory: allow overlap only when both are 15h
-            const prevHours = String(prev.theoryHours || '').toLowerCase() === '30h' ? '30h' : '15h';
-            if (!(prevHours === '15h' && rowTheoryHours === '15h')) {
-              errors.push(
-                `Slot ${day} ${session} is assigned to multiple groups (${prev.groupType} group ${prev.groupId} and ${groupType} group ${gid})`
-              );
-            }
+      // If client explicitly sends {}, treat as request to clear all structured assignments.
+      if (!structuredClearAll) {
+        for (const m of mappings) {
+          const gid = m?.group_id ? String(m.group_id) : null;
+          if (!gid) {
+            errors.push('Structured availability requires group-specific mappings (group_id is missing).');
+            continue;
           }
-        };
+          const inTheory = (parseInt(String(m?.theory_groups ?? 0), 10) || 0) > 0;
+          const inLab = (parseInt(String(m?.lab_groups ?? 0), 10) || 0) > 0;
 
-        if (inTheory) {
-          consume(th, 'THEORY');
-        }
-        if (inLab) consume(lb, 'LAB');
+          const rowTheoryHours =
+            String(m?.theory_hours || '').trim().toLowerCase() === '30h' ? '30h' : '15h';
+          const rowTheoryMin = inTheory ? 1 : 0;
+          const rowTheoryMax = inTheory ? (rowTheoryHours === '30h' ? 2 : 1) : 0;
 
-        const groupNumber = parseGroupNumberFromName(null, gid);
-        const toAssigned = (arr) =>
-          (Array.isArray(arr) ? arr : []).map((s) => {
-            const day = normalizeDay(s?.day);
-            const session = normalizeSession(s?.session || s?.sessionId);
-            const r = SESSION_TO_RANGE[session];
-            return {
-              day,
-              session,
-              startTime: r?.startTime,
-              endTime: r?.endTime,
-            };
+          const th = assignmentsByGroupPatch?.[gid]?.THEORY || [];
+          const lb = assignmentsByGroupPatch?.[gid]?.LAB || [];
+
+          if (inTheory && (th.length < rowTheoryMin || th.length > rowTheoryMax)) {
+            const range =
+              rowTheoryMin === rowTheoryMax ? `exactly ${rowTheoryMin}` : `${rowTheoryMin}–${rowTheoryMax}`;
+            errors.push(
+              `Group ${gid}: Theory requires ${range} session${rowTheoryMax !== 1 ? 's' : ''}`
+            );
+          }
+          if (!inTheory && th.length) errors.push(`Group ${gid}: Theory sessions provided but mapping has no Theory`);
+          if (inLab && lb.length !== 2) errors.push(`Group ${gid}: Lab requires exactly 2 sessions`);
+          if (!inLab && lb.length) errors.push(`Group ${gid}: Lab sessions provided but mapping has no Lab`);
+
+          const consume = (arr, groupType) => {
+            const seenLocal = new Set();
+            for (const s of arr) {
+              const day = normalizeDay(s?.day);
+              const session = normalizeSession(s?.session || s?.sessionId);
+              if (!day || !session) {
+                errors.push(`Group ${gid}: invalid ${groupType} session`);
+                continue;
+              }
+              const key = `${day}|${session}`;
+              if (seenLocal.has(key)) {
+                errors.push(`Group ${gid}: duplicate slot ${day} ${session} in ${groupType}`);
+                continue;
+              }
+              seenLocal.add(key);
+
+              const prev = usedSlots.get(key);
+              if (!prev) {
+                usedSlots.set(key, {
+                  groupType,
+                  groupId: gid,
+                  theoryHours: groupType === 'THEORY' ? rowTheoryHours : null,
+                });
+                continue;
+              }
+
+              // Lab can never overlap with anything
+              if (groupType === 'LAB' || prev.groupType === 'LAB') {
+                errors.push(
+                  `Slot ${day} ${session} is assigned to multiple groups (${prev.groupType} group ${prev.groupId} and ${groupType} group ${gid})`
+                );
+                continue;
+              }
+
+              // Theory vs Theory: allow overlap only when both are 15h
+              const prevHours = String(prev.theoryHours || '').toLowerCase() === '30h' ? '30h' : '15h';
+              if (!(prevHours === '15h' && rowTheoryHours === '15h')) {
+                errors.push(
+                  `Slot ${day} ${session} is assigned to multiple groups (${prev.groupType} group ${prev.groupId} and ${groupType} group ${gid})`
+                );
+              }
+            }
+          };
+
+          if (inTheory) {
+            consume(th, 'THEORY');
+          }
+          if (inLab) consume(lb, 'LAB');
+
+          const groupNumber = parseGroupNumberFromName(null, gid);
+          const toAssigned = (arr) =>
+            (Array.isArray(arr) ? arr : []).map((s) => {
+              const day = normalizeDay(s?.day);
+              const session = normalizeSession(s?.session || s?.sessionId);
+              const r = SESSION_TO_RANGE[session];
+              return {
+                day,
+                session,
+                startTime: r?.startTime,
+                endTime: r?.endTime,
+              };
+            });
+
+          const rowAssignments = [];
+          if (inTheory) {
+            rowAssignments.push({
+              groupType: 'THEORY',
+              groupNumber,
+              groupId: parseInt(gid, 10),
+              assignedSessions: toAssigned(th),
+            });
+          }
+          if (inLab) {
+            rowAssignments.push({
+              groupType: 'LAB',
+              groupNumber,
+              groupId: parseInt(gid, 10),
+              assignedSessions: toAssigned(lb),
+            });
+          }
+          const derivedAvailability = buildAvailabilityStringFromSessions([
+            ...(inTheory ? th : []),
+            ...(inLab ? lb : []),
+          ]);
+          structuredPerGroupId.set(gid, {
+            availability: derivedAvailability,
+            availability_assignments: rowAssignments,
           });
-
-        const rowAssignments = [];
-        if (inTheory) {
-          rowAssignments.push({
-            groupType: 'THEORY',
-            groupNumber,
-            groupId: parseInt(gid, 10),
-            assignedSessions: toAssigned(th),
-          });
         }
-        if (inLab) {
-          rowAssignments.push({
-            groupType: 'LAB',
-            groupNumber,
-            groupId: parseInt(gid, 10),
-            assignedSessions: toAssigned(lb),
-          });
-        }
-        const derivedAvailability = buildAvailabilityStringFromSessions([...(inTheory ? th : []), ...(inLab ? lb : [])]);
-        structuredPerGroupId.set(gid, { availability: derivedAvailability, availability_assignments: rowAssignments });
-      }
 
-      if (errors.length) {
-        return res.status(400).json({ message: 'Validation error', errors });
+        if (errors.length) {
+          return res.status(400).json({ message: 'Validation error', errors });
+        }
       }
 
       // Prevent applying these globally; they are applied per-row below.
-      delete patch.availability_assignments_by_group;
       delete patch.availability_assignments;
       delete patch.availability;
     }
@@ -1160,10 +1146,15 @@ export const updateCourseMapping = async (req, res) => {
           const perPatch = { ...patch };
           const gid = m.group_id ? String(m.group_id) : null;
 
-          if (gid && structuredPerGroupId.has(gid)) {
-            const st = structuredPerGroupId.get(gid);
-            perPatch.availability = st.availability;
-            perPatch.availability_assignments = st.availability_assignments;
+          if (structuredModeRequested) {
+            if (structuredClearAll) {
+              perPatch.availability = null;
+              perPatch.availability_assignments = [];
+            } else if (gid && structuredPerGroupId.has(gid)) {
+              const st = structuredPerGroupId.get(gid);
+              perPatch.availability = st.availability;
+              perPatch.availability_assignments = st.availability_assignments;
+            }
           }
 
           if (gid && theoryRoomByGroupPatch && gid in theoryRoomByGroupPatch) {
@@ -1197,10 +1188,15 @@ export const updateCourseMapping = async (req, res) => {
       mappings.map((m) => {
         const perPatch = { ...patch };
         const gid = m.group_id ? String(m.group_id) : null;
-        if (gid && structuredPerGroupId.has(gid)) {
-          const st = structuredPerGroupId.get(gid);
-          perPatch.availability = st.availability;
-          perPatch.availability_assignments = st.availability_assignments;
+        if (structuredModeRequested) {
+          if (structuredClearAll) {
+            perPatch.availability = null;
+            perPatch.availability_assignments = [];
+          } else if (gid && structuredPerGroupId.has(gid)) {
+            const st = structuredPerGroupId.get(gid);
+            perPatch.availability = st.availability;
+            perPatch.availability_assignments = st.availability_assignments;
+          }
         }
         return m.update(perPatch);
       })
