@@ -5,12 +5,13 @@ import PendingSignaturesAlert from '../../components/management/contract/Pending
 import ContractGrid from '../../components/management/contract/ContractGrid';
 import UploadSignatureDialog from '../../components/management/contract/UploadSignatureDialog';
 import ContractDetailDialog from '../../components/management/contract/ContractDetailDialog';
+import ContractRedoDialog from '../../components/management/contract/ContractRedoDialog';  // ← new
 import { useContracts } from '../../hooks/management/useContracts';
 import { useContractActions } from '../../hooks/management/useContractActions';
 import { useUploadDialog } from '../../hooks/management/useUploadDialog';
 
 export default function ManagementContracts() {
-  // Custom hooks
+  // ── Data ──────────────────────────────────────────────────────────────────
   const {
     contracts,
     filteredContracts,
@@ -21,17 +22,24 @@ export default function ManagementContracts() {
     setQ,
     status,
     setStatus,
-    fetchContracts
+    fetchContracts,
   } = useContracts();
 
+  // ── Actions ───────────────────────────────────────────────────────────────
   const {
     previewPdf,
     downloadPdf,
     uploadManagementSignature,
     downloadingId,
-    uploading
+    uploading,
+    redoOpen,
+    redoContract,
+    openRedoDialog,
+    closeRedoDialog,
+    requestRedo,
   } = useContractActions(fetchContracts);
 
+  // ── Upload signature dialog ───────────────────────────────────────────────
   const {
     showUploadDlg,
     setShowUploadDlg,
@@ -41,22 +49,19 @@ export default function ManagementContracts() {
     uploadError,
     setUploadError,
     openUploadDialog,
-    closeUploadDialog
+    closeUploadDialog,
   } = useUploadDialog();
 
-  // Detail dialog state
+  // ── Detail dialog ─────────────────────────────────────────────────────────
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailContract, setDetailContract] = useState(null);
 
-  // Handlers
-  const handleSignClick = (contract) => {
-    openUploadDialog(contract);
-  };
+  // ── Handlers ──────────────────────────────────────────────────────────────
+  const handleSignClick = (contract) => openUploadDialog(contract);
 
   const handleFileChange = (e) => {
     setUploadError('');
-    const file = e.target.files?.[0] || null;
-    setSelectedFile(file || null);
+    setSelectedFile(e.target.files?.[0] || null);
   };
 
   const handleUpload = async () => {
@@ -67,7 +72,7 @@ export default function ManagementContracts() {
     try {
       await uploadManagementSignature(uploadContract, selectedFile);
       closeUploadDialog();
-    } catch (e) {
+    } catch {
       setUploadError('Failed to upload. Please try again.');
     }
   };
@@ -82,45 +87,53 @@ export default function ManagementContracts() {
       <div className="p-8 space-y-6">
         <ContractHeader />
 
-        <ContractFilters 
-          q={q} 
-          setQ={setQ} 
-          status={status} 
-          setStatus={setStatus} 
-          setPage={setPage} 
+        <ContractFilters
+          q={q}
+          setQ={setQ}
+          status={status}
+          setStatus={setStatus}
+          setPage={setPage}
         />
 
-        <PendingSignaturesAlert 
-          contracts={contracts} 
-          onPreview={previewPdf} 
+        <PendingSignaturesAlert
+          contracts={contracts}
+          onPreview={previewPdf}
           onSign={handleSignClick}
-          onReSign={handleRedoClick} 
-          uploading={uploading} 
+          onRedo={openRedoDialog}      
+          uploading={uploading}
         />
 
-        <ContractGrid 
-          contracts={filteredContracts} 
-          onPreview={previewPdf} 
-          onDownload={downloadPdf} 
-          onSign={handleSignClick} 
+        <ContractGrid
+          contracts={filteredContracts}
+          onPreview={previewPdf}
+          onDownload={downloadPdf}
+          onSign={handleSignClick}
           onShowDetail={handleShowDetail}
-          downloadingId={downloadingId} 
+          downloadingId={downloadingId}
         />
 
-        <UploadSignatureDialog 
-          open={showUploadDlg} 
-          onOpenChange={setShowUploadDlg} 
-          selectedFile={selectedFile} 
-          onFileChange={handleFileChange} 
-          uploadError={uploadError} 
-          uploading={uploading} 
-          onUpload={handleUpload} 
+        <UploadSignatureDialog
+          open={showUploadDlg}
+          onOpenChange={setShowUploadDlg}
+          selectedFile={selectedFile}
+          onFileChange={handleFileChange}
+          uploadError={uploadError}
+          uploading={uploading}
+          onUpload={handleUpload}
         />
 
-        <ContractDetailDialog 
-          open={detailOpen} 
-          onOpenChange={setDetailOpen} 
-          contract={detailContract} 
+        <ContractDetailDialog
+          open={detailOpen}
+          onOpenChange={setDetailOpen}
+          contract={detailContract}
+        />
+
+        {/* Redo request dialog — same component reused from lecturer side */}
+        <ContractRedoDialog
+          isOpen={redoOpen}
+          onClose={closeRedoDialog}
+          contract={redoContract}
+                 
         />
       </div>
     </div>

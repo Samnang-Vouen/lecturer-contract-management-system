@@ -21,7 +21,8 @@ export default function ContractCard({
   onDownload, 
   onSign, 
   onShowDetail,
-  downloadingId 
+  downloadingId,
+  onRedo,
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);

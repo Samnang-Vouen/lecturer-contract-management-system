@@ -6,16 +6,18 @@ import {
   getAdvisorContractPdfUrl,
   uploadContractSignature,
   updateContractStatus,
+  createRedoRequest,           // ← add this import from contract.service
 } from '../../services/contract.service';
 import { uploadAdvisorContractSignature } from '../../services/advisorContract.service';
 
 /**
- * Custom hook for contract actions (preview, download, approve, upload)
+ * Custom hook for contract actions (preview, download, approve, upload, redo)
  */
 export const useContractActions = (fetchContracts) => {
-  const [downloading, setDownloading] = useState(false);
   const [downloadingId, setDownloadingId] = useState(null);
-  const [uploading, setUploading] = useState(false);
+  const [uploading, setUploading]         = useState(false);
+  const [redoOpen, setRedoOpen]           = useState(false);
+  const [redoContract, setRedoContract]   = useState(null);
 
   const toContractMeta = (contractOrId) => {
     if (contractOrId && typeof contractOrId === 'object') {
@@ -37,7 +39,9 @@ export const useContractActions = (fetchContracts) => {
     const { id, type } = toContractMeta(contractOrId);
     try {
       setDownloadingId(id);
-      const data = type === 'ADVISOR' ? await getAdvisorContractPdfBlob(id) : await getContractPdfBlob(id);
+      const data = type === 'ADVISOR'
+        ? await getAdvisorContractPdfBlob(id)
+        : await getContractPdfBlob(id);
       const blob = new Blob([data], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -47,8 +51,8 @@ export const useContractActions = (fetchContracts) => {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-    } catch (e) {
-      // optionally handle error (toast/log)
+    } catch {
+      // silent
     } finally {
       setDownloadingId(null);
     }
@@ -56,7 +60,6 @@ export const useContractActions = (fetchContracts) => {
 
   const approveAsManagement = async (contract) => {
     try {
-      // Teaching contracts only; advisor contracts have a separate lifecycle.
       await updateContractStatus(contract.id, 'WAITING_LECTURER');
       await fetchContracts();
     } catch {}
@@ -80,13 +83,40 @@ export const useContractActions = (fetchContracts) => {
     }
   };
 
+  // ── Redo ──────────────────────────────────────────────────────────────────
+  const openRedoDialog = (contract) => {
+    setRedoContract(contract);
+    setRedoOpen(true);
+  };
+
+  const closeRedoDialog = () => {
+    setRedoOpen(false);
+    setRedoContract(null);
+  };
+
+  /** Submit redo request with a reason message */
+  const requestRedo = async (contractId, message) => {
+    try {
+      await createRedoRequest(contractId, message);
+      closeRedoDialog();
+      await fetchContracts();
+    } catch (e) {
+      throw e; // let the dialog show a toast
+    }
+  };
+
   return {
     previewPdf,
     downloadPdf,
     approveAsManagement,
     uploadManagementSignature,
-    downloading,
     downloadingId,
-    uploading
+    uploading,
+    // redo
+    redoOpen,
+    redoContract,
+    openRedoDialog,
+    closeRedoDialog,
+    requestRedo,
   };
 };
