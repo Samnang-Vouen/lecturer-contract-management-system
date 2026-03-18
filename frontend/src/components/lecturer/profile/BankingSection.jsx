@@ -6,9 +6,9 @@ import { Wallet } from 'lucide-react';
 
 export default function BankingSection({ form, editMode, onChange }) {
   return (
-    <Card className="shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 bg-white rounded-2xl border border-gray-100/70">
+    <Card className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <SectionHeader title="Banking" icon={<Wallet className="h-4 w-4" />} accent="purple" />
-      <CardContent className="pt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+      <CardContent className="p-6 sm:p-8 grid grid-cols-1 md:grid-cols-2 gap-5">
         <FormField 
           name="bank_name" 
           label="Bank Name" 

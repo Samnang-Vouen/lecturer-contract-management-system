@@ -19,7 +19,9 @@ import {
   GraduationCap,
   UsersIcon,
   CalendarDays,
+  CalendarCheck,
   FileBarChart,
+  FolderUp,
   Shield,
   ChevronDown,
   Briefcase,
@@ -28,21 +30,21 @@ import {
 // Font styles
 const sidebarFont = {
   fontFamily: `'Inter', 'Segoe UI', Arial, sans-serif`,
-  fontSize: '18px',
+  fontSize: "18px",
   fontWeight: 400,
-  letterSpacing: '0.01em'
+  letterSpacing: "0.01em",
 };
 
 const sidebarHeadingFont = {
   fontFamily: `'Inter', 'Segoe UI', Arial, sans-serif`,
-  fontSize: '20px',
+  fontSize: "20px",
   fontWeight: 600,
-  letterSpacing: '0.01em'
+  letterSpacing: "0.01em",
 };
 
 /**
  * @typedef {'superadmin' | 'admin' | 'lecturer' | 'advisor' | 'management'} UserRole
- * 
+ *
  * @typedef {Object} NavItem
  * @property {string} title - The title of the navigation item
  * @property {string} href - The href link of the navigation item
@@ -61,7 +63,7 @@ const navItems = [
     href: "/dashboard",
     icon: LayoutDashboard,
     roles: ["superadmin", "admin", "lecturer", "advisor", "management"],
-    category: null
+    category: null,
   },
   {
     title: "Academic Management",
@@ -84,7 +86,7 @@ const navItems = [
     href: "/lecturer/my-contracts",
     icon: Briefcase,
     roles: ["lecturer", "advisor"],
-    category: null
+    category: null,
   },
   {
     title: "Contract Management",
@@ -113,14 +115,14 @@ const navItems = [
     icon: Shield,
     roles: ["superadmin"],
     category: "system",
-    hasSubmenu: true
+    hasSubmenu: true,
   },
   {
     title: "Profile Settings",
     href: "/superadmin/profile",
     icon: Settings,
     roles: ["superadmin"],
-    category: null
+    category: null,
   },
   {
     title: "Profile Settings",
@@ -130,51 +132,60 @@ const navItems = [
     category: null,
   },
   {
-    title: "Profile Settings", 
+    title: "Profile Settings",
     href: "/lecturer/profile",
     icon: Settings,
     roles: ["lecturer", "advisor"],
-    category: null
+    category: null,
   },
 ];
 
-export function Sidebar({ user: userProp, onLogout, mobileOpen = false, onClose = () => {} }) {
+export function Sidebar({
+  user: userProp,
+  onLogout,
+  mobileOpen = false,
+  onClose = () => {},
+}) {
   const location = useLocation();
   const { user: storeUser, logout: storeLogout } = useAuthStore();
-  
+
   const [collapsed, setCollapsed] = useState(() => {
-    try { 
-      return localStorage.getItem('sidebarCollapsed') === 'true'; 
-    } catch { 
-      return false; 
+    try {
+      return localStorage.getItem("sidebarCollapsed") === "true";
+    } catch {
+      return false;
     }
   });
 
   const [expandedItems, setExpandedItems] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem('expandedItems') || '{}');
+      return JSON.parse(localStorage.getItem("expandedItems") || "{}");
     } catch {
       return {};
     }
   });
 
   const toggleCollapsed = () => {
-    setCollapsed(prev => {
+    setCollapsed((prev) => {
       const next = !prev;
-      try { 
-        localStorage.setItem('sidebarCollapsed', String(next)); 
-      } catch { /* ignore write errors */ }
+      try {
+        localStorage.setItem("sidebarCollapsed", String(next));
+      } catch {
+        /* ignore write errors */
+      }
       return next;
     });
   };
 
   const toggleItem = (itemTitle) => {
     if (collapsed) return;
-    setExpandedItems(prev => {
+    setExpandedItems((prev) => {
       const next = { ...prev, [itemTitle]: !prev[itemTitle] };
       try {
-        localStorage.setItem('expandedItems', JSON.stringify(next));
-      } catch { /* ignore write errors */ }
+        localStorage.setItem("expandedItems", JSON.stringify(next));
+      } catch {
+        /* ignore write errors */
+      }
       return next;
     });
   };
@@ -183,82 +194,87 @@ export function Sidebar({ user: userProp, onLogout, mobileOpen = false, onClose 
   const logout = onLogout || storeLogout;
 
   const roleRoot = useMemo(() => {
-    return ({
-      superadmin: '/superadmin',
-      admin: '/admin',
-      lecturer: '/lecturer',
-      advisor: '/advisor',
-      management: '/management'
-    }[user.role] || '/dashboard');
+    return (
+      {
+        superadmin: "/superadmin",
+        admin: "/admin",
+        lecturer: "/lecturer",
+        advisor: "/advisor",
+        management: "/management",
+      }[user.role] || "/dashboard"
+    );
   }, [user.role]);
 
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === 'Escape' && mobileOpen) onClose();
+      if (e.key === "Escape" && mobileOpen) onClose();
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, [mobileOpen, onClose]);
 
   if (!user) return null;
 
   // Filter nav items based on user role
-  const filteredNavItems = navItems.filter((item) => 
-    item.roles.includes(user.role)
+  const filteredNavItems = navItems.filter((item) =>
+    item.roles.includes(user.role),
   );
 
   const isActive = (href, title) => {
-    if (title === 'Dashboard') {
+    if (title === "Dashboard") {
       return location.pathname === roleRoot;
     }
-    return location.pathname === href || location.pathname.startsWith(href + '/');
+    return (
+      location.pathname === href || location.pathname.startsWith(href + "/")
+    );
   };
-  
-  const cn = (...classes) => classes.filter(Boolean).join(' ');
+
+  const cn = (...classes) => classes.filter(Boolean).join(" ");
 
   const formatUserDisplay = (u) => {
-    if (!u?.email) return '';
-    let base = u.email.split('@')[0].replace(/[._-]+/g, ' ');
+    if (!u?.email) return "";
+    let base = u.email.split("@")[0].replace(/[._-]+/g, " ");
     base = base
-      .split(' ')
+      .split(" ")
       .filter(Boolean)
-      .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-      .join(' ');
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(" ");
     return base;
   };
 
   const getUserRoleLabel = (role) => {
     const roleLabels = {
-      superadmin: 'System Administrator',
-      admin: 'Administrator',
-      lecturer: 'Lecturer',
-      advisor: 'Advisor',
-      management: 'Management'
+      superadmin: "System Administrator",
+      admin: "Administrator",
+      lecturer: "Lecturer",
+      advisor: "Advisor",
+      management: "Management",
     };
     return roleLabels[role] || role;
   };
 
   const getPanelLabel = (role) => {
     const panel = {
-      superadmin: 'System Panel',
-      admin: 'Admin Panel',
-      management: 'Management Panel',
-      lecturer: 'Lecturer Panel',
-      advisor: 'Advisor Panel'
+      superadmin: "System Panel",
+      admin: "Admin Panel",
+      management: "Management Panel",
+      lecturer: "Lecturer Panel",
+      advisor: "Lecturer Panel",
     };
-    return panel[role] || 'Panel';
+    return panel[role] || "Panel";
   };
 
   const renderNavItem = (item, isMobile = false) => {
     const Icon = item.icon;
     let href = item.href;
-    if (item.title === 'Dashboard') {
+    if (item.title === "Dashboard") {
       href = roleRoot;
     }
     // Advisors reuse the lecturer-like sidebar but should navigate under /advisor
-    if (String(user.role || '').toLowerCase() === 'advisor') {
-      if (href.startsWith('/lecturer/')) href = href.replace('/lecturer/', '/advisor/');
-      if (href === '/lecturer') href = '/advisor';
+    if (String(user.role || "").toLowerCase() === "advisor") {
+      if (href.startsWith("/lecturer/"))
+        href = href.replace("/lecturer/", "/advisor/");
+      if (href === "/lecturer") href = "/advisor";
     }
     const active = isActive(href, item.title);
     const isExpanded = expandedItems[item.title];
@@ -272,11 +288,19 @@ export function Sidebar({ user: userProp, onLogout, mobileOpen = false, onClose 
               e.stopPropagation?.();
               if (collapsed) {
                 // When collapsed, expand sidebar and open this submenu so child icons are visible
-                try { localStorage.setItem('sidebarCollapsed', 'false'); } catch { /* ignore */ }
+                try {
+                  localStorage.setItem("sidebarCollapsed", "false");
+                } catch {
+                  /* ignore */
+                }
                 setCollapsed(false);
-                setExpandedItems(prev => {
+                setExpandedItems((prev) => {
                   const next = { ...prev, [item.title]: true };
-                  try { localStorage.setItem('expandedItems', JSON.stringify(next)); } catch { /* ignore */ }
+                  try {
+                    localStorage.setItem("expandedItems", JSON.stringify(next));
+                  } catch {
+                    /* ignore */
+                  }
                   return next;
                 });
                 return;
@@ -285,44 +309,55 @@ export function Sidebar({ user: userProp, onLogout, mobileOpen = false, onClose 
             }}
             className={cn(
               "w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 hover:bg-blue-50",
-              collapsed ? 'justify-center px-3' : 'justify-start',
-              active ? "bg-blue-50 text-blue-900" : "text-gray-700 hover:text-blue-600"
+              collapsed ? "justify-center px-3" : "justify-start",
+              active
+                ? "bg-blue-50 text-blue-900"
+                : "text-gray-700 hover:text-blue-600",
             )}
             style={sidebarFont}
             title={collapsed ? item.title : undefined}
           >
-            <Icon className={cn(
-              "h-5 w-5 transition-colors duration-200 flex-shrink-0",
-              active ? "text-blue-600" : "text-gray-500"
-            )} />
+            <Icon
+              className={cn(
+                "h-5 w-5 transition-colors duration-200 flex-shrink-0",
+                active ? "text-blue-600" : "text-gray-500",
+              )}
+            />
             {!collapsed && (
               <>
                 <span className="flex-1 text-left truncate">{item.title}</span>
-                <ChevronDown className={cn(
-                  "h-4 w-4 transition-transform duration-200",
-                  isExpanded ? "transform rotate-0" : "transform -rotate-90"
-                )} />
+                <ChevronDown
+                  className={cn(
+                    "h-4 w-4 transition-transform duration-200",
+                    isExpanded ? "transform rotate-0" : "transform -rotate-90",
+                  )}
+                />
               </>
             )}
           </button>
         ) : (
-          <Link 
-            to={href} 
-            className="block group" 
+          <Link
+            to={href}
+            className="block group"
             onClick={isMobile ? onClose : undefined}
           >
-            <div className={cn(
-              "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 hover:bg-blue-50",
-              collapsed ? 'justify-center px-3' : 'justify-start',
-              active ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:text-blue-600"
-            )}
-            style={sidebarFont}
-            title={collapsed ? item.title : undefined}
+            <div
+              className={cn(
+                "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 hover:bg-blue-50",
+                collapsed ? "justify-center px-3" : "justify-start",
+                active
+                  ? "bg-blue-50 text-blue-600"
+                  : "text-gray-700 hover:text-blue-600",
+              )}
+              style={sidebarFont}
+              title={collapsed ? item.title : undefined}
             >
-              <Icon className={cn(
-                "h-5 w-5 transition-colors duration-200 flex-shrink-0",
-                active ? "text-blue-600" : "text-gray-500"
-              )} />
+              <Icon
+                className={cn(
+                  "h-5 w-5 transition-colors duration-200 flex-shrink-0",
+                  active ? "text-blue-600" : "text-gray-500",
+                )}
+              />
               {!collapsed && (
                 <span className="flex-1 truncate">{item.title}</span>
               )}
@@ -332,74 +367,167 @@ export function Sidebar({ user: userProp, onLogout, mobileOpen = false, onClose 
         {/* Submenu items */}
         {item.hasSubmenu && !collapsed && isExpanded && (
           <div className="ml-6 mt-1 space-y-1">
-            {item.category === 'academic' && (
+            {item.category === "academic" && (
               <>
-                <Link to="/admin/courses" onClick={isMobile ? onClose : undefined}>
-                  <div className={cn(
-                    "flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200 hover:bg-blue-50",
-                    location.pathname.includes('/admin/courses') ? "bg-blue-50 text-blue-600" : "text-gray-600 hover:text-blue-600"
-                  )} style={sidebarFont}>
+                <Link
+                  to="/admin/courses"
+                  onClick={isMobile ? onClose : undefined}
+                >
+                  <div
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200 hover:bg-blue-50",
+                      location.pathname.includes("/admin/courses")
+                        ? "bg-blue-50 text-blue-600"
+                        : "text-gray-600 hover:text-blue-600",
+                    )}
+                    style={sidebarFont}
+                  >
                     <BookOpen className="h-4 w-4" />
                     <span>Course Management</span>
                   </div>
                 </Link>
-                <Link to="/admin/classes" onClick={isMobile ? onClose : undefined}>
-                  <div className={cn(
-                    "flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200 hover:bg-blue-50",
-                    location.pathname.includes('/admin/classes') ? "bg-blue-50 text-blue-600" : "text-gray-600 hover:text-blue-600"
-                  )} style={sidebarFont}>
+                <Link
+                  to="/admin/classes"
+                  onClick={isMobile ? onClose : undefined}
+                >
+                  <div
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200 hover:bg-blue-50",
+                      location.pathname.includes("/admin/classes")
+                        ? "bg-blue-50 text-blue-600"
+                        : "text-gray-600 hover:text-blue-600",
+                    )}
+                    style={sidebarFont}
+                  >
                     <School className="h-4 w-4" />
                     <span>Class Management</span>
                   </div>
                 </Link>
-                <Link to="/admin/course-mapping" onClick={isMobile ? onClose : undefined}>
-                  <div className={cn(
-                    "flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200 hover:bg-blue-50",
-                    location.pathname.includes('/admin/course-mapping') ? "bg-blue-50 text-blue-600" : "text-gray-600 hover:text-blue-600"
-                  )} style={sidebarFont}>
+                <Link
+                  to="/admin/course-mapping"
+                  onClick={isMobile ? onClose : undefined}
+                >
+                  <div
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200 hover:bg-blue-50",
+                      location.pathname.includes("/admin/course-mapping")
+                        ? "bg-blue-50 text-blue-600"
+                        : "text-gray-600 hover:text-blue-600",
+                    )}
+                    style={sidebarFont}
+                  >
                     <MapPin className="h-4 w-4" />
                     <span>Course Mapping</span>
                   </div>
                 </Link>
-                <Link to="/admin/contracts" onClick={isMobile ? onClose : undefined}>
-                  <div className={cn(
-                    "flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200 hover:bg-blue-50",
-                    location.pathname.includes('/admin/contracts') ? "bg-blue-50 text-blue-600" : "text-gray-600 hover:text-blue-600"
-                  )} style={sidebarFont}>
+
+                <Link
+                  to="/admin/schedule-creation"
+                  onClick={isMobile ? onClose : undefined}
+                >
+                  <div
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200 hover:bg-blue-50",
+                      location.pathname.includes("/admin/schedule-creation")
+                        ? "bg-blue-50 text-blue-600"
+                        : "text-gray-600 hover:text-blue-600",
+                    )}
+                    style={sidebarFont}
+                  >
+                    <CalendarCheck className="h-4 w-4" />
+                    <span>Schedule Creation</span>
+                  </div>
+                </Link>
+
+                <Link
+                  to="/admin/contracts"
+                  onClick={isMobile ? onClose : undefined}
+                >
+                  <div
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200 hover:bg-blue-50",
+                      location.pathname.includes("/admin/contracts")
+                        ? "bg-blue-50 text-blue-600"
+                        : "text-gray-600 hover:text-blue-600",
+                    )}
+                    style={sidebarFont}
+                  >
                     <FileText className="h-4 w-4" />
                     <span>Contract Generation</span>
                   </div>
                 </Link>
+
+                <Link
+                  to="/admin/upload-evaluation"
+                  onClick={isMobile ? onClose : undefined}
+                >
+                  <div
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200 hover:bg-blue-50",
+                      location.pathname.includes("/admin/upload-evaluation")
+                        ? "bg-blue-50 text-blue-600"
+                        : "text-gray-600 hover:text-blue-600",
+                    )}
+                    style={sidebarFont}
+                  >
+                    <FolderUp className="h-4 w-4" />
+                    <span>Upload Evaluation</span>
+                  </div>
+                </Link>
               </>
             )}
-            {item.category === 'personnel' && (
+            {item.category === "personnel" && (
               <>
-                <Link to="/admin/recruitment" onClick={isMobile ? onClose : undefined}>
-                  <div className={cn(
-                    "flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200 hover:bg-blue-50",
-                    location.pathname.includes('/admin/recruitment') ? "bg-blue-50 text-blue-600" : "text-gray-600 hover:text-blue-600"
-                  )} style={sidebarFont}>
+                <Link
+                  to="/admin/recruitment"
+                  onClick={isMobile ? onClose : undefined}
+                >
+                  <div
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200 hover:bg-blue-50",
+                      location.pathname.includes("/admin/recruitment")
+                        ? "bg-blue-50 text-blue-600"
+                        : "text-gray-600 hover:text-blue-600",
+                    )}
+                    style={sidebarFont}
+                  >
                     <UserPlus className="h-4 w-4" />
                     <span>Lecturer Recruitment</span>
                   </div>
                 </Link>
-                <Link to="/admin/lecturers" onClick={isMobile ? onClose : undefined}>
-                  <div className={cn(
-                    "flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200 hover:bg-blue-50",
-                    location.pathname.includes('/admin/lecturers') ? "bg-blue-50 text-blue-600" : "text-gray-600 hover:text-blue-600"
-                  )} style={sidebarFont}>
+                <Link
+                  to="/admin/lecturers"
+                  onClick={isMobile ? onClose : undefined}
+                >
+                  <div
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200 hover:bg-blue-50",
+                      location.pathname.includes("/admin/lecturers")
+                        ? "bg-blue-50 text-blue-600"
+                        : "text-gray-600 hover:text-blue-600",
+                    )}
+                    style={sidebarFont}
+                  >
                     <Users className="h-4 w-4" />
                     <span>Lecturer Management</span>
                   </div>
                 </Link>
               </>
             )}
-            {item.category === 'system' && (
-              <Link to="/superadmin/users" onClick={isMobile ? onClose : undefined}>
-                <div className={cn(
-                  "flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200 hover:bg-blue-50",
-                  location.pathname.includes('/superadmin/users') ? "bg-blue-50 text-blue-600" : "text-gray-600 hover:text-blue-600"
-                )} style={sidebarFont}>
+            {item.category === "system" && (
+              <Link
+                to="/superadmin/users"
+                onClick={isMobile ? onClose : undefined}
+              >
+                <div
+                  className={cn(
+                    "flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200 hover:bg-blue-50",
+                    location.pathname.includes("/superadmin/users")
+                      ? "bg-blue-50 text-blue-600"
+                      : "text-gray-600 hover:text-blue-600",
+                  )}
+                  style={sidebarFont}
+                >
                   <UserCog className="h-4 w-4" />
                   <span>User Management</span>
                 </div>
@@ -414,15 +542,21 @@ export function Sidebar({ user: userProp, onLogout, mobileOpen = false, onClose 
 
   // Desktop sidebar
   const desktopSidebar = (
-    <div className={cn(
-      "hidden lg:flex h-full flex-col bg-white border-r border-gray-100 transition-all duration-300 ease-in-out",
-      collapsed ? 'w-20' : 'w-80'
-    )} style={sidebarFont}>
+    <div
+      className={cn(
+        "hidden lg:flex h-full flex-col bg-white border-r border-gray-100 transition-all duration-300 ease-in-out",
+        collapsed ? "w-20" : "w-80",
+      )}
+      style={sidebarFont}
+    >
       {/* Header */}
-      <div className={cn(
-        "flex h-16 items-center px-6 border-b border-gray-100",
-        collapsed ? 'justify-center px-2' : 'gap-3'
-      )} style={sidebarHeadingFont}>
+      <div
+        className={cn(
+          "flex h-16 items-center px-6 border-b border-gray-100",
+          collapsed ? "justify-center px-2" : "gap-3",
+        )}
+        style={sidebarHeadingFont}
+      >
         {!collapsed ? (
           <>
             <div className="flex items-center gap-3">
@@ -431,7 +565,9 @@ export function Sidebar({ user: userProp, onLogout, mobileOpen = false, onClose 
               </div>
               <div className="flex flex-col">
                 <span style={sidebarHeadingFont}>LCMS</span>
-                <span className="text-xs text-gray-500" style={sidebarFont}>{getPanelLabel(user.role)}</span>
+                <span className="text-xs text-gray-500" style={sidebarFont}>
+                  {getPanelLabel(user.role)}
+                </span>
               </div>
             </div>
             <button
@@ -458,15 +594,24 @@ export function Sidebar({ user: userProp, onLogout, mobileOpen = false, onClose 
         <div className="h-full overflow-y-auto px-4 py-6">
           {/* User Profile */}
           {!collapsed && (
-            <div className="mb-6 p-3 bg-gray-50 rounded-xl border border-gray-100" style={sidebarFont}>
+            <div
+              className="mb-6 p-3 bg-gray-50 rounded-xl border border-gray-100"
+              style={sidebarFont}
+            >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <span className="text-blue-600 font-medium text-sm" style={sidebarHeadingFont}>
+                  <span
+                    className="text-blue-600 font-medium text-sm"
+                    style={sidebarHeadingFont}
+                  >
                     {user?.email?.charAt(0).toUpperCase()}
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-gray-900 truncate text-sm" style={sidebarHeadingFont}>
+                  <p
+                    className="font-medium text-gray-900 truncate text-sm"
+                    style={sidebarHeadingFont}
+                  >
                     {formatUserDisplay(user)}
                   </p>
                   <p className="text-xs text-gray-500" style={sidebarFont}>
@@ -491,10 +636,10 @@ export function Sidebar({ user: userProp, onLogout, mobileOpen = false, onClose 
           className={cn(
             "w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200",
             "text-gray-700 hover:text-red-600 hover:bg-red-50",
-            collapsed ? 'justify-center px-3' : 'justify-start'
+            collapsed ? "justify-center px-3" : "justify-start",
           )}
           style={sidebarFont}
-          title={collapsed ? 'Sign Out' : undefined}
+          title={collapsed ? "Sign Out" : undefined}
         >
           <LogOut className="h-4 w-4" />
           {!collapsed && <span>Sign Out</span>}
@@ -507,31 +652,39 @@ export function Sidebar({ user: userProp, onLogout, mobileOpen = false, onClose 
   const mobileSidebar = (
     <>
       {/* Backdrop */}
-      <div 
+      <div
         className={cn(
           "fixed inset-0 bg-black/20 z-40 lg:hidden transition-opacity duration-300",
-          mobileOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        )} 
-        onClick={onClose} 
+          mobileOpen ? "opacity-100" : "opacity-0 pointer-events-none",
+        )}
+        onClick={onClose}
       />
       {/* Sidebar */}
-      <div className={cn(
-        "fixed inset-y-0 left-0 z-50 w-80 bg-white shadow-xl lg:hidden transition-transform duration-300",
-        mobileOpen ? 'translate-x-0' : '-translate-x-full'
-      )} style={sidebarFont}>
+      <div
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 w-80 bg-white shadow-xl lg:hidden transition-transform duration-300",
+          mobileOpen ? "translate-x-0" : "-translate-x-full",
+        )}
+        style={sidebarFont}
+      >
         {/* Mobile Header */}
-        <div className="flex h-16 items-center px-6 border-b border-gray-100" style={sidebarHeadingFont}>
+        <div
+          className="flex h-16 items-center px-6 border-b border-gray-100"
+          style={sidebarHeadingFont}
+        >
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
               <Building2 className="h-5 w-5 text-blue-600" />
             </div>
             <div className="flex flex-col">
               <span style={sidebarHeadingFont}>LCMS</span>
-              <span className="text-xs text-gray-500" style={sidebarFont}>{getPanelLabel(user.role)}</span>
+              <span className="text-xs text-gray-500" style={sidebarFont}>
+                {getPanelLabel(user.role)}
+              </span>
             </div>
           </div>
-          <button 
-            onClick={onClose} 
+          <button
+            onClick={onClose}
             className="ml-auto p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
           >
             <X className="h-4 w-4" />
@@ -541,15 +694,24 @@ export function Sidebar({ user: userProp, onLogout, mobileOpen = false, onClose 
         <div className="flex flex-col h-[calc(100vh-4rem)]">
           <div className="flex-1 overflow-y-auto px-4 py-6">
             {/* Mobile User Profile */}
-            <div className="mb-6 p-3 bg-gray-50 rounded-xl border border-gray-100" style={sidebarFont}>
+            <div
+              className="mb-6 p-3 bg-gray-50 rounded-xl border border-gray-100"
+              style={sidebarFont}
+            >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <span className="text-blue-600 font-medium text-sm" style={sidebarHeadingFont}>
+                  <span
+                    className="text-blue-600 font-medium text-sm"
+                    style={sidebarHeadingFont}
+                  >
                     {user?.email?.charAt(0).toUpperCase()}
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-gray-900 truncate text-sm" style={sidebarHeadingFont}>
+                  <p
+                    className="font-medium text-gray-900 truncate text-sm"
+                    style={sidebarHeadingFont}
+                  >
                     {formatUserDisplay(user)}
                   </p>
                   <p className="text-xs text-gray-500" style={sidebarFont}>
@@ -565,8 +727,11 @@ export function Sidebar({ user: userProp, onLogout, mobileOpen = false, onClose 
           </div>
           {/* Mobile Footer */}
           <div className="flex-shrink-0 p-4 border-t border-gray-100">
-            <button 
-              onClick={() => { onClose(); logout(); }}
+            <button
+              onClick={() => {
+                onClose();
+                logout();
+              }}
               className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-all duration-200 text-gray-700 hover:text-red-600 hover:bg-red-50"
               style={sidebarFont}
             >

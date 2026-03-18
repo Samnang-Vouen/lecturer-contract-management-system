@@ -7,15 +7,27 @@ export default function AvailabilityField({
   availBtnRef,
   updatePosition,
   popoverStyle,
-  availabilityMap,
-  toggleSession,
-  clearAvailability,
   DAY_OPTIONS,
   SESSION_OPTIONS,
   idToTime,
   availabilitySummary,
-  form,
-  setForm,
+  hasGroupTargets,
+  targets,
+  activeTargetKey,
+  setActiveTargetKey,
+  activeTarget,
+  getAssignedForTarget,
+  toggleSessionGrouped,
+  clearAvailabilityGrouped,
+  validation,
+  getSlotTag,
+  slotToTarget,
+  allowTheorySlotSharing,
+
+  // legacy fallback
+  availabilityMap,
+  toggleSessionLegacy,
+  clearAvailabilityLegacy,
 }) {
   return (
     <div className="flex flex-col min-w-0">
@@ -45,22 +57,28 @@ export default function AvailabilityField({
           onClose={() => setAvailabilityOpen(false)}
           triggerRef={availBtnRef}
           popoverStyle={popoverStyle}
-          availabilityMap={availabilityMap}
-          onToggleSession={toggleSession}
-          onClear={clearAvailability}
           DAY_OPTIONS={DAY_OPTIONS}
           SESSION_OPTIONS={SESSION_OPTIONS}
           idToTime={idToTime}
+
+          hasGroupTargets={hasGroupTargets}
+          targets={targets}
+          activeTargetKey={activeTargetKey}
+          setActiveTargetKey={setActiveTargetKey}
+          activeTarget={activeTarget}
+          getAssignedForTarget={getAssignedForTarget}
+          onToggleSessionGrouped={toggleSessionGrouped}
+          onClearGrouped={clearAvailabilityGrouped}
+          validation={validation}
+          getSlotTag={getSlotTag}
+          slotToTarget={slotToTarget}
+          allowTheorySlotSharing={allowTheorySlotSharing}
+
+          availabilityMap={availabilityMap}
+          onToggleSessionLegacy={toggleSessionLegacy}
+          onClearLegacy={clearAvailabilityLegacy}
         />
       </div>
-      <input
-        id="mappingAvailability"
-        name="availability"
-        value={form.availability}
-        onChange={(e) => setForm((f) => ({ ...f, availability: e.target.value }))}
-        className="sr-only"
-        readOnly
-      />
     </div>
   );
 }

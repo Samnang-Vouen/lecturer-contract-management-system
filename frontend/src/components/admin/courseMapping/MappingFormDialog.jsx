@@ -19,12 +19,11 @@ import ClientErrorsAlert from './mappingForm/ClientErrorsAlert.jsx';
 import SessionGroupsCard from './mappingForm/SessionGroupsCard.jsx';
 
 /**
- * MappingFormDialog - Add or Edit course mapping form (container)
+ * MappingFormDialog - Add course mapping form
  */
 export default function MappingFormDialog({
   isOpen,
   onClose,
-  mode, // 'add' | 'edit'
   form,
   setForm,
   onSubmit,
@@ -38,8 +37,6 @@ export default function MappingFormDialog({
   reloadForAcademicYear,
   teachingType, // useTeachingType hook instance passed from parent
 }) {
-  const isEditMode = mode === 'edit';
-
   const getClassSpecializationName = useCallback((classItem) => {
     if (!classItem) return '';
     return (
@@ -51,12 +48,6 @@ export default function MappingFormDialog({
     );
   }, []);
 
-  const availability = useMappingAvailabilityPopover({
-    isOpen,
-    availability: form.availability,
-    setForm,
-  });
-
   const {
     yearLevelOptionsForAY,
     termOptionsForAYLevel,
@@ -66,10 +57,17 @@ export default function MappingFormDialog({
     selectedClass,
   } = useMappingCascades({ form, classes, courses, lecturers, classMap, courseMap });
 
-  const { groupsForSelectedClass, assignedGroupsForEdit } = useMappingGroups({
+  const { groupsForSelectedClass } = useMappingGroups({
     selectedClass,
     form,
-    isEditMode,
+    isEditMode: false,
+  });
+
+  const availability = useMappingAvailabilityPopover({
+    isOpen,
+    form,
+    setForm,
+    groupsForSelectedClass,
   });
 
   useTeachingTypeGroupSync({ isOpen, teachingType, groupsForSelectedClass, form });
@@ -144,7 +142,7 @@ export default function MappingFormDialog({
 
   const { clientErrors, handleSubmit } = useMappingValidation({
     isOpen,
-    isEditMode,
+    isEditMode: false,
     form,
     groupsForSelectedClass,
     teachingType,
@@ -163,13 +161,11 @@ export default function MappingFormDialog({
           groups={groupsForSelectedClass}
           selectedIds={form.theory_group_ids}
           onToggleGroup={toggleTheoryGroup}
-          roomByGroup={isEditMode ? undefined : form.theory_room_by_group}
-          onRoomChange={isEditMode ? undefined : setTheoryRoomForGroup}
+          roomByGroup={form.theory_room_by_group}
+          onRoomChange={setTheoryRoomForGroup}
           roomPlaceholder="A201"
         />
-        {!isEditMode && (
-          <p className="mt-2 text-xs text-gray-500">Select groups and enter the room for each selected theory group.</p>
-        )}
+        <p className="mt-2 text-xs text-gray-500">Select groups and enter the room for each selected theory group.</p>
       </>
     );
 
@@ -185,13 +181,11 @@ export default function MappingFormDialog({
           groups={groupsForSelectedClass}
           selectedIds={form.lab_group_ids}
           onToggleGroup={toggleLabGroup}
-          roomByGroup={isEditMode ? undefined : form.lab_room_by_group}
-          onRoomChange={isEditMode ? undefined : setLabRoomForGroup}
+          roomByGroup={form.lab_room_by_group}
+          onRoomChange={setLabRoomForGroup}
           roomPlaceholder="B105"
         />
-        {!isEditMode && (
-          <p className="mt-2 text-xs text-gray-500">Select groups and enter the room for each selected lab group.</p>
-        )}
+        <p className="mt-2 text-xs text-gray-500">Select groups and enter the room for each selected lab group.</p>
       </>
     );
 
@@ -199,12 +193,10 @@ export default function MappingFormDialog({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="w-[95vw] sm:max-w-3xl">
         <DialogHeader>
-          <DialogTitle>{isEditMode ? 'Edit Mapping' : 'New Mapping'}</DialogTitle>
-          {!isEditMode && (
-            <p className="mt-1 text-sm text-gray-500">
-              Create a new course assignment by selecting the academic year, class, course, lecturer, availability, and teaching type.
-            </p>
-          )}
+          <DialogTitle>New Mapping</DialogTitle>
+          <p className="mt-1 text-sm text-gray-500">
+            Create a new course assignment by selecting the academic year, class, course, lecturer, availability, and teaching type.
+          </p>
         </DialogHeader>
 
         {error && (
@@ -221,22 +213,20 @@ export default function MappingFormDialog({
         <div className="max-h-[80vh] sm:max-h-[70vh] overflow-y-auto px-2">
           <div className="w-full max-w-2xl mx-auto">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 auto-rows-min text-sm">
-              {!isEditMode && (
-                <AddMappingFields
-                  form={form}
-                  setForm={setForm}
-                  academicYearOptions={academicYearOptions}
-                  reloadForAcademicYear={reloadForAcademicYear}
-                  yearLevelOptionsForAY={yearLevelOptionsForAY}
-                  termOptionsForAYLevel={termOptionsForAYLevel}
-                  classesForSelection={classesForSelection}
-                  classMap={classMap}
-                  allowedCourses={allowedCourses}
-                  getClassSpecializationName={getClassSpecializationName}
-                />
-              )}
+              <AddMappingFields
+                form={form}
+                setForm={setForm}
+                academicYearOptions={academicYearOptions}
+                reloadForAcademicYear={reloadForAcademicYear}
+                yearLevelOptionsForAY={yearLevelOptionsForAY}
+                termOptionsForAYLevel={termOptionsForAYLevel}
+                classesForSelection={classesForSelection}
+                classMap={classMap}
+                allowedCourses={allowedCourses}
+                getClassSpecializationName={getClassSpecializationName}
+              />
 
-              <LecturerField isEditMode={isEditMode} form={form} setForm={setForm} filteredLecturers={filteredLecturers} />
+              <LecturerField isEditMode={false} form={form} setForm={setForm} filteredLecturers={filteredLecturers} />
 
               <TeachingTypeSelector
                 theorySelected={teachingType.theorySelected}
@@ -265,7 +255,7 @@ export default function MappingFormDialog({
               <StatusField form={form} setForm={setForm} />
 
               {/* Theory/Lab Room (bulk edit for no-group/legacy rows) */}
-              {(isEditMode || (form.class_id && groupsForSelectedClass.length === 0)) && (
+              {form.class_id && groupsForSelectedClass.length === 0 && (
                 <>
                   <div className="col-span-1 flex flex-col min-w-0">
                     <label htmlFor="mappingTheoryRoomNumber" className="block text-sm font-medium text-gray-700 mb-1">
@@ -304,21 +294,16 @@ export default function MappingFormDialog({
                     />
                   </div>
 
-                  {!isEditMode && groupsForSelectedClass.length === 0 && (
+                  {groupsForSelectedClass.length === 0 && (
                     <div className="col-span-1 sm:col-span-2">
                       <p className="mt-1 text-xs text-gray-500">No groups found for this class; rooms are saved on the course mapping.</p>
-                    </div>
-                  )}
-                  {isEditMode && (
-                    <div className="col-span-1 sm:col-span-2">
-                      <p className="mt-1 text-xs text-gray-500">Editing applies these rooms to the selected mapping row(s).</p>
                     </div>
                   )}
                 </>
               )}
 
               <ContactFields form={form} setForm={setForm} />
-              <ActionButtons isEditMode={isEditMode} onClose={onClose} onSubmit={handleSubmit} />
+              <ActionButtons isEditMode={false} onClose={onClose} onSubmit={handleSubmit} />
             </div>
           </div>
         </div>

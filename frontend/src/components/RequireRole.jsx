@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore.js';
-import { getLecturerOnboardingStatus } from '../services/lecturerProfile.service';
+import {
+  getLecturerOnboardingStatus,
+  getAdvisorOnboardingStatus,
+} from '../services/lecturerProfile.service';
 
 const roleHome = {
   superadmin: '/superadmin',
@@ -28,7 +31,9 @@ export default function RequireRole({ allowed, children }) {
       }
       setOnboardingStatus(s=>({...s,loading:true}));
       try{
-        const data = await getLecturerOnboardingStatus();
+        const data = await (r === 'advisor'
+          ? getAdvisorOnboardingStatus()
+          : getLecturerOnboardingStatus());
         if(!ignore){
           setOnboardingStatus({ loading:false, complete: !!data?.complete });
         }

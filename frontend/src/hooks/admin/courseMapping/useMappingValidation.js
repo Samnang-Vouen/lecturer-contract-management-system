@@ -14,7 +14,71 @@ export function useMappingValidation({ isOpen, isEditMode, form, groupsForSelect
   const validateBeforeSubmit = useCallback(() => {
     const errs = [];
 
-    if (!form.availability) errs.push('Availability is required.');
+    const thIds = Array.isArray(form.theory_group_ids) ? form.theory_group_ids.map(String) : [];
+    const lbIds = Array.isArray(form.lab_group_ids) ? form.lab_group_ids.map(String) : [];
+    const hasGroupTargets = thIds.length > 0 || lbIds.length > 0;
+    const theoryHours = String(form.theory_hours || '').trim().toLowerCase() === '30h' ? '30h' : '15h';
+    const assignments =
+      form.availability_assignments_by_group && typeof form.availability_assignments_by_group === 'object'
+        ? form.availability_assignments_by_group
+        : {};
+
+    if (hasGroupTargets) {
+      // Per-group requirements + global uniqueness
+      const slotToOwner = new Map(); // slotKey -> { type: 'THEORY'|'LAB', gid }
+
+      for (const gid of thIds) {
+        const list = assignments?.[gid]?.THEORY;
+        const sessions = Array.isArray(list) ? list : [];
+        const min = 1;
+        const max = theoryHours === '30h' ? 2 : 1;
+        if (sessions.length < min || sessions.length > max) {
+          const gName = groupsForSelectedClass?.find?.((x) => String(x.id) === String(gid))?.name;
+          errs.push(
+            `Theory availability is required for ${gName || `Group #${gid}`} (select ${min === max ? `exactly ${min}` : `${min}–${max}`} sessions).`
+          );
+        }
+        sessions.forEach((s) => {
+          const day = String(s?.day || '').trim();
+          const sessionId = String(s?.sessionId || s?.session || '').trim().toUpperCase();
+          if (!day || !sessionId) return;
+          const key = `${day}|${sessionId}`;
+          const prev = slotToOwner.get(key);
+          if (prev) {
+            if (prev.type === 'LAB') {
+              errs.push('A session cannot be assigned to more than one group.');
+              return;
+            }
+            // THEORY vs THEORY: allow overlap only for Theory 15h
+            if (theoryHours !== '15h') {
+              errs.push('A session cannot be assigned to more than one group.');
+              return;
+            }
+          }
+          slotToOwner.set(key, { type: 'THEORY', gid });
+        });
+      }
+
+      for (const gid of lbIds) {
+        const list = assignments?.[gid]?.LAB;
+        const sessions = Array.isArray(list) ? list : [];
+        if (sessions.length !== 2) {
+          const gName = groupsForSelectedClass?.find?.((x) => String(x.id) === String(gid))?.name;
+          errs.push(`Lab availability is required for ${gName || `Group #${gid}`} (select exactly 2 sessions).`);
+        }
+        sessions.forEach((s) => {
+          const day = String(s?.day || '').trim();
+          const sessionId = String(s?.sessionId || s?.session || '').trim().toUpperCase();
+          if (!day || !sessionId) return;
+          const key = `${day}|${sessionId}`;
+          const prev = slotToOwner.get(key);
+          if (prev) errs.push('A session cannot be assigned to more than one group.');
+          slotToOwner.set(key, { type: 'LAB', gid });
+        });
+      }
+    } else {
+      if (!String(form.availability || '').trim()) errs.push('Availability is required.');
+    }
 
     if (!isEditMode) {
       if (!form.academic_year) errs.push('Academic Year is required.');
@@ -35,7 +99,7 @@ export function useMappingValidation({ isOpen, isEditMode, form, groupsForSelect
       if (!teachingType?.theoryHour) errs.push('Select Theory hours (15h or 30h).');
 
       if (hasClass) {
-        if (!isEditMode && hasGroups) {
+        if (hasGroups) {
           const thIds = Array.isArray(form.theory_group_ids) ? form.theory_group_ids.map(String) : [];
           if (thIds.length === 0) errs.push('Select at least one Theory group.');
           const thRoomMap =
@@ -46,7 +110,7 @@ export function useMappingValidation({ isOpen, isEditMode, form, groupsForSelect
               errs.push(`Theory room is required for ${gName || `Group #${gid}`}.`);
             }
           });
-        } else if (!isEditMode) {
+        } else {
           if (!String(form.theory_room_number || '').trim()) errs.push('Theory Room is required.');
         }
       }
@@ -54,7 +118,7 @@ export function useMappingValidation({ isOpen, isEditMode, form, groupsForSelect
 
     if (teachingType?.labSelected) {
       if (hasClass) {
-        if (!isEditMode && hasGroups) {
+        if (hasGroups) {
           const lbIds = Array.isArray(form.lab_group_ids) ? form.lab_group_ids.map(String) : [];
           if (lbIds.length === 0) errs.push('Select at least one Lab group.');
           const lbRoomMap =
@@ -65,7 +129,7 @@ export function useMappingValidation({ isOpen, isEditMode, form, groupsForSelect
               errs.push(`Lab room is required for ${gName || `Group #${gid}`}.`);
             }
           });
-        } else if (!isEditMode) {
+        } else {
           if (!String(form.lab_room_number || '').trim()) errs.push('Lab Room is required.');
         }
       }
@@ -75,6 +139,7 @@ export function useMappingValidation({ isOpen, isEditMode, form, groupsForSelect
   }, [
     form.academic_year,
     form.availability,
+    form.availability_assignments_by_group,
     form.class_id,
     form.course_id,
     form.lab_group_ids,

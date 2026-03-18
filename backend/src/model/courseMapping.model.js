@@ -32,6 +32,32 @@ const CourseMapping = sequelize.define(
     lab_hours: { type: DataTypes.STRING(10), allowNull: true }, // typically '30h'
     lab_groups: { type: DataTypes.INTEGER, allowNull: true, defaultValue: 0 },
     availability: { type: DataTypes.STRING(255), allowNull: true },
+
+    // Structured per-group, per-type assigned sessions
+    // Stored as JSON in TEXT to keep MySQL compatibility
+    // Shape: [{ groupType: 'THEORY'|'LAB', groupNumber: number, assignedSessions: [{ day, startTime, endTime, session }] }]
+    availability_assignments: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      get() {
+        const raw = this.getDataValue('availability_assignments');
+        if (!raw) return [];
+        try {
+          const parsed = JSON.parse(raw);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      },
+      set(val) {
+        try {
+          const norm = Array.isArray(val) ? val : [];
+          this.setDataValue('availability_assignments', JSON.stringify(norm));
+        } catch {
+          this.setDataValue('availability_assignments', '[]');
+        }
+      },
+    },
     status: {
       type: DataTypes.ENUM('Pending', 'Contacting', 'Accepted', 'Rejected'),
       allowNull: false,

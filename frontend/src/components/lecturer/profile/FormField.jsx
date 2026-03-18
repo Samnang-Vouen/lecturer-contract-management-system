@@ -17,8 +17,8 @@ export default function FormField({
   readOnly 
 }) {
   return (
-    <div className="space-y-1 flex flex-col justify-end">
-      <Label htmlFor={name} className="text-xs font-medium text-gray-600">
+    <div className="space-y-2 flex flex-col justify-end">
+      <Label htmlFor={name} className="text-sm font-semibold text-slate-700">
         {label}
       </Label>
       {as === 'textarea' && (
@@ -30,7 +30,7 @@ export default function FormField({
           onPaste={onPaste} 
           disabled={disabled} 
           readOnly={readOnly} 
-          className="bg-white w-full" 
+          className="w-full min-h-[112px] border-slate-200 bg-white focus:border-indigo-500 focus:ring-indigo-500" 
           rows={4} 
         />
       )}
@@ -43,7 +43,7 @@ export default function FormField({
           onPaste={onPaste} 
           disabled={disabled} 
           readOnly={readOnly} 
-          className="w-full border rounded px-2 py-1 text-sm bg-white disabled:opacity-60"
+          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm bg-white focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60"
         >
           <option value="">Select...</option>
           {options.map(o => <option key={o} value={o}>{o}</option>)}
@@ -59,7 +59,7 @@ export default function FormField({
           disabled={disabled} 
           readOnly={readOnly} 
           type={type} 
-          className="bg-white w-full" 
+          className="w-full border-slate-200 bg-white focus:border-indigo-500 focus:ring-indigo-500" 
         />
       )}
       {error && <p className="text-xs text-red-600">{error}</p>}

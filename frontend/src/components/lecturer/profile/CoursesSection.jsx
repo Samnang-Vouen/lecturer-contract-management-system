@@ -5,16 +5,16 @@ import { BookOpen } from 'lucide-react';
 
 export default function CoursesSection({ profile }) {
   return (
-    <Card className="shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 bg-white rounded-2xl border border-gray-100/70">
+    <Card className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <SectionHeader title="Courses Taught" icon={<BookOpen className="h-4 w-4" />} accent="amber" />
-      <CardContent className="pt-5 text-sm">
-        <p className="text-[11px] text-gray-500 mb-4 flex items-center gap-2">
-          <span className="inline-block h-1 w-1 rounded-full bg-amber-400" />
+      <CardContent className="p-6 sm:p-8 text-sm">
+        <p className="text-[11px] text-slate-500 mb-5 flex items-center gap-2">
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
           Captured during onboarding
         </p>
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-1">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 mb-2">
               Departments
             </p>
             <div className="flex flex-wrap gap-2">
@@ -25,19 +25,19 @@ export default function CoursesSection({ profile }) {
                   return (
                     <span 
                       key={id} 
-                      className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200/70 text-amber-700 shadow-sm"
+                      className="px-3 py-1.5 rounded-full text-[11px] font-medium bg-amber-50 border border-amber-200 text-amber-700"
                     >
                       {name}
                     </span>
                   );
                 })
               ) : (
-                <span className="text-xs text-gray-400 italic">No departments recorded</span>
+                <span className="text-xs text-slate-400 italic">No departments recorded</span>
               )}
             </div>
           </div>
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-1">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 mb-2">
               Courses
             </p>
             <div className="flex flex-wrap gap-2">
@@ -50,7 +50,7 @@ export default function CoursesSection({ profile }) {
                     <span 
                       key={id} 
                       title={code} 
-                      className="px-2.5 py-1 rounded-md text-[11px] bg-gradient-to-br from-gray-100 to-gray-50 border border-gray-200/70 shadow-sm text-gray-700 flex items-center gap-1"
+                      className="px-3 py-1.5 rounded-xl text-[11px] bg-slate-50 border border-slate-200 text-slate-700 flex items-center gap-1.5"
                     >
                       {code && (
                         <span className="text-[10px] text-indigo-600 font-semibold">{code}</span>
@@ -60,7 +60,7 @@ export default function CoursesSection({ profile }) {
                   );
                 })
               ) : (
-                <span className="text-xs text-gray-400 italic">No courses recorded</span>
+                <span className="text-xs text-slate-400 italic">No courses recorded</span>
               )}
             </div>
           </div>

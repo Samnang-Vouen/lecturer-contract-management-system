@@ -13,6 +13,7 @@ const Schedule = sequelize.define(
     group_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      unique: true,
       references: {
         model: 'group',
         key: 'id',
@@ -29,6 +30,12 @@ const Schedule = sequelize.define(
     notes: {
       type: DataTypes.TEXT,
       allowNull: true,
+    },
+
+    custom_cells: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      comment: 'JSON object of custom text keyed by time slot and day',
     },
 
     start_date: {

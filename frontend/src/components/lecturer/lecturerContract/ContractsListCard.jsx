@@ -20,7 +20,8 @@ export default function ContractsListCard({
   onPreview,
   onDownload,
   onViewDetail,
-  onSign
+  onSign,
+  onRedo
 }) {
   const [menuOpenId, setMenuOpenId] = useState(null);
 
@@ -106,6 +107,7 @@ export default function ContractsListCard({
                 onDownload={() => handleAction(onDownload, contract)}
                 onViewDetail={() => handleAction(onViewDetail, contract)}
                 onSign={() => handleAction(onSign, contract)}
+                onRedo={() => handleAction(onRedo, contract)}
               />
             ))}
 

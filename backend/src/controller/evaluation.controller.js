@@ -13,10 +13,185 @@ import ClassModel from '../model/class.model.js';
 import Course from '../model/course.model.js';
 import Group from '../model/group.model.js';
 import Department from '../model/department.model.js';
+import User from '../model/user.model.js';
 import puppeteer from 'puppeteer';
 import fs from 'fs';
 import path from 'path';
 import { calculateLecturerAverages } from '../utils/evaluationUtils.js';
+import { getNotificationSocket } from '../socket/index.js';
+
+const roundToOne = (value) => Math.round((Number(value) + Number.EPSILON) * 10) / 10;
+
+// GET /api/evaluations/summary/list
+export const getEvaluationSummary = async (_req, res) => {
+  try {
+    const evaluations = await Evaluation.findAll({
+      include: [
+        {
+          model: CourseMapping,
+          attributes: ['id'],
+          include: [
+            {
+              model: ClassModel,
+              attributes: ['term', 'academic_year'],
+            },
+            {
+              model: Course,
+              attributes: ['course_name'],
+            },
+          ],
+        },
+        {
+          model: EvaluationSubmission,
+          attributes: ['group_name'],
+          include: [
+            {
+              model: LecturerEvaluation,
+              attributes: ['lecturer_id'],
+              include: [
+                {
+                  model: EvaluationResponse,
+                  attributes: ['rating'],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      order: [['id', 'DESC']],
+    });
+
+    const lecturerIdSet = new Set();
+    evaluations.forEach((evaluation) => {
+      evaluation.EvaluationSubmissions?.forEach((submission) => {
+        submission.LecturerEvaluations?.forEach((lecturerEvaluation) => {
+          if (lecturerEvaluation?.lecturer_id) {
+            lecturerIdSet.add(lecturerEvaluation.lecturer_id);
+          }
+        });
+      });
+    });
+
+    const lecturerIds = Array.from(lecturerIdSet);
+    const lecturers = lecturerIds.length
+      ? await LecturerProfile.findAll({
+          where: { id: lecturerIds },
+          attributes: ['id', 'full_name_english', 'title', 'user_id'],
+        })
+      : [];
+
+    const userIds = lecturers
+      .map((lecturer) => lecturer.user_id)
+      .filter((id) => Number.isInteger(id));
+
+    const users = userIds.length
+      ? await User.findAll({
+          where: { id: userIds },
+          attributes: ['id', 'email'],
+        })
+      : [];
+
+    const userEmailMap = users.reduce((acc, user) => {
+      acc[user.id] = user.email || '';
+      return acc;
+    }, {});
+
+    const lecturerMap = lecturers.reduce((acc, lecturer) => {
+      const name = lecturer.full_name_english || '';
+      const title = lecturer.title ? `${lecturer.title} ` : '';
+      acc[lecturer.id] = {
+        name: `${title}${name}`.trim() || `Lecturer ${lecturer.id}`,
+        email: lecturer.user_id ? userEmailMap[lecturer.user_id] || '' : '',
+      };
+      return acc;
+    }, {});
+
+    const summaryRows = [];
+    const seenKey = new Set();
+
+    evaluations.forEach((evaluation) => {
+      const term = evaluation?.CourseMapping?.Class?.term || '-';
+      const academicYear = evaluation?.CourseMapping?.Class?.academic_year || '-';
+      const courseName = evaluation?.CourseMapping?.Course?.course_name || '-';
+      const courseMappingId = evaluation?.course_mapping_id || null;
+
+      const byLecturer = new Map();
+
+      evaluation.EvaluationSubmissions?.forEach((submission) => {
+        const groupName = String(submission?.group_name || 'N/A').trim() || 'N/A';
+
+        submission.LecturerEvaluations?.forEach((lecturerEvaluation) => {
+          const lecturerId = lecturerEvaluation?.lecturer_id;
+          if (!lecturerId) return;
+
+          if (!byLecturer.has(lecturerId)) {
+            byLecturer.set(lecturerId, {
+              groupStats: {},
+            });
+          }
+
+          const lecturerData = byLecturer.get(lecturerId);
+          if (!lecturerData.groupStats[groupName]) {
+            lecturerData.groupStats[groupName] = { sum: 0, count: 0 };
+          }
+
+          lecturerEvaluation.EvaluationResponses?.forEach((response) => {
+            const rating = Number(response?.rating);
+            if (!Number.isFinite(rating)) return;
+            lecturerData.groupStats[groupName].sum += rating;
+            lecturerData.groupStats[groupName].count += 1;
+          });
+        });
+      });
+
+      byLecturer.forEach((lecturerData, lecturerId) => {
+        const uniqueKey = `${lecturerId}|${academicYear}|${term}|${courseName}`;
+        if (seenKey.has(uniqueKey)) return;
+
+        const groupScores = Object.entries(lecturerData.groupStats)
+          .map(([group_name, stat]) => {
+            if (!stat.count) return null;
+            const score = roundToOne(stat.sum / stat.count);
+            return { group_name, score };
+          })
+          .filter(Boolean)
+          .sort((a, b) => a.group_name.localeCompare(b.group_name));
+
+        const totalPoint = groupScores.length
+          ? roundToOne(
+              groupScores.reduce((acc, group) => acc + group.score, 0) / groupScores.length
+            )
+          : 0;
+
+        summaryRows.push({
+          evaluation_id: evaluation.id,
+          course_mapping_id: courseMappingId,
+          lecturer_id: lecturerId,
+          lecturer_name: lecturerMap[lecturerId]?.name || `Lecturer ${lecturerId}`,
+          lecturer_email: lecturerMap[lecturerId]?.email || '',
+          academic_year: academicYear,
+          term,
+          course_name: courseName,
+          group_scores: groupScores,
+          total_point: totalPoint,
+          max_score: 5,
+        });
+
+        seenKey.add(uniqueKey);
+      });
+    });
+
+    return res.status(200).json({
+      data: summaryRows,
+      total: summaryRows.length,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      message: 'Failed to load evaluation summary',
+      error: err.message,
+    });
+  }
+};
 
 // GET /api/evaluations/:evaluationId/results
 export const getEvaluationResults = async (req, res) => {
@@ -479,6 +654,21 @@ export const uploadEvaluation = async (req, res) => {
     }
 
     await transaction.commit();
+
+    try {
+      const socketService = getNotificationSocket();
+      socketService?.io?.to('role:admin').emit('evaluation:uploaded', {
+        evaluation_id: evaluation.id,
+        course_mapping_id: evaluation.course_mapping_id,
+        uploaded_at: new Date().toISOString(),
+      });
+    } catch (socketErr) {
+      console.error(
+        'Failed to emit evaluation:uploaded socket event:',
+        socketErr?.message || socketErr
+      );
+    }
+
     res.status(201).json({
       message: 'Evaluation uploaded successfully',
       evaluation_id: evaluation.id,
@@ -644,7 +834,9 @@ export const getLecturerEvaluationPDF = async (req, res) => {
     const className = escapeHtml(courseMapping?.Class?.name || 'N/A');
     const yearLevel = escapeHtml(courseMapping?.Class?.year_level || 'N/A');
     const term = escapeHtml(courseMapping?.Class?.term || 'N/A');
-    const deptNameKhmer = escapeHtml(courseMapping?.Class?.Specialization?.Department?.dept_name_khmer || 'N/A');
+    const deptNameKhmer = escapeHtml(
+      courseMapping?.Class?.Specialization?.Department?.dept_name_khmer || 'N/A'
+    );
 
     // Replace all placeholders
     html = html.replace(/{lecturer_title}/g, lecturerTitle);

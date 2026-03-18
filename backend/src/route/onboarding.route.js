@@ -1,4 +1,5 @@
 import express from 'express';
+import multer from 'multer';
 import { protect, authorizeRoles } from '../middleware/auth.middleware.js';
 import {
   onboardingUploadMiddleware,
@@ -8,7 +9,7 @@ import {
 
 const router = express.Router();
 
-router.use(protect, authorizeRoles(['lecturer', 'advisor']));
+router.use(protect, authorizeRoles(['lecturer']));
 
 router.get('/status', checkOnboarding);
 

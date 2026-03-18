@@ -1,11 +1,12 @@
 import React from 'react';
-import { Clock, FileText, Eye, PenTool } from 'lucide-react';
+import { Clock, FileText, Eye, PenTool, FilePen } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../ui/Card';
 import Button from '../../ui/Button';
 import { 
   formatContractId, 
   calculateTotalHours, 
   formatMDY, 
+  toPositiveNumber,
   getLecturerDepartment,
   isContractExpired
 } from '../../../utils/lecturerContractHelpers';
@@ -14,11 +15,12 @@ import {
  * PendingContractsCard Component
  * Displays contracts awaiting lecturer signature
  */
-export default function PendingContractsCard({ 
-  pendingContracts, 
-  hourlyRate, 
-  onPreview, 
-  onSign 
+export default function PendingContractsCard({
+  pendingContracts,
+  hourlyRate,
+  onPreview,
+  onSign,
+  onRedo,
 }) {
   if (!pendingContracts || pendingContracts.length === 0) {
     return null;
@@ -32,15 +34,6 @@ export default function PendingContractsCard({
   });
 
   if (actionable.length === 0) return null;
-
-  const toPositiveNumber = (value) => {
-    if (value == null) return null;
-    const n =
-      typeof value === 'number'
-        ? value
-        : parseFloat(String(value).replace(/[^0-9.]/g, ''));
-    return Number.isFinite(n) && n > 0 ? n : null;
-  };
 
   const contract = actionable[0];
   const isAdvisor = String(contract?.contract_type || '').toUpperCase() === 'ADVISOR';
@@ -86,42 +79,45 @@ export default function PendingContractsCard({
               <div>
                 <span className="text-gray-600">Period:</span> {period}
               </div>
-              <div className="truncate" title={dept || '—'}>
-                <span className="text-gray-600">Department:</span> {dept || '—'}
+              <div className="truncate" title={dept || "—"}>
+                <span className="text-gray-600">Department:</span> {dept || "—"}
               </div>
               <div>
                 <span className="text-gray-600">Hours:</span> {hours}h
               </div>
               <div>
-                <span className="text-gray-600">Rate:</span>{' '}
-                {rateForContract != null ? `$${rateForContract}/hr` : '—'}
+                <span className="text-gray-600">Rate:</span>{" "}
+                {rateForContract != null ? `$${rateForContract}/hr` : "—"}
               </div>
               <div className="sm:col-span-2">
-                <span className="text-gray-600">Total:</span>{' '}
-                {rateForContract != null 
-                  ? `$${Math.round(rateForContract * hours).toLocaleString()}` 
-                  : '—'}
+                <span className="text-gray-600">Total:</span>{" "}
+                {rateForContract != null
+                  ? `$${Math.round(rateForContract * hours).toLocaleString()}`
+                  : "—"}
               </div>
             </div>
           </div>
-          
+
           {/* Right: actions */}
           <div className="flex flex-wrap gap-2">
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={() => onPreview(contract.id, contract)} 
-              title="Preview contract" 
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onPreview(contract.id, contract)}
+              title="Preview contract"
               className="border-amber-200 gap-2"
             >
               <Eye className="w-4 h-4" /> Review
             </Button>
-            <Button 
-              size="sm" 
-              onClick={() => onSign(contract)} 
+            <Button size="sm" onClick={() => onRedo(contract)}>
+              <FilePen className="w-4 h-4 mr-1.5" /> Request Redo
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => onSign(contract)}
               className="bg-amber-600 hover:bg-amber-700 gap-2"
             >
-              <PenTool className="w-4 h-4" /> Sign Now
+              <PenTool className="w-4 h-4 mr-1.5" /> Sign Now
             </Button>
           </div>
         </div>

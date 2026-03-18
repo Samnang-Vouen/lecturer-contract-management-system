@@ -8,6 +8,7 @@ import ContractSignDialog from '../../components/lecturer/lecturerContract/Contr
 import { useContractData } from '../../hooks/lecturer/lecturerContract/useContractData';
 import { useContractActions } from '../../hooks/lecturer/lecturerContract/useContractActions';
 import { useDeepLinkedContract } from '../../hooks/lecturer/lecturerContract/useDeepLinkedContract';
+import ContractRedoDialog from '../../components/lecturer/lecturerContract/ContractRedoDialog';
 
 export default function LecturerContracts() {
   const { authUser } = useAuthStore();
@@ -33,19 +34,22 @@ export default function LecturerContracts() {
     viewOpen,
     setViewOpen,
     signOpen,
+    redoOpen,
+    setRedoOpen,
     setSignOpen,
     previewPdf,
     downloadPdf,
     uploadSignature,
     openViewDialog,
     openSignDialog,
+    openRedoDialog,
   } = useContractActions(lecturerProfile, authUser, fetchContracts);
 
   // Handle deep-linked contracts
   useDeepLinkedContract(filteredContracts, openViewDialog, openSignDialog);
 
   return (
-    <div className='p-4 md:p-6 space-y-6'>
+    <div className="p-4 md:p-6 space-y-6">
       {/* Page header */}
       <LecturerContractsHeader />
 
@@ -55,6 +59,7 @@ export default function LecturerContracts() {
         hourlyRate={hourlyRate}
         onPreview={previewPdf}
         onSign={openSignDialog}
+        onRedo={openRedoDialog}
       />
 
       {/* All contracts card */}
@@ -72,6 +77,7 @@ export default function LecturerContracts() {
         onDownload={downloadPdf}
         onViewDetail={openViewDialog}
         onSign={openSignDialog}
+        onRedo={openRedoDialog}
       />
 
       {/* View Contract Dialog */}
@@ -89,6 +95,12 @@ export default function LecturerContracts() {
         contract={selectedContract}
         uploading={uploading}
         onUploadSignature={uploadSignature}
+      />
+
+      <ContractRedoDialog
+        isOpen={redoOpen}
+        onClose={() => setRedoOpen(false)}
+        contract={selectedContract}
       />
     </div>
   );

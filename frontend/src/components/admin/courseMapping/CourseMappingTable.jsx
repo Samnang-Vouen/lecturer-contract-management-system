@@ -112,6 +112,7 @@ export default function CourseMappingTable({ entries, courseMap, onEdit, onDelet
           id: m?.id,
           group_id: m?.group_id,
           group: m?.group,
+          availability_assignments: m?.availability_assignments,
           theory_groups: m?.theory_groups,
           lab_groups: m?.lab_groups,
           theory_room_number: m?.theory_room_number,
