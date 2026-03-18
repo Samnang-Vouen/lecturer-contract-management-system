@@ -293,8 +293,8 @@ export async function createDraftContract(req, res) {
             newStatus: "WAITING_LECTURER",
             recipient: parsedLecturerId,
         });
-        notificationSocket.broadcastToRole({ role: 'management', type: 'status_change', message: `Contract #${contract.id} created, awaiting lecturer signature`, contractId: contract.id });
-        notificationSocket.broadcastToRole({ role: 'admin', type: 'status_change', message: `Contract #${contract.id} created, awaiting lecturer signature`, contractId: contract.id });
+        await notificationSocket.notifyRole({ role: 'management', type: 'status_change', message: `Contract #${contract.id} created, awaiting lecturer signature`, contractId: contract.id });
+        await notificationSocket.notifyRole({ role: 'admin', type: 'status_change', message: `Contract #${contract.id} created, awaiting lecturer signature`, contractId: contract.id });
       } catch (error) {
         console.error('error status for socket', error);
       }
@@ -933,8 +933,8 @@ export async function updateStatus(req, res) {
     try {
       const notificationSocket = getNotificationSocket();
       if (status === 'REQUEST_REDO') {
-        notificationSocket.broadcastToRole({ role: 'admin', type: 'status_change', message: `Contract #${contract.id} redo requested by lecturer`, contractId: contract.id });
-        notificationSocket.broadcastToRole({ role: 'management', type: 'status_change', message: `Contract #${contract.id} redo requested by lecturer`, contractId: contract.id });
+        await notificationSocket.notifyRole({ role: 'admin', type: 'status_change', message: `Contract #${contract.id} redo requested by lecturer`, contractId: contract.id });
+        await notificationSocket.notifyRole({ role: 'management', type: 'status_change', message: `Contract #${contract.id} redo requested by lecturer`, contractId: contract.id });
       } else {
         await notificationSocket.contractStatusChanged({
           contractId: contract.id,
@@ -1384,8 +1384,8 @@ export async function uploadSignature(req, res) {
       });
       try {
         const notificationSocket = getNotificationSocket();
-        notificationSocket.broadcastToRole({ role: 'management', type: 'status_change', message: `Contract #${contract.id} signed by lecturer, awaiting your signature`, contractId: contract.id });
-        notificationSocket.broadcastToRole({ role: 'admin', type: 'status_change', message: `Contract #${contract.id} signed by lecturer`, contractId: contract.id });
+        await notificationSocket.notifyRole({ role: 'management', type: 'status_change', message: `Contract #${contract.id} signed by lecturer, awaiting your signature`, contractId: contract.id });
+        await notificationSocket.notifyRole({ role: 'admin', type: 'status_change', message: `Contract #${contract.id} signed by lecturer`, contractId: contract.id });
       } catch (notifErr) {
         console.error('[uploadSignature] notification failed:', notifErr);
       }
@@ -1400,7 +1400,7 @@ export async function uploadSignature(req, res) {
       try {
         const notificationSocket = getNotificationSocket();
         notificationSocket.notifyLecturer({ user_id: contract.lecturer_user_id, type: 'status_change', message: `Contract #${contract.id} has been completed`, contract_id: contract.id });
-        notificationSocket.broadcastToRole({ role: 'admin', type: 'status_change', message: `Contract #${contract.id} completed`, contractId: contract.id });
+        await notificationSocket.notifyRole({ role: 'admin', type: 'status_change', message: `Contract #${contract.id} completed`, contractId: contract.id });
       } catch (notifErr) {
         console.error('[uploadSignature] notification failed:', notifErr);
       }
