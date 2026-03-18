@@ -222,36 +222,20 @@ export default function ScheduleCreation() {
 
   useEffect(() => {
     const nextStats = {};
+
     visibleGroups.forEach((group) => {
       const schedule = getScheduleForGroup(group);
       const groupId = group?.id;
       if (!groupId) return;
 
-    const fetchVisibleGroupStats = () => {
-      if (!visibleGroups.length) {
-        if (isActive) setGroupStatsById({});
+      if (!schedule?.id) {
+        nextStats[groupId] = { courses: 0, hoursLabel: "0" };
         return;
       }
 
-      const nextStats = {};
-
-      visibleGroups.forEach((group) => {
-        const schedule = getScheduleForGroup(group);
-        const groupId = group?.id;
-        if (!groupId) return;
-
-        if (!schedule?.id) {
-          nextStats[groupId] = { courses: 0, hoursLabel: "0" };
-          return;
-        }
-
-        nextStats[groupId] = getScheduleStats(schedule);
-      });
-
-      if (isActive) {
-        setGroupStatsById(nextStats);
-      }
+      nextStats[groupId] = getScheduleStats(schedule);
     });
+
     setGroupStatsById(nextStats);
   }, [visibleGroups, getScheduleForGroup]);
 

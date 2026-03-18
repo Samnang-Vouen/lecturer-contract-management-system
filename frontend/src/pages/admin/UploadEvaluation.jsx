@@ -16,11 +16,19 @@ function UploadModal({
   uploadResult,
 }) {
   const mockLecturerNames = ["Dr. Alex Kim", "Ms. Lina Chan"];
+
+  const getInitialLecturerNames = () =>
+    Array.isArray(defaultLecturerNames) && defaultLecturerNames.length > 0
+      ? defaultLecturerNames
+      : mockLecturerNames;
+
   const fileInputRef = useRef(null);
   const wasOpenRef = useRef(false);
   const [authToken, setAuthToken] = useState("");
   const [inputType, setInputType] = useState("lecturer-names");
-  const [lecturerNamesText, setLecturerNamesText] = useState("[]");
+  const [lecturerNamesText, setLecturerNamesText] = useState(() =>
+    JSON.stringify(getInitialLecturerNames())
+  );
   const [selectedFile, setSelectedFile] = useState(null);
   const [localError, setLocalError] = useState("");
 
@@ -32,9 +40,9 @@ function UploadModal({
 
     setLocalError("");
     setSelectedFile(null);
-    // Show mock data first only when opening the modal.
-    setLecturerNamesText(JSON.stringify(mockLecturerNames));
-  }, [open]);
+    // Show default lecturer names (or mock data) only when opening the modal.
+    setLecturerNamesText(JSON.stringify(getInitialLecturerNames()));
+  }, [open, defaultLecturerNames]);
 
   useEffect(() => {
     if (!open) return;
@@ -43,8 +51,8 @@ function UploadModal({
       return;
     }
 
-    setLecturerNamesText(JSON.stringify(mockLecturerNames));
-  }, [inputType, open]);
+    setLecturerNamesText(JSON.stringify(getInitialLecturerNames()));
+  }, [inputType, open, defaultLecturerNames]);
 
   const lecturerSummaryText = useMemo(() => {
     if (
@@ -168,19 +176,6 @@ function UploadModal({
           &times;
         </button>
         <h2 className="mb-4 text-2xl font-semibold">Upload Files</h2>
-
-        <div className="mb-4">
-          <label className="mb-1 block text-sm font-semibold text-slate-800">
-            Authorization Token:
-          </label>
-          <input
-            type="text"
-            value={authToken}
-            onChange={(e) => setAuthToken(e.target.value)}
-            placeholder="Paste your JWT token here (optional for testing)"
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-          />
-        </div>
 
         <div className="mb-4">
           <label className="mb-1 block text-sm font-semibold text-slate-800">
@@ -437,8 +432,12 @@ function buildLecturerRows(
   // so that numeric group names in the uploaded file are matched to the correct group columns.
   return Array.from(grouped.values())
     .map((row) => {
+      const collator = new Intl.Collator(undefined, {
+        numeric: true,
+        sensitivity: "base",
+      });
       const groupNames = Array.from(row.groups).sort((a, b) =>
-        a.localeCompare(b),
+        collator.compare(a, b),
       );
       const filteredGroupScoreByName = {};
       groupNames.forEach((groupName, idx) => {
