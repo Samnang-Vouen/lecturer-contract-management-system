@@ -1,5 +1,6 @@
 import React from 'react';
 import { buildFileUrl } from '../../../utils/profileUtils';
+import { Upload } from 'lucide-react';
 
 export default function DocumentRow({ label, exists, url, onUpload, uploading, editable }) {
   const downloadUrl = exists ? buildFileUrl(url) : null;
@@ -33,7 +34,7 @@ export default function DocumentRow({ label, exists, url, onUpload, uploading, e
       </div>
       <div className="flex items-center flex-wrap gap-2">
         {editable && (
-          <label className="text-xs cursor-pointer bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-md font-medium shadow-sm border border-gray-200 focus-within:ring-2 focus-within:ring-indigo-500">
+          <label className={`inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg border border-transparent bg-indigo-600 text-white hover:bg-indigo-700 transition-all duration-200 ${uploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
             <input 
               type="file" 
               className="hidden" 
@@ -44,6 +45,7 @@ export default function DocumentRow({ label, exists, url, onUpload, uploading, e
               }} 
               disabled={uploading} 
             />
+            <Upload className="h-3.5 w-3.5" />
             {uploading ? 'Uploading...' : 'Upload'}
           </label>
         )}

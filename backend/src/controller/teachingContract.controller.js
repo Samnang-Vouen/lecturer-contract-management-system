@@ -583,14 +583,49 @@ export async function createDraftContract(req, res) {
       await tx.commit();
 
       try {
+        // Derive department for scoping management notifications
+        let departmentName = null;
+        try {
+          const lecturerProfile = await LecturerProfile.findOne({
+            where: { user_id: parsedLecturerId },
+          });
+          if (lecturerProfile) {
+            // Prefer an explicit department_name field if present
+            if (lecturerProfile.department_name) {
+              departmentName = lecturerProfile.department_name;
+            }
+          }
+        } catch (lookupError) {
+          console.error(
+            '[createDraftContract] Failed to resolve lecturer department for notifications',
+            lookupError
+          );
+        }
+
         const notificationSocket = getNotificationSocket();
         await notificationSocket.contractStatusChanged({
-            contractId: contract.id,
-            newStatus: "WAITING_LECTURER",
-            recipient: parsedLecturerId,
+          contractId: contract.id,
+          newStatus: 'WAITING_LECTURER',
+          recipient: parsedLecturerId,
         });
-        notificationSocket.broadcastToRole({ role: 'management', type: 'status_change', message: `Contract #${contract.id} created, awaiting lecturer signature`, contractId: contract.id });
-        notificationSocket.broadcastToRole({ role: 'admin', type: 'status_change', message: `Contract #${contract.id} created, awaiting lecturer signature`, contractId: contract.id });
+
+        const managementNotificationPayload = {
+          role: 'management',
+          type: 'status_change',
+          message: `Contract #${contract.id} created, awaiting lecturer signature`,
+          contractId: contract.id,
+        };
+        if (departmentName) {
+          managementNotificationPayload.department_name = departmentName;
+        }
+
+        await notificationSocket.notifyRole(managementNotificationPayload);
+        await notificationSocket.notifyRole({
+          role: 'admin',
+          type: 'status_change',
+          message: `Contract #${contract.id} created, awaiting lecturer signature`,
+          contractId: contract.id,
+        });
       } catch (error) {
         console.error('error status for socket', error);
       }
@@ -1648,9 +1683,35 @@ export async function updateStatus(req, res) {
 
     try {
       const notificationSocket = getNotificationSocket();
+
+      // Derive department name for scoped management/admin notifications
+      let departmentName = null;
+      try {
+        if (contract.department_id) {
+          const department = await Department.findByPk(contract.department_id);
+          if (department && department.name) {
+            departmentName = department.name;
+          }
+        }
+      } catch (deptErr) {
+        console.error('[updateStatus] failed to resolve department name for notifications:', deptErr);
+      }
+
       if (status === 'REQUEST_REDO') {
-        notificationSocket.broadcastToRole({ role: 'admin', type: 'status_change', message: `Contract #${contract.id} redo requested by lecturer`, contractId: contract.id });
-        notificationSocket.broadcastToRole({ role: 'management', type: 'status_change', message: `Contract #${contract.id} redo requested by lecturer`, contractId: contract.id });
+        await notificationSocket.notifyRole({
+          role: 'admin',
+          type: 'status_change',
+          message: `Contract #${contract.id} redo requested by lecturer`,
+          contractId: contract.id,
+          department_name: departmentName,
+        });
+        await notificationSocket.notifyRole({
+          role: 'management',
+          type: 'status_change',
+          message: `Contract #${contract.id} redo requested by lecturer`,
+          contractId: contract.id,
+          department_name: departmentName,
+        });
       } else {
         await notificationSocket.contractStatusChanged({
           contractId: contract.id,
@@ -2090,6 +2151,17 @@ export async function uploadSignature(req, res) {
 
     const filePath = targetPath;
     const now = new Date();
+    let departmentName = null;
+    try {
+      const lecturerProfile = await LecturerProfile.findOne({
+        where: { user_id: contract.lecturer_user_id },
+      });
+      if (lecturerProfile && lecturerProfile.department_name) {
+        departmentName = lecturerProfile.department_name;
+      }
+    } catch (deptErr) {
+      console.error('[uploadSignature] failed to resolve department for contract', contract.id, deptErr);
+    }
     if (who === 'lecturer') {
       // Lecturer signing moves status to WAITING_MANAGEMENT unless management already signed (then COMPLETED)
       const next = contract.management_signed_at ? 'COMPLETED' : 'WAITING_MANAGEMENT';
@@ -2100,8 +2172,14 @@ export async function uploadSignature(req, res) {
       });
       try {
         const notificationSocket = getNotificationSocket();
-        notificationSocket.broadcastToRole({ role: 'management', type: 'status_change', message: `Contract #${contract.id} signed by lecturer, awaiting your signature`, contractId: contract.id });
-        notificationSocket.broadcastToRole({ role: 'admin', type: 'status_change', message: `Contract #${contract.id} signed by lecturer`, contractId: contract.id });
+        await notificationSocket.notifyRole({
+          role: 'management',
+          department_name: departmentName,
+          type: 'status_change',
+          message: `Contract #${contract.id} signed by lecturer, awaiting your signature`,
+          contractId: contract.id,
+        });
+        await notificationSocket.notifyRole({ role: 'admin', type: 'status_change', message: `Contract #${contract.id} signed by lecturer`, contractId: contract.id });
       } catch (notifErr) {
         console.error('[uploadSignature] notification failed:', notifErr);
       }
@@ -2116,7 +2194,7 @@ export async function uploadSignature(req, res) {
       try {
         const notificationSocket = getNotificationSocket();
         notificationSocket.notifyLecturer({ user_id: contract.lecturer_user_id, type: 'status_change', message: `Contract #${contract.id} has been completed`, contract_id: contract.id });
-        notificationSocket.broadcastToRole({ role: 'admin', type: 'status_change', message: `Contract #${contract.id} completed`, contractId: contract.id });
+        await notificationSocket.notifyRole({ role: 'admin', type: 'status_change', message: `Contract #${contract.id} completed`, contractId: contract.id });
       } catch (notifErr) {
         console.error('[uploadSignature] notification failed:', notifErr);
       }

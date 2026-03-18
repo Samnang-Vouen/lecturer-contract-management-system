@@ -14,9 +14,9 @@ export default function PersonalInfoSection({
   onPaste 
 }) {
   return (
-    <Card className="shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 bg-white rounded-2xl border border-gray-100/70">
+    <Card className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <SectionHeader title="Personal Information" icon={<User className="h-4 w-4" />} accent="blue" />
-      <CardContent className="pt-6">
+      <CardContent className="p-6 sm:p-8">
         <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
           <FormField 
             name="full_name_english" 
@@ -65,7 +65,7 @@ export default function PersonalInfoSection({
               disabled={!editMode} 
             />
             {editMode && (
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-slate-500 mt-2">
                 {(form.short_bio || '').length}/160 characters
               </p>
             )}

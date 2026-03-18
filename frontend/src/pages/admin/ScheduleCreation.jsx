@@ -27,6 +27,8 @@ export default function ScheduleCreation() {
   const [isLoading, setIsLoading] = useState(true);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [isGenerateAllLoading, setIsGenerateAllLoading] = useState(false);
+  const [isGenerateSelectedLoading, setIsGenerateSelectedLoading] = useState(false);
+
   const [activeDownloadId, setActiveDownloadId] = useState(null);
   const [generatedCount, setGeneratedCount] = useState(0);
   const [emptyCellDialog, setEmptyCellDialog] = useState({

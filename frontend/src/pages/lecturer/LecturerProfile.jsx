@@ -80,76 +80,80 @@ export default function LecturerProfile() {
   };
 
   return (
-    <div className="space-y-8 p-4 md:p-8 max-w-7xl mx-auto">
-      {loading && (
-        <div className="space-y-8 animate-pulse">
-          <div className="h-44 rounded-2xl bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100" />
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="h-80 rounded-2xl bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100" />
-            <div className="h-80 rounded-2xl bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100" />
+    <div className="min-h-screen bg-slate-50 py-6 sm:py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
+        {loading && (
+          <div className="space-y-8 animate-pulse">
+            <div className="h-52 rounded-3xl bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200" />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
+              <div className="h-[28rem] rounded-2xl bg-white border border-slate-200 shadow-sm" />
+              <div className="h-[28rem] rounded-2xl bg-white border border-slate-200 shadow-sm" />
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
+              <div className="h-80 rounded-2xl bg-white border border-slate-200 shadow-sm" />
+              <div className="h-80 rounded-2xl bg-white border border-slate-200 shadow-sm" />
+            </div>
           </div>
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="h-64 rounded-2xl bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100" />
-            <div className="h-64 rounded-2xl bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100" />
-          </div>
-        </div>
-      )}
-      {!loading && profile && (
-        <>
-          <ProfileHeader
-            profile={profile}
-            editMode={editMode}
-            saving={saving}
-            onEdit={() => setEditMode(true)}
-            onSave={save}
-            onCancel={cancel}
-          />
-
-          <PersonalInfoSection
-            form={form}
-            profile={profile}
-            editMode={editMode}
-            errors={errors}
-            onChange={onChange}
-            onPaste={onPaste}
-          />
-
-          <div className="grid md:grid-cols-2 gap-6">
-            <CoursesSection profile={profile} />
-            <DocumentsSection
+        )}
+        {!loading && profile && (
+          <>
+            <ProfileHeader
               profile={profile}
               editMode={editMode}
-              fileUploading={fileUploading}
-              onUploadFiles={uploadFiles}
-              onOpenSyllabusDialog={() => setShowSyllabusDialog(true)}
+              saving={saving}
+              onEdit={() => setEditMode(true)}
+              onSave={save}
+              onCancel={cancel}
             />
-          </div>
 
-          <div className="grid md:grid-cols-2 gap-6">
-            <BankingSection form={form} editMode={editMode} onChange={onChange} />
-            <AccountSettingsSection
-              passwordForm={passwordForm}
-              setPasswordForm={setPasswordForm}
-              passwordSaving={passwordSaving}
-              showCurrent={showCurrent}
-              showNew={showNew}
-              showConfirm={showConfirm}
-              animCurrent={animCurrent}
-              animNew={animNew}
-              animConfirm={animConfirm}
-              onToggleVisibility={toggleVisibility}
-              onChangePassword={changePassword}
-            />
-          </div>
-        </>
-      )}
+            <div className="grid grid-cols-1 gap-6 sm:gap-8">
+              <PersonalInfoSection
+                form={form}
+                profile={profile}
+                editMode={editMode}
+                errors={errors}
+                onChange={onChange}
+                onPaste={onPaste}
+              />
 
-      <SyllabusUploadDialog
-        open={showSyllabusDialog}
-        onOpenChange={setShowSyllabusDialog}
-        onUpload={uploadFiles}
-        uploading={fileUploading}
-      />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
+                <CoursesSection profile={profile} />
+                <DocumentsSection
+                  profile={profile}
+                  editMode={editMode}
+                  fileUploading={fileUploading}
+                  onUploadFiles={uploadFiles}
+                  onOpenSyllabusDialog={() => setShowSyllabusDialog(true)}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
+                <BankingSection form={form} editMode={editMode} onChange={onChange} />
+                <AccountSettingsSection
+                  passwordForm={passwordForm}
+                  setPasswordForm={setPasswordForm}
+                  passwordSaving={passwordSaving}
+                  showCurrent={showCurrent}
+                  showNew={showNew}
+                  showConfirm={showConfirm}
+                  animCurrent={animCurrent}
+                  animNew={animNew}
+                  animConfirm={animConfirm}
+                  onToggleVisibility={toggleVisibility}
+                  onChangePassword={changePassword}
+                />
+              </div>
+            </div>
+          </>
+        )}
+
+        <SyllabusUploadDialog
+          open={showSyllabusDialog}
+          onOpenChange={setShowSyllabusDialog}
+          onUpload={uploadFiles}
+          uploading={fileUploading}
+        />
+      </div>
     </div>
   );
 }

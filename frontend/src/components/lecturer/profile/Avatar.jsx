@@ -1,15 +1,15 @@
-import React, { useMemo } from 'react';
-import { avatarColors } from '../../../utils/profileUtils';
+import React from 'react';
+import { UserCircle } from 'lucide-react';
 
 export default function Avatar({ name }) {
-  const initials = name.split(' ').slice(0, 2).map(p => p[0]).join('').toUpperCase();
-  const color = useMemo(() => avatarColors[initials.charCodeAt(0) % avatarColors.length], [initials]);
-  
   return (
-    <div className="relative">
-      <div className="absolute -inset-0.5 bg-gradient-to-tr from-indigo-500 via-blue-500 to-emerald-500 rounded-full blur opacity-60 group-hover:opacity-90 transition" />
-      <div className={`relative w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center text-white text-xl font-semibold shadow-lg ring-4 ring-white ${color}`}>
-        {initials || 'L'}
+    <div
+      className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-white/20 flex items-center justify-center shadow-sm mx-auto sm:mx-0"
+      title={name || "Lecturer"}
+      aria-label={name || "Lecturer avatar"}
+    >
+      <div className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center">
+        <UserCircle className="w-10 h-10 sm:w-12 sm:h-12 text-white" />
       </div>
     </div>
   );

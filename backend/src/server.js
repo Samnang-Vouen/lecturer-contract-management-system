@@ -38,13 +38,20 @@ const corsOptions = {
     // Allow exact configured origin
     if (origin === ORIGIN) return callback(null, true);
     
-    if (process.env.NODE_ENV !== 'production' && /^http:\/\/localhost:\d+$/i.test(origin)) {
+    // In development, allow any localhost origin (Vite may pick different ports)
+    const isDevelopment = process.env.NODE_ENV !== 'production';
+    if (isDevelopment && /^https?:\/\/localhost:\d+$/i.test(origin)) {
       return callback(null, true);
     }
     // Allow file:// protocol (local HTML files) in development
-    if (process.env.NODE_ENV !== 'production' && origin === 'null') {
+    if (isDevelopment && origin === 'null') {
       return callback(null, true);
     }
+    // Allow 127.0.0.1 in development
+    if (isDevelopment && /^https?:\/\/127\.0\.0\.1:\d+$/i.test(origin)) {
+      return callback(null, true);
+    }
+    
     // Prevent Node from crashing on EPIPE when parent process closes stdout/stderr pipes
     try {
       process.stdout.on('error', (err) => {
@@ -55,9 +62,12 @@ const corsOptions = {
       });
     } catch {}
 
+    console.warn(`CORS rejected origin: ${origin}, NODE_ENV: ${process.env.NODE_ENV}, ALLOWED_ORIGIN: ${ORIGIN}`);
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 };
 app.use(cors(corsOptions));
 

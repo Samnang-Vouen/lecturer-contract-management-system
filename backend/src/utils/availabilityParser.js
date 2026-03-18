@@ -145,6 +145,10 @@ export async function getTimeSlotId(timeSlotLabel, TimeSlotModel) {
  *
  * @param {string} availabilityString - The availability string from course mapping
  * @param {Object} TimeSlotModel - The Sequelize TimeSlot model
+ * @param {Map<string, number>|null} [cachedTimeSlotMap=null] - Optional cache mapping
+ *   time slot labels (e.g., '08h:00-09h:30') to their database IDs. If provided,
+ *   this map will be used instead of querying TimeSlotModel, allowing callers to
+ *   reuse a pre-fetched label-to-id map and avoid additional DB queries.
  * @returns {Promise<Array>} Array of schedule entry objects ready to be inserted
  *
  * Example output:
@@ -154,12 +158,13 @@ export async function getTimeSlotId(timeSlotLabel, TimeSlotModel) {
  *   ...
  * ]
  */
-export async function availabilityToScheduleEntries(availabilityString, TimeSlotModel) {
+export async function availabilityToScheduleEntries(availabilityString, TimeSlotModel, cachedTimeSlotMap = null) {
   const parsedAvailability = parseAvailability(availabilityString);
   const scheduleEntries = [];
 
-  const allTimeSlots = await TimeSlotModel.findAll();
-  const timeSlotMap = new Map(allTimeSlots.map((ts) => [ts.label, ts.id]));
+  const timeSlotMap =
+    cachedTimeSlotMap ||
+    new Map((await TimeSlotModel.findAll()).map((ts) => [ts.label, ts.id]));
 
   for (const { day, timeSlot } of parsedAvailability) {
     const timeSlotId = timeSlotMap.get(timeSlot);

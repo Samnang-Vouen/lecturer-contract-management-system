@@ -12,10 +12,9 @@ export default function SectionHeader({ title, icon, accent = 'indigo' }) {
   const styles = colorMap[accent] || colorMap.indigo;
   
   return (
-    <div className="border-b px-6 pt-4 bg-gradient-to-r from-white via-gray-50 to-white relative">
-      <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-indigo-500/70 via-blue-500/60 to-emerald-500/70 rounded-tr-full rounded-br-full" />
-      <h2 className="text-[13px] font-semibold text-gray-700 pb-3 flex items-center gap-2 tracking-wide">
-        <span className={`h-7 w-7 rounded-full flex items-center justify-center ${styles} shadow-sm ring-1 ring-white`}>
+    <div className="px-6 sm:px-8 py-4 border-b border-slate-100 bg-white">
+      <h2 className="text-xl font-semibold text-slate-900 flex items-center gap-3">
+        <span className={`h-10 w-10 rounded-lg flex items-center justify-center ${styles}`}>
           {icon}
         </span>
         <span>{title}</span>

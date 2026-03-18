@@ -8,6 +8,8 @@ import Course from '../model/course.model.js';
 import { findOrCreateResearchFields } from './researchField.controller.js';
 import { findOrCreateUniversities } from './university.controller.js';
 import { findOrCreateMajors } from './major.controller.js';
+import xlsx from 'xlsx';
+import bcrypt from 'bcrypt';
 
 const sanitizeDisplayName = (name) => {
   const base = path.basename(String(name || '')).trim();
@@ -871,5 +873,151 @@ export const uploadLecturerPayroll = async (req, res) => {
   } catch (e) {
     console.error('[uploadLecturerPayroll] error', e);
     return res.status(500).json({ message: 'Failed to upload payroll', error: e.message });
+  }
+};
+
+/**
+ * POST /api/lecturers/import/excel
+ * Bulk import users from Excel file.
+ * Expects multipart/form-data with field name 'file'.
+ * Returns { message, total, success[], errors[] }
+ * Each success item includes tempPassword so the admin can distribute credentials.
+ */
+export const importLecturersFromExcel = async (req, res) => {
+  try {
+    const file = req.file;
+    if (!file) return res.status(400).json({ message: 'Excel file required' });
+
+    const workbook = xlsx.read(file.buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const rows = xlsx.utils.sheet_to_json(worksheet);
+
+    if (!rows.length) {
+      return res.status(400).json({ message: 'Excel file is empty' });
+    }
+
+    const results = { success: [], errors: [], total: rows.length };
+
+    for (let i = 0; i < rows.length; i += 1) {
+      const row = rows[i];
+      const rowNumber = i + 2;
+
+      try {
+        // ── Required fields ───────────────────────────────────────────────
+        const email = String(row.email || '').trim();
+        const displayName = String(row.display_name || '').trim();
+        const departmentName = String(row.department_name || '').trim();
+        const status = String(row.status || 'active').trim().toLowerCase();
+        const roleStr = String(row.role || 'lecturer').trim().toLowerCase();
+
+        if (!email || !displayName || !departmentName) {
+          results.errors.push({
+            row: rowNumber,
+            error: 'Missing required fields: email, display_name, department_name',
+          });
+          continue;
+        }
+
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          results.errors.push({ row: rowNumber, error: `Invalid email format: ${email}` });
+          continue;
+        }
+
+        if (!['active', 'inactive'].includes(status)) {
+          results.errors.push({ row: rowNumber, error: `Invalid status: ${status}` });
+          continue;
+        }
+
+        if (!['lecturer', 'advisor', 'admin'].includes(roleStr)) {
+          results.errors.push({ row: rowNumber, error: `Invalid role: ${roleStr}` });
+          continue;
+        }
+
+        const existingUser = await User.findOne({ where: { email } });
+        if (existingUser) {
+          results.errors.push({ row: rowNumber, error: `User with email ${email} already exists` });
+          continue;
+        }
+
+        // ── Generate temp password (use Excel value if provided, else auto-gen) ──
+        const TEMP_LEN = 10;
+        let tempPassword = row.password ? String(row.password).trim() : '';
+        if (!tempPassword) {
+          while (tempPassword.length < TEMP_LEN) tempPassword += Math.random().toString(36).slice(2);
+          tempPassword = tempPassword.slice(0, TEMP_LEN);
+        }
+        const passwordHash = await bcrypt.hash(tempPassword, 10);
+
+        // ── Create user ───────────────────────────────────────────────────
+        const newUser = await User.create({
+          email,
+          password_hash: passwordHash,
+          display_name: displayName,
+          department_name: departmentName,
+          status,
+        });
+
+        const role = await Role.findOne({ where: { name: roleStr } });
+        if (role) await newUser.addRole(role);
+
+        // ── Create lecturer / advisor profile ─────────────────────────────
+        if (['lecturer', 'advisor'].includes(roleStr)) {
+          const profileData = {
+            user_id: newUser.id,
+            full_name_english: row.full_name_english ? String(row.full_name_english).trim() : null,
+            full_name_khmer:   row.full_name_khmer   ? String(row.full_name_khmer).trim()   : null,
+            employee_id:       row.employee_id       ? String(row.employee_id).trim()       : null,
+            position:          row.position          ? String(row.position).trim()          : null,
+            phone_number:      row.phone_number      ? String(row.phone_number).trim()      : null,
+            personal_email:    row.personal_email    ? String(row.personal_email).trim()    : null,
+            country:           row.country           ? String(row.country).trim()           : null,
+            occupation:        row.occupation        ? String(row.occupation).trim()        : null,
+            place:             row.place             ? String(row.place).trim()             : null,
+            short_bio:         row.short_bio         ? String(row.short_bio).trim()         : null,
+            university:        row.university        ? String(row.university).trim()        : null,
+            major:             row.major             ? String(row.major).trim()             : null,
+            latest_degree:     row.latest_degree     ? String(row.latest_degree).trim()     : null,
+            degree_year:       row.degree_year       ? parseInt(row.degree_year, 10)        : null,
+            qualifications:    row.qualifications    ? String(row.qualifications).trim()    : null,
+            research_fields:   row.research_fields   ? String(row.research_fields).trim()   : null,
+            join_date:         row.join_date         ? new Date(row.join_date)              : null,
+            bank_name:         row.bank_name         ? String(row.bank_name).trim()         : null,
+            account_name:      row.account_name      ? String(row.account_name).trim()      : null,
+            account_number:    row.account_number    ? String(row.account_number).trim()    : null,
+            status,
+          };
+
+          const profile = await LecturerProfile.create(profileData);
+
+          if (row.course_ids) {
+            const courseIds = String(row.course_ids)
+              .split(',')
+              .map((id) => parseInt(id.trim(), 10))
+              .filter((id) => Number.isInteger(id) && id > 0);
+
+            if (courseIds.length > 0) {
+              const courses = await Course.findAll({ where: { id: { [Op.in]: courseIds } } });
+              if (courses.length > 0) {
+                await LecturerCourse.bulkCreate(
+                  courses.map((c) => ({ lecturer_profile_id: profile.id, course_id: c.id }))
+                );
+              }
+            }
+          }
+        }
+
+        // tempPassword returned once so admin can share it — never stored plain text
+        results.success.push({ row: rowNumber, email, userId: newUser.id, tempPassword });
+      } catch (rowError) {
+        console.error(`[importLecturersFromExcel] row ${rowNumber} error:`, rowError.message);
+        results.errors.push({ row: rowNumber, error: rowError.message });
+      }
+    }
+
+    return res.status(200).json({ message: 'Import completed', ...results });
+  } catch (error) {
+    console.error('[importLecturersFromExcel] error', error);
+    return res.status(500).json({ message: 'Failed to import lecturers', error: error.message });
   }
 };

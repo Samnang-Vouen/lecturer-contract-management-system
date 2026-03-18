@@ -90,11 +90,11 @@ export default function ManagementContracts() {
           setPage={setPage} 
         />
 
-        <PendingSignaturesAlert 
-          contracts={contracts} 
-          onPreview={previewPdf} 
-          onSign={handleSignClick} 
-          uploading={uploading} 
+        <PendingSignaturesAlert
+          contracts={contracts}
+          onPreview={previewPdf}
+          onSign={handleSignClick}
+          uploading={uploading}
         />
 
         <ContractGrid 

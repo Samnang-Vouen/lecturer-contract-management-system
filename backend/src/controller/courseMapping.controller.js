@@ -71,7 +71,7 @@ function startDateFromAcademicYear(academicYear) {
   return `${m[1]}-10-01`;
 }
 
-async function syncScheduleForCourseMapping(mappingId) {
+async function syncScheduleForCourseMapping(mappingId, cachedTimeSlotMap = null) {
   const mapping = await CourseMapping.findByPk(mappingId, {
     include: [
       { model: Group, attributes: ['id', 'name'] },
@@ -176,6 +176,10 @@ export const backfillCourseMappingSchedules = async (req, res) => {
       attributes: ['id', 'status', 'group_id', 'availability'],
       order: [['updated_at', 'DESC']],
     });
+
+    // Pre-fetch all TimeSlots once to avoid repeated DB queries during backfill
+    const allTimeSlots = await TimeSlot.findAll();
+    const cachedTimeSlotMap = new Map(allTimeSlots.map((ts) => [ts.label, ts.id]));
 
     let eligible = 0;
     let synced = 0;
