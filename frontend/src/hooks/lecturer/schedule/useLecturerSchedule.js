@@ -52,17 +52,15 @@ export const useLecturerSchedule = (scheduleId) => {
   const [error, setError] = useState('');
 
   const fetchSchedule = useCallback(async () => {
-    // If no scheduleId is provided, avoid an unscoped fetch and reset to defaults.
-    if (!scheduleId) {
-      setEntries([]);
-      setSpecialSlots(DEFAULT_SPECIAL_SLOTS);
-      setError('');
-      return;
-    }
-
     try {
       setLoading(true);
       setError('');
+
+      if (!scheduleId) {
+        setEntries([]);
+        setSpecialSlots(DEFAULT_SPECIAL_SLOTS);
+        return;
+      }
 
       const params = { schedule_id: scheduleId };
       const response = await getScheduleEntries(params);
