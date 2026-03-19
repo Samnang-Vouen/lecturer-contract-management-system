@@ -16,6 +16,7 @@ import {
   updateRedoRequestStatus,
   getContract,
   generatePdf,
+  generateLecturerSummaryPdf,
   updateStatus,
   upload,
   uploadSignature,
@@ -29,6 +30,8 @@ router.use(protect);
 
 // List contracts (admin/management can see all; lecturers see their own)
 router.get('/', authorizeRoles(['admin', 'lecturer', 'management', 'superadmin']), listContracts);
+
+router.get('/summary/pdf', authorizeRoles(['admin']), generateLecturerSummaryPdf);
 
 // Admin create draft
 // Allow both admin and superadmin to create drafts (management cannot create drafts)

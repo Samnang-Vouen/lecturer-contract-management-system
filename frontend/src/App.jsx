@@ -169,6 +169,7 @@ function App() {
             <Route path="my-contracts" element={<LecturerContracts />} />
 
             <Route path="schedule" element={<LecturerSchedule />} />
+            <Route path="schedule/:scheduleId" element={<LecturerSchedule />} />
 
           </Route>
 
