@@ -1,8 +1,8 @@
 import React from 'react';
-import { GraduationCap, Plus } from 'lucide-react';
+import { FileText, GraduationCap, Plus } from 'lucide-react';
 import Button from '../../ui/Button';
 
-export default function ContractGenerationHeader({ onGenerate }) {
+export default function ContractGenerationHeader({ onGenerate, onOpenSummary }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-200 p-4 md:p-6 lg:p-8">
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
@@ -15,9 +15,12 @@ export default function ContractGenerationHeader({ onGenerate }) {
             <p className="text-gray-600 mt-1">Generate and manage lecturer contracts</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+        <div className="flex flex-col gap-3 w-full sm:w-auto">
           <Button onClick={onGenerate} className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl">
             <Plus className="h-4 w-4 mr-2" /> Generate Contract
+          </Button>
+          <Button onClick={onOpenSummary} variant="outline" className="w-full sm:w-auto border-blue-200 text-blue-700 hover:bg-blue-50">
+            <FileText className="h-4 w-4 mr-2" /> Contract Summary
           </Button>
         </div>
       </div>

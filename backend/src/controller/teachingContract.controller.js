@@ -12,6 +12,7 @@ import {
   ContractItem,
   Department,
   Course,
+  CourseMapping,
 } from '../model/index.js';
 import sequelize from '../config/db.js';
 import Candidate from '../model/candidate.model.js';
@@ -30,6 +31,288 @@ const __dirname = path.dirname(__filename);
 function toKhmerDigits(str) {
   const map = ['០', '១', '២', '៣', '៤', '៥', '៦', '៧', '៨', '៩'];
   return String(str).replace(/[0-9]/g, (d) => map[d]);
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => {
+    switch (char) {
+      case '&':
+        return '&amp;';
+      case '<':
+        return '&lt;';
+      case '>':
+        return '&gt;';
+      case '"':
+        return '&quot;';
+      case "'":
+        return '&#39;';
+      default:
+        return char;
+    }
+  });
+}
+
+function formatMoneySummary(value) {
+  const amount = Number(value || 0);
+  return Number.isFinite(amount) ? amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
+}
+
+function formatKhmerMoneySummary(value) {
+  return `${toKhmerDigits(formatMoneySummary(value))}៛`;
+}
+
+function normalizeTeachingSummaryType(value) {
+  const normalized = String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '_')
+    .replace(/-/g, '_');
+
+  const aliasMap = {
+    CAPSTONE_I: 'CAPSTONE_1',
+    CAPSTONE_1: 'CAPSTONE_1',
+    CAPSTONE_II: 'CAPSTONE_2',
+    CAPSTONE_2: 'CAPSTONE_2',
+    INTERNSHIP_I: 'INTERNSHIP_1',
+    INTERNSHIP_1: 'INTERNSHIP_1',
+    INTERNSHIP_II: 'INTERNSHIP_2',
+    INTERNSHIP_2: 'INTERNSHIP_2',
+  };
+
+  return aliasMap[normalized] || '';
+}
+
+function getTeachingSummaryTypeLabels(typeKey) {
+  const map = {
+    CAPSTONE_1: { en: 'Capstone I', kh: 'Capstone I' },
+    CAPSTONE_2: { en: 'Capstone II', kh: 'Capstone II' },
+    INTERNSHIP_1: { en: 'Internship I', kh: 'កម្មសិក្សាលើកទី១' },
+    INTERNSHIP_2: { en: 'Internship II', kh: 'កម្មសិក្សាលើកទី២' },
+  };
+  return map[typeKey] || null;
+}
+
+function extractTermNumber(value) {
+  const match = String(value ?? '').match(/(1|2)/);
+  return match ? Number(match[1]) : null;
+}
+
+function courseMatchesTeachingSummaryType(course, typeKey) {
+  if (!typeKey) return true;
+
+  const courseName = String(course?.course_name || '').trim().toLowerCase();
+  const termNumber = extractTermNumber(course?.term);
+  const wantsCapstone = typeKey.startsWith('CAPSTONE');
+  const wantsInternship = typeKey.startsWith('INTERNSHIP');
+  const wantsTerm = typeKey.endsWith('_2') ? 2 : 1;
+
+  const matchesFamily = wantsCapstone ? courseName.includes('capstone') : wantsInternship ? courseName.includes('internship') : false;
+  if (!matchesFamily) return false;
+
+  if (termNumber) return termNumber === wantsTerm;
+  if (wantsTerm === 1) return /(^|\s)(i|1)(\s|$)/i.test(courseName) || !/(^|\s)(ii|2)(\s|$)/i.test(courseName);
+  return /(^|\s)(ii|2)(\s|$)/i.test(courseName);
+}
+
+function getKhDateParts(value) {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return null;
+  const khMonths = ['មករា', 'កុម្ភៈ', 'មីនា', 'មេសា', 'ឧសភា', 'មិថុនា', 'កក្កដា', 'សីហា', 'កញ្ញា', 'តុលា', 'វិច្ឆិកា', 'ធ្នូ'];
+  return {
+    day: toKhmerDigits(date.getDate()),
+    month: khMonths[date.getMonth()],
+    year: toKhmerDigits(date.getFullYear()),
+  };
+}
+
+function formatTeachingSummaryDateRangeKh(startDate, endDate) {
+  const start = getKhDateParts(startDate);
+  const end = getKhDateParts(endDate);
+  if (!start || !end) return '-';
+
+  return `ចាប់ពីថ្ងៃទី ${start.day} ខែ ${start.month} ឆ្នាំ ${start.year} ដល់ថ្ងៃទី ${end.day} ខែ ${end.month} ឆ្នាំ ${end.year}`;
+}
+
+function normalizeGenerationNumber(value) {
+  if (value === null || value === undefined) return '';
+  const match = String(value).match(/(\d+)/);
+  return match ? String(parseInt(match[1], 10)) : '';
+}
+
+function normalizeSummaryClassNames(value) {
+  if (Array.isArray(value)) {
+    return Array.from(new Set(value.map((item) => String(item || '').trim()).filter(Boolean)));
+  }
+
+  const raw = String(value || '').trim();
+  if (!raw) return [];
+
+  return Array.from(
+    new Set(
+      raw
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean)
+    )
+  );
+}
+
+function formatLecturerSummaryGenerationTitle(classNames) {
+  const generations = Array.from(
+    new Set(
+      classNames
+        .map((item) => normalizeGenerationNumber(item))
+        .filter(Boolean)
+        .sort((left, right) => Number(left) - Number(right))
+    )
+  ).map((item) => toKhmerDigits(item));
+
+  if (!generations.length) {
+    return 'ចំណាយប្រាក់ឈ្នួលគ្រូបង្រៀនឯកជន(ភ្នាក់ងរជាតិជាប់កិច្ចសន្យា) សម្រាប់ថ្នាក់បរិញ្ញាបត្រជំនាន់ទី........';
+  }
+
+  if (generations.length === 1) {
+    return `ចំណាយប្រាក់ឈ្នួលគ្រូបង្រៀនឯកជន(ភ្នាក់ងរជាតិជាប់កិច្ចសន្យា) សម្រាប់ថ្នាក់បរិញ្ញាបត្រជំនាន់ទី${generations[0]}`;
+  }
+
+  if (generations.length === 2) {
+    return `ចំណាយប្រាក់ឈ្នួលគ្រូបង្រៀនឯកជន(ភ្នាក់ងរជាតិជាប់កិច្ចសន្យា) សម្រាប់ថ្នាក់បរិញ្ញាបត្រជំនាន់ទី${generations[0]} និងជំនាន់ទី${generations[1]}`;
+  }
+
+  const firstGeneration = generations[0];
+  const middleGenerations = generations.slice(1, -1).map((item) => `ទី${item}`).join(' ');
+  const lastGeneration = generations[generations.length - 1];
+
+  return `ចំណាយប្រាក់ឈ្នួលគ្រូបង្រៀនឯកជន(ភ្នាក់ងរជាតិជាប់កិច្ចសន្យា) សម្រាប់ថ្នាក់បរិញ្ញាបត្រជំនាន់ទី${firstGeneration} ${middleGenerations} និងជំនាន់ទី${lastGeneration}`;
+}
+
+function parseHoursValue(value) {
+  const match = String(value || '').match(/(\d+(?:\.\d+)?)/);
+  return match ? Number(match[1]) : 0;
+}
+
+function buildCourseMappingKey({ lecturerProfileId, courseId, classId, academicYear, term }) {
+  return [
+    String(lecturerProfileId || ''),
+    String(courseId || ''),
+    String(classId || ''),
+    String(academicYear || ''),
+    normalizeSummaryTerm(term),
+  ].join('|');
+}
+
+function normalizeLookupText(value) {
+  return String(value || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+}
+
+function buildCourseMappingNameKey({ lecturerProfileId, courseName, className, academicYear, term }) {
+  return [
+    String(lecturerProfileId || ''),
+    normalizeLookupText(courseName),
+    normalizeLookupText(className),
+    String(academicYear || ''),
+    normalizeSummaryTerm(term),
+  ].join('|');
+}
+
+function normalizeSummaryTerm(value) {
+  const termNumber = extractTermNumber(value);
+  return termNumber ? String(termNumber) : normalizeLookupText(value);
+}
+
+function expandSummaryTermFilters(values) {
+  const variants = new Set();
+
+  for (const value of values || []) {
+    const raw = String(value || '').trim();
+    if (raw) {
+      variants.add(raw);
+    }
+
+    const termNumber = extractTermNumber(value);
+    if (termNumber) {
+      variants.add(String(termNumber));
+      variants.add(`Term ${termNumber}`);
+      variants.add(`term ${termNumber}`);
+    }
+  }
+
+  return Array.from(variants);
+}
+
+function getSummaryTheoryEffectiveGroups(hours, groups, combined) {
+  const normalizedHours = Number(hours) || 0;
+  const normalizedGroups = Number(groups) || 0;
+  if (combined && normalizedHours === 15 && normalizedGroups > 0) {
+    return 1;
+  }
+  return normalizedGroups;
+}
+
+function getSummaryTheoryEffectiveTotalHours(hours, groups, combined) {
+  const normalizedHours = Number(hours) || 0;
+  const normalizedGroups = Number(groups) || 0;
+  if (!normalizedHours || !normalizedGroups) return 0;
+  if (combined && normalizedHours === 15) {
+    return normalizedHours;
+  }
+  return normalizedHours * normalizedGroups;
+}
+
+async function resolveSummaryHourlyRate(contract, cache) {
+  const contractRate = Number(contract?.hourly_rate);
+  if (Number.isFinite(contractRate) && contractRate > 0) {
+    return contractRate;
+  }
+
+  const profile = contract?.lecturer?.LecturerProfile;
+  const candidateId = profile?.candidate_id;
+  if (candidateId) {
+    const cacheKey = `candidate:${candidateId}`;
+    if (cache.has(cacheKey)) return cache.get(cacheKey);
+
+    const candidate = await Candidate.findByPk(candidateId);
+    const candidateRate = Number(candidate?.hourlyRate);
+    const resolvedRate = Number.isFinite(candidateRate) && candidateRate > 0 ? candidateRate : 0;
+    cache.set(cacheKey, resolvedRate);
+    return resolvedRate;
+  }
+
+  const displayName = String(contract?.lecturer?.display_name || '').trim();
+  const email = String(contract?.lecturer?.email || '').trim();
+  const cacheKey = `lookup:${displayName}|${email}`;
+  if (cache.has(cacheKey)) return cache.get(cacheKey);
+
+  let candidate = null;
+  if (displayName) {
+    const normalizedName = displayName
+      .replace(/^(mr\.?|ms\.?|mrs\.?|dr\.?|prof\.?|professor|miss)\s+/i, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+
+    if (normalizedName) {
+      const Sequelize = (await import('sequelize')).default;
+      candidate = await Candidate.findOne({
+        where: Sequelize.where(
+          Sequelize.fn('LOWER', Sequelize.fn('TRIM', Sequelize.col('fullName'))),
+          normalizedName
+        ),
+      });
+    }
+  }
+
+  if (!candidate && email) {
+    candidate = await Candidate.findOne({ where: { email } });
+  }
+
+  const candidateRate = Number(candidate?.hourlyRate);
+  const resolvedRate = Number.isFinite(candidateRate) && candidateRate > 0 ? candidateRate : 0;
+  cache.set(cacheKey, resolvedRate);
+  return resolvedRate;
 }
 
 // Normalize various input shapes (array, JSON string, newline-separated string) into an array of non-empty strings
@@ -68,14 +351,27 @@ function loadTemplate(name) {
 }
 
 function embedLogo(html) {
-  const logoPath = path.join(process.cwd(), 'src', 'utils', 'cadt_logo.png');
-  let base64 = '';
-  try {
-    base64 = fs.readFileSync(logoPath, 'base64');
-  } catch {
-    base64 = '';
+  const assets = [
+    { fileName: 'cadt_logo.png', mime: 'image/png' },
+    { fileName: 'CADT_logo_with_KH.jpg', mime: 'image/jpeg' },
+  ];
+
+  let content = html;
+  for (const asset of assets) {
+    let base64 = '';
+    try {
+      base64 = fs.readFileSync(path.join(process.cwd(), 'src', 'utils', asset.fileName), 'base64');
+    } catch {
+      base64 = '';
+    }
+
+    content = content.replaceAll(
+      `src="${asset.fileName}"`,
+      `src="data:${asset.mime};base64,${base64}"`
+    );
   }
-  return html.replace('src="cadt_logo.png"', `src="data:image/png;base64,${base64}"`);
+
+  return content;
 }
 
 // Convert an image file to an <img> tag HTML or empty string if missing
@@ -859,6 +1155,426 @@ export async function generatePdf(req, res) {
   } catch (e) {
     console.error('[generatePdf]', e);
     return res.status(HTTP_STATUS.SERVER_ERROR).json({ message: 'Failed to generate PDF', error: e.message });
+  }
+}
+
+export async function generateLecturerSummaryPdf(req, res) {
+  try {
+    const role = String(req.user?.role || '').toLowerCase();
+    if (role !== 'admin') {
+      return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Only department admins can generate lecturer contract summaries' });
+    }
+
+    const departmentName = req.user?.department_name || null;
+    const departmentId = await resolveManagerDeptId(req);
+    if (!departmentName || !departmentId) {
+      return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Your account is not assigned to a department' });
+    }
+
+    const academicYear = String(req.query.academic_year || '').trim();
+    const requestedType = normalizeTeachingSummaryType(req.query.type);
+    const classNames = normalizeSummaryClassNames(
+      req.query.class_name || req.query.className || req.query.class_names || req.query.classNames
+    );
+
+    if (!academicYear || !classNames.length) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        message: 'academic_year and at least one class_name are required',
+      });
+    }
+
+    const Sequelize = (await import('sequelize')).default;
+
+    const contracts = await TeachingContract.findAll({
+      where: {
+        academic_year: academicYear,
+        contract_type: 'TEACHING',
+      },
+      include: [
+        {
+          model: TeachingContractCourse,
+          as: 'contractCourses',
+          required: true,
+          include: [
+            {
+              model: ClassModel,
+              attributes: ['id', 'name', 'year_level'],
+              required: true,
+              where: {
+                name: classNames.length === 1 ? classNames[0] : { [Sequelize.Op.in]: classNames },
+              },
+            },
+            {
+              model: Course,
+              attributes: ['id', 'dept_id', 'course_name'],
+              required: true,
+              where: { dept_id: departmentId },
+            },
+          ],
+        },
+        {
+          model: User,
+          as: 'lecturer',
+          attributes: ['id', 'email', 'display_name'],
+          required: true,
+          include: [
+            {
+              model: LecturerProfile,
+              attributes: ['id', 'candidate_id', 'full_name_english', 'full_name_khmer', 'bank_name', 'account_number'],
+              required: false,
+            },
+          ],
+        },
+      ],
+      order: [[{ model: User, as: 'lecturer' }, 'display_name', 'ASC'], ['id', 'ASC']],
+    });
+
+    const matchedContracts = contracts
+      .map((contract) => {
+        const matchingCourses = (contract.contractCourses || []).filter((course) =>
+          courseMatchesTeachingSummaryType(course, requestedType)
+        );
+        return matchingCourses.length ? { contract, matchingCourses } : null;
+      })
+      .filter(Boolean);
+
+    if (!matchedContracts.length) {
+      return res.status(HTTP_STATUS.NOT_FOUND).json({
+        message: requestedType
+          ? 'No lecturer contracts found for the selected academic year, type, and class'
+          : 'No lecturer contracts found for the selected academic year and class',
+      });
+    }
+
+    const dateKeys = Array.from(
+      new Set(
+        matchedContracts.map(({ contract }) => {
+          const start = contract.start_date ? new Date(contract.start_date).toISOString().slice(0, 10) : '';
+          const end = contract.end_date ? new Date(contract.end_date).toISOString().slice(0, 10) : '';
+          return `${start}|${end}`;
+        })
+      )
+    );
+
+    if (dateKeys.length !== 1) {
+      return res.status(HTTP_STATUS.CONFLICT).json({
+        message: 'Selected lecturer contracts do not share a single start and end date range',
+      });
+    }
+
+    const [startDate, endDate] = dateKeys[0].split('|');
+    const department = await Department.findByPk(departmentId, { attributes: ['dept_name_khmer'] });
+    const departmentNameKhmer = department?.dept_name_khmer || departmentName;
+    const typeLabels = requestedType ? getTeachingSummaryTypeLabels(requestedType) : null;
+    const exchangeRate = Number.parseFloat(process.env.USD_TO_KHR || process.env.EXCHANGE_RATE_KHR || '4100') || 4100;
+
+    const mappingTerms = Array.from(
+      new Set(
+        matchedContracts.flatMap(({ matchingCourses }) => matchingCourses.map((course) => String(course.term || '').trim())).filter(Boolean)
+      )
+    );
+    const mappingTermFilters = expandSummaryTermFilters(mappingTerms);
+    const mappingLecturerProfileIds = Array.from(
+      new Set(
+        matchedContracts
+          .map(({ contract }) => contract.lecturer?.LecturerProfile?.id)
+          .filter(Boolean)
+      )
+    );
+
+    const courseMappings = await CourseMapping.findAll({
+      where: {
+        academic_year: academicYear,
+        ...(mappingTermFilters.length ? { term: { [Sequelize.Op.in]: mappingTermFilters } } : {}),
+        ...(mappingLecturerProfileIds.length
+          ? {
+              [Sequelize.Op.or]: [
+                { lecturer_profile_id: { [Sequelize.Op.in]: mappingLecturerProfileIds } },
+                { lecturer_profile_id: null },
+              ],
+            }
+          : {}),
+      },
+      attributes: [
+        'lecturer_profile_id',
+        'course_id',
+        'class_id',
+        'academic_year',
+        'term',
+        'theory_hours',
+        'theory_groups',
+        'theory_15h_combined',
+        'lab_hours',
+        'lab_groups',
+      ],
+      include: [
+        {
+          model: ClassModel,
+          attributes: ['id', 'name'],
+          required: true,
+          where: {
+            name: classNames.length === 1 ? classNames[0] : { [Sequelize.Op.in]: classNames },
+          },
+        },
+        {
+          model: Course,
+          attributes: ['id', 'course_name', 'dept_id'],
+          required: true,
+          where: { dept_id: departmentId },
+        },
+      ],
+    });
+
+    const mappingByIdKey = new Map();
+    const mappingByNameKey = new Map();
+    const processedMappingFingerprints = new Set();
+    for (const mapping of courseMappings) {
+      const mappingFingerprint = [
+        String(mapping.lecturer_profile_id || ''),
+        String(mapping.course_id || ''),
+        String(mapping.class_id || ''),
+        String(mapping.academic_year || ''),
+        normalizeSummaryTerm(mapping.term),
+        String(mapping.theory_hours || ''),
+        String(mapping.theory_groups || 0),
+        String(mapping.lab_hours || ''),
+        String(mapping.lab_groups || 0),
+      ].join('|');
+
+      if (processedMappingFingerprints.has(mappingFingerprint)) {
+        continue;
+      }
+      processedMappingFingerprints.add(mappingFingerprint);
+
+      const idKey = buildCourseMappingKey({
+        lecturerProfileId: mapping.lecturer_profile_id,
+        courseId: mapping.course_id,
+        classId: mapping.class_id,
+        academicYear: mapping.academic_year,
+        term: mapping.term,
+      });
+      const nameKey = buildCourseMappingNameKey({
+        lecturerProfileId: mapping.lecturer_profile_id,
+        courseName: mapping.Course?.course_name,
+        className: mapping.Class?.name,
+        academicYear: mapping.academic_year,
+        term: mapping.term,
+      });
+
+      const current = mappingByIdKey.get(idKey) || mappingByNameKey.get(nameKey) || {
+        theoryHours: 0,
+        theoryGroups: 0,
+        theoryCombined: false,
+        practiceHours: 0,
+        practiceGroups: 0,
+      };
+
+      current.theoryHours = Math.max(current.theoryHours, parseHoursValue(mapping.theory_hours));
+      current.theoryGroups += Number(mapping.theory_groups || 0);
+      current.theoryCombined = current.theoryCombined || Boolean(mapping.theory_15h_combined);
+      current.practiceHours = Math.max(current.practiceHours, parseHoursValue(mapping.lab_hours));
+      current.practiceGroups += Number(mapping.lab_groups || 0);
+
+      mappingByIdKey.set(idKey, current);
+      mappingByNameKey.set(nameKey, current);
+
+      const idKeyWithoutLecturer = buildCourseMappingKey({
+        lecturerProfileId: '',
+        courseId: mapping.course_id,
+        classId: mapping.class_id,
+        academicYear: mapping.academic_year,
+        term: mapping.term,
+      });
+      const nameKeyWithoutLecturer = buildCourseMappingNameKey({
+        lecturerProfileId: '',
+        courseName: mapping.Course?.course_name,
+        className: mapping.Class?.name,
+        academicYear: mapping.academic_year,
+        term: mapping.term,
+      });
+
+      if (!mappingByIdKey.has(idKeyWithoutLecturer)) {
+        mappingByIdKey.set(idKeyWithoutLecturer, current);
+      }
+      if (!mappingByNameKey.has(nameKeyWithoutLecturer)) {
+        mappingByNameKey.set(nameKeyWithoutLecturer, current);
+      }
+    }
+
+    let totalUsd = 0;
+    let totalKhr = 0;
+    const hourlyRateCache = new Map();
+
+    const summaryRowEntries = [];
+    for (const { contract, matchingCourses } of matchedContracts) {
+        const profile = contract.lecturer?.LecturerProfile;
+        const lecturerNameEn =
+          profile?.full_name_english || contract.lecturer?.display_name || contract.lecturer?.email || '-';
+        const lecturerNameKh = profile?.full_name_khmer || '-';
+        const hourlyRate = await resolveSummaryHourlyRate(contract, hourlyRateCache);
+
+        for (const course of matchingCourses) {
+          const mappingKey = buildCourseMappingKey({
+            lecturerProfileId: profile?.id,
+            courseId: course.course_id,
+            classId: course.class_id,
+            academicYear,
+            term: course.term,
+          });
+          const mappingKeyWithoutLecturer = buildCourseMappingKey({
+            lecturerProfileId: '',
+            courseId: course.course_id,
+            classId: course.class_id,
+            academicYear,
+            term: course.term,
+          });
+          const mappingNameKey = buildCourseMappingNameKey({
+            lecturerProfileId: profile?.id,
+            courseName: course.course_name,
+            className: course.Class?.name,
+            academicYear,
+            term: course.term,
+          });
+          const mappingNameKeyWithoutLecturer = buildCourseMappingNameKey({
+            lecturerProfileId: '',
+            courseName: course.course_name,
+            className: course.Class?.name,
+            academicYear,
+            term: course.term,
+          });
+          const courseMapping =
+            mappingByIdKey.get(mappingKey) ||
+            mappingByIdKey.get(mappingKeyWithoutLecturer) ||
+            mappingByNameKey.get(mappingNameKey) ||
+            mappingByNameKey.get(mappingNameKeyWithoutLecturer);
+
+          const theoryHours = courseMapping?.theoryHours || 0;
+          const theoryGroups = courseMapping?.theoryGroups || (theoryHours > 0 ? 1 : 0);
+          const theoryCombined = Boolean(courseMapping?.theoryCombined);
+          const practiceHours = courseMapping?.practiceHours || 0;
+          const practiceGroups = courseMapping?.practiceGroups || 0;
+          const fallbackTotalHours = Number(course.hours) || 0;
+          const fallbackTheoryHours = !courseMapping && fallbackTotalHours > 0 ? fallbackTotalHours : theoryHours;
+          const fallbackTheoryGroups = !courseMapping && fallbackTotalHours > 0 ? 1 : theoryGroups;
+          const effectiveTheoryGroups = getSummaryTheoryEffectiveGroups(
+            fallbackTheoryHours,
+            fallbackTheoryGroups,
+            theoryCombined
+          );
+          const effectiveTheoryTotalHours = getSummaryTheoryEffectiveTotalHours(
+            fallbackTheoryHours,
+            fallbackTheoryGroups,
+            theoryCombined
+          );
+          const effectivePracticeTotalHours = practiceGroups * practiceHours;
+          const mappedTotalHours = effectiveTheoryTotalHours + effectivePracticeTotalHours;
+          const totalHours = fallbackTotalHours > 0 ? fallbackTotalHours : mappedTotalHours;
+          const lineTotalUsd = totalHours * hourlyRate;
+          const lineTotalKhr = Math.round(lineTotalUsd * exchangeRate);
+          const twoMonthsUsd = (lineTotalUsd / 3) * 2;
+          const twoMonthsKhr = Math.round(twoMonthsUsd * exchangeRate);
+          const oneMonthUsd = lineTotalUsd / 3;
+          const oneMonthKhr = Math.round(oneMonthUsd * exchangeRate);
+
+          totalUsd += lineTotalUsd;
+          totalKhr += lineTotalKhr;
+
+          summaryRowEntries.push({
+            subject: course.course_name || typeLabels?.en || '-',
+            lecturerNameEn,
+            lecturerNameKh,
+            accountNumber: profile?.account_number || '-',
+            bankName: profile?.bank_name || '-',
+            hourlyRate,
+            theoryGroups: effectiveTheoryGroups,
+            theoryHours: fallbackTheoryHours,
+            practiceGroups,
+            practiceHours,
+            totalHours,
+            totalUsd: lineTotalUsd,
+            totalKhr: lineTotalKhr,
+            twoMonthsUsd,
+            twoMonthsKhr,
+            oneMonthUsd,
+            oneMonthKhr,
+            classLabel: course.Class?.name || classNames[0] || '-',
+            studyYear: course.year_level || course.Class?.year_level || contract.year_level || '-',
+          });
+        }
+      }
+
+    const summaryRows = summaryRowEntries
+      .map(
+        (row, index) => `<tr>
+        <td class="nowrap">${toKhmerDigits(index + 1)}</td>
+        <td class="subject-name">${escapeHtml(row.subject)}</td>
+        <td class="nowrap">${escapeHtml(row.lecturerNameEn)}</td>
+        <td class="nowrap">${escapeHtml(row.lecturerNameKh)}</td>
+        <td class="nowrap">${escapeHtml(row.accountNumber)}</td>
+        <td class="nowrap">${escapeHtml(row.bankName)}</td>
+        <td class="money-cell nowrap">$${formatMoneySummary(row.hourlyRate)}</td>
+        <td class="nowrap">${toKhmerDigits(row.theoryGroups)}</td>
+        <td class="nowrap">${toKhmerDigits(row.theoryHours)}</td>
+        <td class="nowrap">${toKhmerDigits(row.practiceGroups)}</td>
+        <td class="nowrap">${toKhmerDigits(row.practiceHours)}</td>
+        <td class="nowrap">${toKhmerDigits(row.totalHours)}</td>
+        <td class="money-cell nowrap">$${formatMoneySummary(row.totalUsd)}</td>
+        <td class="money-cell nowrap">${formatKhmerMoneySummary(row.totalKhr)}</td>
+        <td class="money-cell nowrap">$${formatMoneySummary(row.twoMonthsUsd)}</td>
+        <td class="money-cell nowrap">${formatKhmerMoneySummary(row.twoMonthsKhr)}</td>
+        <td class="money-cell nowrap">$${formatMoneySummary(row.oneMonthUsd)}</td>
+        <td class="money-cell nowrap">${formatKhmerMoneySummary(row.oneMonthKhr)}</td>
+        <td class="nowrap">${escapeHtml(row.classLabel)}</td>
+        <td class="nowrap">${escapeHtml(String(row.studyYear))}</td>
+      </tr>`
+      )
+      .join('');
+
+    const totalTwoMonthsUsd = (totalUsd * 2) / 3;
+    const totalTwoMonthsKhr = Math.round(totalTwoMonthsUsd * exchangeRate);
+    const totalOneMonthUsd = totalUsd / 3;
+    const totalOneMonthKhr = Math.round(totalOneMonthUsd * exchangeRate);
+
+    let html = loadTemplate('Lecturer_Contract_Summary_V2.html');
+    html = embedLogo(html)
+      .replaceAll('{dept_name_khmer}', escapeHtml(departmentNameKhmer))
+      .replaceAll(
+        '{summary_title_line_1}',
+        escapeHtml(formatLecturerSummaryGenerationTitle(classNames))
+      )
+      .replaceAll('{summary_title_line_2}', 'នៃបណ្ឌិតសភាបច្ចេកវិទ្យាឌីជីថលកម្ពុជា')
+      .replaceAll('{summary_date_range_kh}', escapeHtml(formatTeachingSummaryDateRangeKh(startDate, endDate)))
+      .replaceAll('{summary_rows}', summaryRows)
+      .replaceAll('{summary_total_usd}', `$${formatMoneySummary(totalUsd)}`)
+      .replaceAll('{summary_total_khr}', formatKhmerMoneySummary(totalKhr))
+      .replaceAll('{summary_total_2months_usd}', `$${formatMoneySummary(totalTwoMonthsUsd)}`)
+      .replaceAll('{summary_total_2months_khr}', formatKhmerMoneySummary(totalTwoMonthsKhr))
+      .replaceAll('{summary_total_1month_usd}', `$${formatMoneySummary(totalOneMonthUsd)}`)
+      .replaceAll('{summary_total_1month_khr}', formatKhmerMoneySummary(totalOneMonthKhr));
+
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    const pdfBuffer = await page.pdf({ format: 'A4', landscape: true, printBackground: true });
+    await browser.close();
+
+    const safeType = (typeLabels?.en || 'lecturer-summary').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+    const safeClass =
+      classNames.length === 1
+        ? classNames[0].replace(/[^a-z0-9]+/gi, '-').toLowerCase()
+        : `${classNames.length}-classes`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeType}-${safeClass}-${academicYear}.pdf"`);
+    return res.send(pdfBuffer);
+  } catch (error) {
+    console.error('[generateLecturerSummaryPdf]', error);
+    return res.status(HTTP_STATUS.SERVER_ERROR).json({
+      message: 'Failed to generate lecturer summary PDF',
+      error: error.message,
+    });
   }
 }
 
