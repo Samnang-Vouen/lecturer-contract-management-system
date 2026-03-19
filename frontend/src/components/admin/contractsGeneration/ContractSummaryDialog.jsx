@@ -81,7 +81,7 @@ export default function ContractSummaryDialog({ open, onOpenChange, currentAcade
         let totalPages = 1;
 
         do {
-          const response = await getClasses(page, 100);
+          const response = await getClasses(page, 50);
           const payload = response?.data || {};
           const rows = Array.isArray(payload.data) ? payload.data : [];
           collected.push(...rows);

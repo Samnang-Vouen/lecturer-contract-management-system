@@ -124,6 +124,7 @@ export default function LecturerProfile() {
                   fileUploading={fileUploading}
                   onUploadFiles={uploadFiles}
                   onOpenSyllabusDialog={() => setShowSyllabusDialog(true)}
+                  editable={editMode}
                 />
               </div>
 

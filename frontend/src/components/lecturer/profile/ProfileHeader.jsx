@@ -55,7 +55,7 @@ export default function ProfileHeader({
                   size="sm"
                   onClick={onCancel}
                   disabled={saving}
-                  className="w-full sm:w-auto bg-red-600 text-white hover:bg-red-500 hover:text-white"
+                  className="w-full sm:w-auto bg-red-600 text-white hover:bg-red-500 border-0 hover:text-white"
                 >
                   Cancel
                 </Button>
@@ -63,7 +63,7 @@ export default function ProfileHeader({
                   size="sm"
                   onClick={onSave}
                   disabled={saving}
-                  className="w-full sm:w-auto whitespace-nowrap !bg-white !text-indigo-700 hover:!bg-slate-100 !border-white shadow-none"
+                  className="w-full sm:w-auto whitespace-nowrap !bg-green-500 !text-white hover:!bg-green-400"
                 >
                   {saving ? "Saving..." : "Save"}
                 </Button>
