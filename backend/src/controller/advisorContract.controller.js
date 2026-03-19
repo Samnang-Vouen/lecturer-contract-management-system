@@ -1052,11 +1052,20 @@ export async function generateAdvisorSummaryPdf(req, res) {
       .replaceAll('{summary_total_usd}', `$${formatMoneySummary(totalUsd)}`)
       .replaceAll('{summary_total_khr}', `${toKhmerDigits(formatMoneySummary(totalKhr))}៛`);
 
-    const browser = await puppeteer.launch();
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0' });
-    const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
-    await browser.close();
+    let browser;
+    let pdfBuffer;
+    try {
+      browser = await puppeteer.launch({
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      });
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: 'networkidle0' });
+      pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
+    } finally {
+      if (browser) {
+        await browser.close();
+      }
+    }
 
     const safeDepartment = String(departmentName)
       .replace(/[^A-Za-z0-9]+/g, '_')
