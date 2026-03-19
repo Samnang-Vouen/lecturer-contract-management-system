@@ -262,6 +262,32 @@ function getSummaryTheoryEffectiveTotalHours(hours, groups, combined) {
   return normalizedHours * normalizedGroups;
 }
 
+function shouldInferCombinedTheory({
+  contractTotalHours,
+  theoryHours,
+  theoryGroups,
+  practiceHours,
+  practiceGroups,
+  theoryCombined,
+}) {
+  if (theoryCombined) return true;
+
+  const normalizedContractTotal = Number(contractTotalHours) || 0;
+  const normalizedTheoryHours = Number(theoryHours) || 0;
+  const normalizedTheoryGroups = Number(theoryGroups) || 0;
+  const normalizedPracticeHours = Number(practiceHours) || 0;
+  const normalizedPracticeGroups = Number(practiceGroups) || 0;
+
+  if (normalizedContractTotal <= 0 || normalizedTheoryHours !== 15 || normalizedTheoryGroups <= 1) {
+    return false;
+  }
+
+  const combinedTotal = normalizedTheoryHours + normalizedPracticeHours * normalizedPracticeGroups;
+  const uncombinedTotal = normalizedTheoryHours * normalizedTheoryGroups + normalizedPracticeHours * normalizedPracticeGroups;
+
+  return normalizedContractTotal === combinedTotal && normalizedContractTotal !== uncombinedTotal;
+}
+
 async function resolveSummaryHourlyRate(contract, cache) {
   const contractRate = Number(contract?.hourly_rate);
   if (Number.isFinite(contractRate) && contractRate > 0) {
@@ -1337,6 +1363,7 @@ export async function generateLecturerSummaryPdf(req, res) {
         normalizeSummaryTerm(mapping.term),
         String(mapping.theory_hours || ''),
         String(mapping.theory_groups || 0),
+        String(Boolean(mapping.theory_15h_combined)),
         String(mapping.lab_hours || ''),
         String(mapping.lab_groups || 0),
       ].join('|');
@@ -1450,7 +1477,14 @@ export async function generateLecturerSummaryPdf(req, res) {
 
           const theoryHours = courseMapping?.theoryHours || 0;
           const theoryGroups = courseMapping?.theoryGroups || (theoryHours > 0 ? 1 : 0);
-          const theoryCombined = Boolean(courseMapping?.theoryCombined);
+          const theoryCombined = shouldInferCombinedTheory({
+            contractTotalHours: course.hours,
+            theoryHours,
+            theoryGroups,
+            practiceHours: courseMapping?.practiceHours || 0,
+            practiceGroups: courseMapping?.practiceGroups || 0,
+            theoryCombined: Boolean(courseMapping?.theoryCombined),
+          });
           const practiceHours = courseMapping?.practiceHours || 0;
           const practiceGroups = courseMapping?.practiceGroups || 0;
           const fallbackTotalHours = Number(course.hours) || 0;
@@ -1486,6 +1520,8 @@ export async function generateLecturerSummaryPdf(req, res) {
             accountNumber: profile?.account_number || '-',
             bankName: profile?.bank_name || '-',
             hourlyRate,
+            theoryCombined,
+            displayTheoryGroups: theoryCombined && Number(fallbackTheoryHours) === 15 && Number(fallbackTheoryGroups) > 0 ? 1 : effectiveTheoryGroups,
             theoryGroups: effectiveTheoryGroups,
             theoryHours: fallbackTheoryHours,
             practiceGroups,
@@ -1513,7 +1549,7 @@ export async function generateLecturerSummaryPdf(req, res) {
         <td class="nowrap">${escapeHtml(row.accountNumber)}</td>
         <td class="nowrap">${escapeHtml(row.bankName)}</td>
         <td class="money-cell nowrap">$${formatMoneySummary(row.hourlyRate)}</td>
-        <td class="nowrap">${toKhmerDigits(row.theoryGroups)}</td>
+        <td class="nowrap">${toKhmerDigits(row.displayTheoryGroups)}</td>
         <td class="nowrap">${toKhmerDigits(row.theoryHours)}</td>
         <td class="nowrap">${toKhmerDigits(row.practiceGroups)}</td>
         <td class="nowrap">${toKhmerDigits(row.practiceHours)}</td>

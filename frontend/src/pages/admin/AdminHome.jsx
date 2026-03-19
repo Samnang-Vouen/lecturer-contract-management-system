@@ -36,6 +36,7 @@ export default function AdminHome() {
 
   const statusCounts = dashboardData?.contractStatus || { 
     WAITING_LECTURER: 0, 
+    WAITING_ADVISOR: 0,
     WAITING_MANAGEMENT: 0, 
     COMPLETED: 0 
   };

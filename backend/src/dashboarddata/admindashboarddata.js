@@ -6,9 +6,12 @@ import {
   LecturerCourse,
   Course,
   TeachingContract,
+  AdvisorContract,
   TeachingContractCourse,
   Candidate,
+  User as ContractUser,
 } from '../model/index.js';
+import { DASHBOARD_OPEN_CONTRACT_STATUSES } from '../config/constants.js';
 
 /**
  * Normalize admin department(s) from a string or array into:
@@ -56,6 +59,23 @@ async function countContractsViaCourses(where, deptIds) {
   });
 }
 
+async function countAdvisorContractsViaDepartment(where, deptNames) {
+  if (!deptNames?.length) return 0;
+  return AdvisorContract.count({
+    where,
+    include: [
+      {
+        model: ContractUser,
+        as: 'lecturer',
+        required: true,
+        attributes: [],
+        where: { department_name: { [Op.in]: deptNames } },
+      },
+    ],
+    distinct: true,
+  });
+}
+
 /**
  * Get Admin-scoped dashboard stats for the provided department name(s).
  * Returns plain numeric totals.
@@ -63,10 +83,10 @@ async function countContractsViaCourses(where, deptIds) {
  * Counts include:
  * - activeLecturers: Active lecturers linked to admin dept(s) either by
  *   DepartmentProfile assignment or by actually teaching courses in those dept(s).
- * - pendingContracts: Contracts in WAITING_LECTURER or WAITING_MANAGEMENT with
+ * - pendingContracts: Contracts in WAITING_LECTURER, WAITING_ADVISOR, or WAITING_MANAGEMENT with
  *   at least one course in admin dept(s).
  * - activeContracts: Non-expired (end_date null or >= today) contracts in
- *   WAITING_LECTURER or WAITING_MANAGEMENT with at least one course in admin dept(s).
+ *   WAITING_LECTURER, WAITING_ADVISOR, or WAITING_MANAGEMENT with at least one course in admin dept(s).
  * - expiredContracts: Contracts with end_date < today and at least one course in admin dept(s).
  * - candidates: All candidates with dept_id in admin dept(s).
  * - totalUsers: Users whose department_name matches admin dept name(s).
@@ -136,17 +156,31 @@ export async function getAdminDashboardDataForDepartments(departmentNames) {
     activeLecturers += setForDept.size;
   }
 
-  // 2) Pending Contracts — WAITING_LECTURER or WAITING_MANAGEMENT with at least one course in dept(s)
-  const pendingWhere = { status: { [Op.in]: ['WAITING_LECTURER', 'WAITING_MANAGEMENT'] } };
-  const pendingContracts = await countContractsViaCourses(pendingWhere, deptIds);
+  // 2) Pending Contracts — waiting on lecturer, advisor, or management with at least one course in dept(s)
+  const pendingWhere = { status: { [Op.in]: DASHBOARD_OPEN_CONTRACT_STATUSES } };
+  const [pendingTeachingContracts, pendingAdvisorContracts] = await Promise.all([
+    countContractsViaCourses({ ...pendingWhere, contract_type: 'TEACHING' }, deptIds),
+    countAdvisorContractsViaDepartment({ status: { [Op.in]: ['DRAFT', 'WAITING_MANAGEMENT'] } }, deptNames),
+  ]);
+  const pendingContracts = pendingTeachingContracts + pendingAdvisorContracts;
 
   // 3) Active Contracts — not expired and in active-like states
   const today = new Date();
   const activeWhere = {
-    status: { [Op.in]: ['WAITING_LECTURER', 'WAITING_MANAGEMENT'] },
+    status: { [Op.in]: DASHBOARD_OPEN_CONTRACT_STATUSES },
     [Op.or]: [{ end_date: null }, { end_date: { [Op.gte]: today } }],
   };
-  const activeContracts = await countContractsViaCourses(activeWhere, deptIds);
+  const [activeTeachingContracts, activeAdvisorContracts] = await Promise.all([
+    countContractsViaCourses({ ...activeWhere, contract_type: 'TEACHING' }, deptIds),
+    countAdvisorContractsViaDepartment(
+      {
+        status: { [Op.in]: ['DRAFT', 'WAITING_MANAGEMENT'] },
+        [Op.or]: [{ end_date: null }, { end_date: { [Op.gte]: today } }],
+      },
+      deptNames
+    ),
+  ]);
+  const activeContracts = activeTeachingContracts + activeAdvisorContracts;
 
   // 4) Expired Contracts — end_date < today
   const expiredWhere = { end_date: { [Op.lt]: today } };

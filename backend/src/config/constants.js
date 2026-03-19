@@ -50,6 +50,12 @@ export const CONTRACT_ALLOWED_STATUSES = Object.freeze([
   'CONTRACT_ENDED',
 ]);
 
+export const DASHBOARD_OPEN_CONTRACT_STATUSES = Object.freeze([
+  'WAITING_LECTURER',
+  'WAITING_ADVISOR',
+  'WAITING_MANAGEMENT',
+]);
+
 // HTTP status codes for readability
 export const HTTP_STATUS = Object.freeze({
   OK: 200,
