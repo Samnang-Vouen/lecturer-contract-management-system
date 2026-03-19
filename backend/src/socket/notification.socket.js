@@ -1,4 +1,5 @@
 import Notification from "../model/notification.js";
+import { User, Role } from "../model/index.js";
 
 class NotificationSocketService {
 
@@ -16,8 +17,7 @@ class NotificationSocketService {
                     socket.join(`user:${user_id}`);
                 }
 
-                if (role === 'admin' || role === 'management' || role === 'lecturer') {
-
+                if (role === 'admin' || role === 'management' || role === 'lecturer' || role === 'advisor') {
                     socket.join(`role:${role}`);
                 }
 
@@ -102,6 +102,55 @@ class NotificationSocketService {
                 at: new Date().toISOString(),
             },
         });
+    }
+
+    async notifyRole({ role, type, message, contractId, data, department_name }) {
+        try {
+            const whereUser = { status: 'active' };
+            if (department_name) whereUser.department_name = department_name;
+
+            const users = await User.findAll({
+                where: whereUser,
+                include: [{ model: Role, where: { role_type: role }, through: { attributes: [] } }],
+                attributes: ['id'],
+            });
+
+            console.log(`[notifyRole] role=${role} dept=${department_name || 'any'} found ${users.length} user(s)`);
+
+            if (!users.length) {
+                // When department_name is provided, avoid broadcasting to the whole role room
+                if (!department_name) {
+                    this.broadcastToRole({ role, type, message, contractId, data });
+                }
+                return [];
+            }
+
+            const rows = users.map((u) => ({
+                user_id: u.id,
+                type,
+                message,
+                contract_id: contractId || null,
+                data: data || null,
+                readAt: null,
+            }));
+
+            const created = await Notification.bulkCreate(rows);
+
+            console.log(`[notifyRole] created ${created.length} notification(s) for role=${role}`);
+
+            for (const n of created) {
+                this.io.to(`user:${n.user_id}`).emit('notification:new', n.toJSON());
+            }
+
+            return created;
+        } catch (error) {
+            console.error(`[notifyRole] error for role=${role}:`, error.message);
+            // When department_name is provided, avoid broadcasting to the whole role room
+            if (!department_name) {
+                this.broadcastToRole({ role, type, message, contractId, data });
+            }
+            return [];
+        }
     }
 
     broadcastToRole({ role, type, message, contractId, data }) {

@@ -3,9 +3,10 @@ import path from 'path';
 import puppeteer from 'puppeteer';
 import multer from 'multer';
 import Sequelize from 'sequelize';
-import { AdvisorContract, LecturerProfile, Role, User, UserRole } from '../model/index.js';
+import { AdvisorContract, Department, LecturerProfile, Role, User, UserRole } from '../model/index.js';
 import sequelize from '../config/db.js';
 import { HTTP_STATUS, PAGINATION_DEFAULT_LIMIT, PAGINATION_MAX_LIMIT } from '../config/constants.js';
+import { getNotificationSocket } from '../socket/index.js';
 
 async function ensureUserHasRole(userId, roleName, { transaction } = {}) {
   const normalized = String(roleName || '').trim().toLowerCase();
@@ -72,17 +73,27 @@ function loadTemplate(name) {
 }
 
 function embedLogo(html) {
-  const logoPath = path.join(process.cwd(), 'src', 'utils', 'cadt_logo.png');
-  let base64 = '';
-  try {
-    base64 = fs.readFileSync(logoPath, 'base64');
-  } catch {
-    base64 = '';
+  const logoFiles = ['cadt_logo.png', 'CADT_logo_with_KH.jpg'];
+  let output = html;
+
+  for (const fileName of logoFiles) {
+    const logoPath = path.join(process.cwd(), 'src', 'utils', fileName);
+    let base64 = '';
+    try {
+      base64 = fs.readFileSync(logoPath, 'base64');
+    } catch {
+      base64 = '';
+    }
+    if (!base64) continue;
+
+    const ext = path.extname(fileName).toLowerCase();
+    const mime = ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 'image/png';
+    const dataUri = `data:${mime};base64,${base64}`;
+    const escapedFileName = fileName.replace('.', '\\.');
+    output = output.replace(new RegExp(`src=(['"])${escapedFileName}\\1`, 'g'), `src="${dataUri}"`);
   }
-  if (!base64) return html;
-  const dataUri = `data:image/png;base64,${base64}`;
-  // Replace ALL occurrences, regardless of quote style
-  return html.replace(/src=(['"])cadt_logo\.png\1/g, `src="${dataUri}"`);
+
+  return output;
 }
 
 // Convert an image file to an <img> tag HTML or empty string if missing
@@ -147,6 +158,162 @@ function formatDateKh(dateOnlyStr) {
   const monthName = khMonths[d.getMonth()] || '';
   const year = toKhmerDigits(d.getFullYear());
   return `${day} ខែ${monthName} ឆ្នាំ${year}`;
+}
+
+function getKhDateParts(dateOnlyStr) {
+  if (!dateOnlyStr) return null;
+  const d = new Date(dateOnlyStr);
+  if (isNaN(d.getTime())) return null;
+
+  const khMonths = [
+    'មករា',
+    'កុម្ភៈ',
+    'មីនា',
+    'មេសា',
+    'ឧសភា',
+    'មិថុនា',
+    'កក្កដា',
+    'សីហា',
+    'កញ្ញា',
+    'តុលា',
+    'វិច្ឆិកា',
+    'ធ្នូ',
+  ];
+
+  return {
+    day: toKhmerDigits(String(d.getDate()).padStart(2, '0')),
+    month: khMonths[d.getMonth()] || '',
+    year: toKhmerDigits(d.getFullYear()),
+  };
+}
+
+function formatAdvisorSummaryDateRangeKh(startDate, endDate) {
+  const start = getKhDateParts(startDate);
+  const end = getKhDateParts(endDate);
+  if (!start || !end) return 'កាលបរិច្ឆេទមិនត្រឹមត្រូវ';
+
+  return [
+    `ថ្ងៃទី<span class="red">${start.day}</span> ខែ${start.month} ឆ្នាំ<span class="red">${start.year}</span>`,
+    `រហូតដល់ថ្ងៃទី <span class="red">${end.day}</span> ខែ <span class="red">${end.month}</span> ឆ្នាំ<span class="red">${end.year}</span>`,
+  ].join(' ');
+}
+
+function formatMoneySummary(value, locale = 'en-US') {
+  const amount = Number(value) || 0;
+  return amount.toLocaleString(locale, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function buildAdvisorProgramLabel(contract) {
+  const parts = [];
+  if (contract?.capstone_1) parts.push('Capstone I');
+  if (contract?.capstone_2) parts.push('Capstone II');
+  if (contract?.internship_1) parts.push('Internship I');
+  if (contract?.internship_2) parts.push('Internship II');
+  return parts.length ? parts.join(', ') : 'Advisor Program';
+}
+
+function buildAdvisorQuarterLabel(contract) {
+  const quarters = [];
+  if (contract?.capstone_1 || contract?.internship_1) quarters.push('1');
+  if (contract?.capstone_2 || contract?.internship_2) quarters.push('2');
+  return quarters.join(', ');
+}
+
+function buildAdvisorSummaryProgramLabelKh(contracts) {
+  const labels = [];
+  const seen = new Set();
+
+  const add = (key, label) => {
+    if (key && !seen.has(key)) {
+      seen.add(key);
+      labels.push(label);
+    }
+  };
+
+  for (const contract of contracts || []) {
+    if (contract?.internship_1) add('internship_1', 'កម្មសិក្សាលើកទី១');
+    if (contract?.internship_2) add('internship_2', 'កម្មសិក្សាលើកទី២');
+    if (contract?.capstone_1) add('capstone_1', 'Capstone I');
+    if (contract?.capstone_2) add('capstone_2', 'Capstone II');
+  }
+
+  return labels.length ? labels.join(', ') : 'កម្មវិធីដឹកនាំ';
+}
+
+function normalizeSummaryType(value) {
+  const normalized = String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '_')
+    .replace(/-/g, '_');
+
+  const aliasMap = {
+    CAPSTONE_I: 'CAPSTONE_1',
+    CAPSTONE_1: 'CAPSTONE_1',
+    CAPSTONE_II: 'CAPSTONE_2',
+    CAPSTONE_2: 'CAPSTONE_2',
+    INTERNSHIP_I: 'INTERNSHIP_1',
+    INTERNSHIP_1: 'INTERNSHIP_1',
+    INTERNSHIP_II: 'INTERNSHIP_2',
+    INTERNSHIP_2: 'INTERNSHIP_2',
+  };
+
+  return aliasMap[normalized] || '';
+}
+
+function getSummaryTypeLabels(typeKey) {
+  const map = {
+    CAPSTONE_1: { en: 'Capstone I', kh: 'Capstone I' },
+    CAPSTONE_2: { en: 'Capstone II', kh: 'Capstone II' },
+    INTERNSHIP_1: { en: 'Internship I', kh: 'កម្មសិក្សាលើកទី១' },
+    INTERNSHIP_2: { en: 'Internship II', kh: 'កម្មសិក្សាលើកទី២' },
+  };
+  return map[typeKey] || null;
+}
+
+function advisorContractMatchesSummaryType(contract, typeKey) {
+  if (!typeKey) return true;
+  switch (typeKey) {
+    case 'CAPSTONE_1':
+      return !!contract?.capstone_1;
+    case 'CAPSTONE_2':
+      return !!contract?.capstone_2;
+    case 'INTERNSHIP_1':
+      return !!contract?.internship_1;
+    case 'INTERNSHIP_2':
+      return !!contract?.internship_2;
+    default:
+      return false;
+  }
+}
+
+function normalizeGenerationNumber(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+
+  const match = raw.match(/(\d+)/);
+  return match ? match[1] : '';
+}
+
+function inferAdvisorSummaryGeneration(contracts, explicitGeneration) {
+  const explicit = normalizeGenerationNumber(explicitGeneration);
+  if (explicit) return explicit;
+
+  for (const contract of contracts || []) {
+    const students = Array.isArray(contract?.students) ? contract.students : [];
+    for (const student of students) {
+      const inferred =
+        normalizeGenerationNumber(student?.generation) ||
+        normalizeGenerationNumber(student?.gen) ||
+        normalizeGenerationNumber(student?.class_generation);
+      if (inferred) return inferred;
+    }
+  }
+
+  return '';
 }
 
 function toNum(v) {
@@ -286,6 +453,26 @@ export async function uploadAdvisorContractSignature(req, res) {
         advisor_signed_at: now,
         status: nextStatus,
       });
+      try {
+        const notificationSocket = getNotificationSocket();
+        const managementNotification = {
+          role: 'management',
+          type: 'status_change',
+          message: `Advisor contract #${found.id} signed by advisor, awaiting your signature`,
+          contractId: found.id,
+        };
+        if (found && typeof found === 'object') {
+          if (found.department_name) {
+            managementNotification.department_name = found.department_name;
+          } else if (found.lecturer_department_name) {
+            managementNotification.department_name = found.lecturer_department_name;
+          }
+        }
+        await notificationSocket.notifyRole(managementNotification);
+        await notificationSocket.notifyRole({ role: 'admin', type: 'status_change', message: `Advisor contract #${found.id} signed by advisor`, contractId: found.id });
+      } catch (notifErr) {
+        console.error('[uploadAdvisorContractSignature] notification failed:', notifErr.message);
+      }
     } else {
       const nextStatus = found.advisor_signed_at ? 'COMPLETED' : 'DRAFT';
       await found.update({
@@ -293,6 +480,17 @@ export async function uploadAdvisorContractSignature(req, res) {
         management_signed_at: now,
         status: nextStatus,
       });
+      const notificationSocket = getNotificationSocket();
+      try {
+        await notificationSocket.notifyLecturer({ user_id: found.lecturer_user_id, type: 'status_change', message: `Advisor contract #${found.id} has been completed`, contract_id: found.id });
+      } catch (notifErr) {
+        console.error('[uploadAdvisorContractSignature] notifyLecturer failed:', notifErr.message);
+      }
+      try {
+        await notificationSocket.notifyRole({ role: 'admin', type: 'status_change', message: `Advisor contract #${found.id} completed`, contractId: found.id });
+      } catch (notifErr) {
+        console.error('[uploadAdvisorContractSignature] notifyRole(admin) failed:', notifErr.message);
+      }
     }
 
     return res.json({ message: 'Signature uploaded', path: filePath, status: found.status });
@@ -310,6 +508,7 @@ export async function createAdvisorContract(req, res) {
     const body = req.validated?.body || req.body || {};
 
     const actorRole = String(req.user?.role || '').toLowerCase();
+    let managementDept = null;
     if (['admin', 'management'].includes(actorRole)) {
       const actorDept = req.user?.department_name || null;
       if (!actorDept) {
@@ -330,6 +529,7 @@ export async function createAdvisorContract(req, res) {
           .status(HTTP_STATUS.FORBIDDEN)
           .json({ message: 'You can only create advisor contracts for lecturers in your department' });
       }
+      managementDept = lecturer.department_name || actorDept;
     }
 
     // Admin UX: selecting a lecturer in Advisor contract generation implies granting advisor role.
@@ -358,6 +558,54 @@ export async function createAdvisorContract(req, res) {
     );
 
     await tx.commit();
+
+    const notificationSocket = getNotificationSocket();
+
+    // Ensure we have the lecturer's department for department-scoped management notifications
+    if (!managementDept) {
+      try {
+        const lecturerForDept = await User.findByPk(body.lecturer_user_id, {
+          attributes: ['department_name'],
+        });
+        if (lecturerForDept) {
+          managementDept = lecturerForDept.department_name || null;
+        }
+      } catch (deptErr) {
+        console.error('[createAdvisorContract] Failed to load lecturer department for notifications:', deptErr.message);
+      }
+    }
+
+    try {
+      await notificationSocket.notifyLecturer({
+        user_id: parseInt(body.lecturer_user_id, 10),
+        type: 'contract_created',
+        message: `Advisor contract #${created.id} has been created for you`,
+        contract_id: created.id,
+      });
+    } catch (notifErr) {
+      console.error('[createAdvisorContract] notifyLecturer failed:', notifErr.message);
+    }
+    try {
+      await notificationSocket.notifyRole({
+        role: 'management',
+        department_name: managementDept || undefined,
+        type: 'status_change',
+        message: `Advisor contract #${created.id} created, awaiting advisor signature`,
+        contractId: created.id,
+      });
+    } catch (notifErr) {
+      console.error('[createAdvisorContract] notifyRole(management) failed:', notifErr.message);
+    }
+    try {
+      await notificationSocket.notifyRole({
+        role: 'admin',
+        type: 'status_change',
+        message: `Advisor contract #${created.id} created, awaiting advisor signature`,
+        contractId: created.id,
+      });
+    } catch (notifErr) {
+      console.error('[createAdvisorContract] notifyRole(admin) failed:', notifErr.message);
+    }
 
     return res.status(HTTP_STATUS.CREATED).json({ id: created.id });
   } catch (e) {
@@ -579,6 +827,54 @@ export async function updateAdvisorStatus(req, res) {
     if (!found) return;
 
     await found.update({ status });
+
+    const notificationSocket = getNotificationSocket();
+    if (status === 'REQUEST_REDO') {
+      try {
+        await notificationSocket.notifyLecturer({
+          user_id: found.lecturer_user_id,
+          type: 'status_change',
+          message: `Advisor contract #${found.id} has been sent back for revision`,
+          contract_id: found.id,
+          data: { contractId: found.id, status, at: new Date().toISOString() },
+        });
+      } catch (notifErr) {
+        console.error('[updateAdvisorStatus] notifyLecturer failed:', notifErr.message);
+      }
+      try {
+        await notificationSocket.notifyRole({
+          role: 'admin',
+          type: 'status_change',
+          message: `Advisor contract #${found.id} status updated to ${status.replace(/_/g, ' ').toLowerCase()}`,
+          contractId: found.id,
+        });
+      } catch (notifErr) {
+        console.error('[updateAdvisorStatus] notifyRole(admin) failed:', notifErr.message);
+      }
+    } else {
+      try {
+        await notificationSocket.notifyRole({
+          role: 'management',
+          type: 'status_change',
+          message: `Advisor contract #${found.id} status updated to ${status.replace(/_/g, ' ').toLowerCase()}`,
+          contractId: found.id,
+          department_name: found.lecturer.department_name,
+        });
+      } catch (notifErr) {
+        console.error('[updateAdvisorStatus] notifyRole(management) failed:', notifErr.message);
+      }
+      try {
+        await notificationSocket.notifyRole({
+          role: 'admin',
+          type: 'status_change',
+          message: `Advisor contract #${found.id} status updated to ${status.replace(/_/g, ' ').toLowerCase()}`,
+          contractId: found.id,
+        });
+      } catch (notifErr) {
+        console.error('[updateAdvisorStatus] notifyRole(admin) failed:', notifErr.message);
+      }
+    }
+
     return res.json({ message: 'Updated', id, status });
   } catch (e) {
     console.error('[updateAdvisorStatus]', e);
@@ -647,6 +943,276 @@ export async function editAdvisorContract(req, res) {
     return res
       .status(HTTP_STATUS.SERVER_ERROR)
       .json({ message: 'Failed to edit advisor contract', error: e.message });
+  }
+}
+
+export async function generateAdvisorSummaryPdf(req, res) {
+  try {
+    const role = String(req.user?.role || '').toLowerCase();
+    if (role !== 'admin') {
+      return res.status(HTTP_STATUS.FORBIDDEN).json({
+        message: 'Only department admins can generate advisor contract summary PDFs',
+      });
+    }
+
+    const contractId = parseInt(req.query.contract_id || '', 10);
+    const requestedAcademicYear = String(req.query.academic_year || '').trim();
+    const requestedType = normalizeSummaryType(req.query.type);
+    const requestedClassName = String(req.query.class_name || req.query.className || req.query.gen || '').trim();
+    const explicitFilterMode = !!(requestedAcademicYear || requestedType);
+
+    const departmentName = req.user?.department_name || null;
+    let startDate = null;
+    let endDate = null;
+
+    if (!departmentName) {
+      return res.status(HTTP_STATUS.FORBIDDEN).json({
+        message: 'Your admin account is missing a department',
+      });
+    }
+
+    if (explicitFilterMode) {
+      if (!requestedAcademicYear || !requestedType) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          message: 'academic_year and type are required for summary filter generation',
+        });
+      }
+    }
+
+    let contracts = [];
+
+    if (Number.isInteger(contractId) && contractId > 0 && !explicitFilterMode) {
+      const allowedContract = await requireAdvisorContractViewAccess(req, res, contractId, {
+        attributes: ['id', 'lecturer_user_id', 'start_date', 'end_date'],
+      });
+      if (!allowedContract) return;
+
+      startDate = toDateOnly(allowedContract.start_date);
+      endDate = toDateOnly(allowedContract.end_date);
+      contracts = await AdvisorContract.findAll({
+        where: {
+          start_date: startDate,
+          end_date: endDate,
+        },
+        include: [
+          {
+            model: User,
+            as: 'lecturer',
+            attributes: ['id', 'email', 'display_name', 'department_name'],
+            where: { department_name: departmentName },
+            required: true,
+            include: [
+              {
+                model: LecturerProfile,
+                attributes: ['full_name_english', 'full_name_khmer', 'bank_name', 'account_number'],
+                required: false,
+              },
+            ],
+          },
+        ],
+        order: [
+          [{ model: User, as: 'lecturer' }, 'display_name', 'ASC'],
+          ['id', 'ASC'],
+        ],
+      });
+    } else if (explicitFilterMode) {
+      const advisorContracts = await AdvisorContract.findAll({
+        where: {
+          academic_year: requestedAcademicYear,
+        },
+        include: [
+          {
+            model: User,
+            as: 'lecturer',
+            attributes: ['id', 'email', 'display_name', 'department_name'],
+            where: { department_name: departmentName },
+            required: true,
+            include: [
+              {
+                model: LecturerProfile,
+                attributes: ['full_name_english', 'full_name_khmer', 'bank_name', 'account_number'],
+                required: false,
+              },
+            ],
+          },
+        ],
+        order: [
+          [{ model: User, as: 'lecturer' }, 'display_name', 'ASC'],
+          ['id', 'ASC'],
+        ],
+      });
+
+      const filteredContracts = advisorContracts.filter(
+        (contract) => advisorContractMatchesSummaryType(contract, requestedType)
+      );
+
+      if (!filteredContracts.length) {
+        return res.status(HTTP_STATUS.NOT_FOUND).json({
+          message: 'No advisor contracts found for the selected academic year and type',
+        });
+      }
+
+      const dateKeys = Array.from(
+        new Set(filteredContracts.map((contract) => `${toDateOnly(contract.start_date) || ''}|${toDateOnly(contract.end_date) || ''}`))
+      );
+
+      if (dateKeys.length !== 1) {
+        return res.status(HTTP_STATUS.CONFLICT).json({
+          message: 'Selected advisor contracts do not share a single start and end date range',
+        });
+      }
+
+      [startDate, endDate] = dateKeys[0].split('|');
+      contracts = filteredContracts;
+    } else {
+      startDate = toDateOnly(req.query.start_date);
+      endDate = toDateOnly(req.query.end_date);
+      if (!startDate || !endDate) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          message: 'start_date and end_date are required when contract_id is not provided',
+        });
+      }
+
+      contracts = await AdvisorContract.findAll({
+        where: {
+          start_date: startDate,
+          end_date: endDate,
+        },
+        include: [
+          {
+            model: User,
+            as: 'lecturer',
+            attributes: ['id', 'email', 'display_name', 'department_name'],
+            where: { department_name: departmentName },
+            required: true,
+            include: [
+              {
+                model: LecturerProfile,
+                attributes: ['full_name_english', 'full_name_khmer', 'bank_name', 'account_number'],
+                required: false,
+              },
+            ],
+          },
+        ],
+        order: [
+          [{ model: User, as: 'lecturer' }, 'display_name', 'ASC'],
+          ['id', 'ASC'],
+        ],
+      });
+    }
+
+    if (!contracts.length) {
+      return res.status(HTTP_STATUS.NOT_FOUND).json({
+        message: 'No advisor contracts found for the requested department and date range',
+      });
+    }
+
+    const department = await Department.findOne({
+      where: { dept_name: departmentName },
+      attributes: ['dept_name_khmer'],
+    });
+    const departmentNameKhmer = department?.dept_name_khmer || departmentName;
+
+    const usdToKhr = parseFloat(process.env.USD_TO_KHR || process.env.EXCHANGE_RATE_KHR || '4100');
+    const exchangeRate = Number.isFinite(usdToKhr) ? usdToKhr : 4100;
+    const selectedTypeLabels = getSummaryTypeLabels(requestedType);
+    const programLabelKh = selectedTypeLabels?.kh || buildAdvisorSummaryProgramLabelKh(contracts);
+    const generationNumber = inferAdvisorSummaryGeneration(
+      contracts,
+      req.query.generation || req.query.gen || requestedClassName
+    );
+    const generationKh = generationNumber ? toKhmerDigits(generationNumber) : '........';
+
+    let totalUsd = 0;
+    let totalKhr = 0;
+
+    const summaryRows = contracts
+      .map((contract, index) => {
+        const profile = contract.lecturer?.LecturerProfile || null;
+        const rate = toNum(contract.hourly_rate);
+        const students = Array.isArray(contract.students) ? contract.students : [];
+        const studentsCount = students.length;
+        const hoursPerStudent = toNum(contract.hours_per_student);
+        const chargeHours = toNum(contract.join_judging_hours);
+        const totalHours = studentsCount * (hoursPerStudent + chargeHours);
+        const paymentUsd = totalHours * rate;
+        const paymentKhr = Math.round(paymentUsd * exchangeRate);
+
+        totalUsd += paymentUsd;
+        totalKhr += paymentKhr;
+
+        const nameEn = profile?.full_name_english || contract.lecturer?.display_name || contract.lecturer?.email || '-';
+        const nameKh = profile?.full_name_khmer || '-';
+        const subject = selectedTypeLabels?.en || buildAdvisorProgramLabel(contract);
+        const academicYear = contract.academic_year || '-';
+        const quarter = buildAdvisorQuarterLabel(contract) || '-';
+
+        return `
+      <tr>
+        <td class="nowrap">${toKhmerDigits(index + 1)}</td>
+        <td class="txt-left nowrap">${escapeHtml(subject)}</td>
+        <td class="nowrap">${escapeHtml(nameEn)}</td>
+        <td class="nowrap">${escapeHtml(nameKh)}</td>
+        <td class="nowrap">${escapeHtml(profile?.account_number || '-')}</td>
+        <td class="nowrap">${escapeHtml(profile?.bank_name || '-')}</td>
+        <td class="nowrap">${toKhmerDigits(chargeHours)}</td>
+        <td class="nowrap">${toKhmerDigits(rate)}</td>
+        <td class="nowrap">${toKhmerDigits(studentsCount)}</td>
+        <td class="nowrap">${toKhmerDigits(hoursPerStudent)}</td>
+        <td class="nowrap">${toKhmerDigits(totalHours)}</td>
+        <td class="money nowrap">$${formatMoneySummary(paymentUsd)}</td>
+        <td class="money nowrap">${toKhmerDigits(formatMoneySummary(paymentKhr))}៛</td>
+        <td class="nowrap">${toKhmerDigits(quarter)}</td>
+        <td class="nowrap">${escapeHtml(academicYear)}</td>
+      </tr>`;
+      })
+      .join('');
+
+    let html = loadTemplate('Advisor_Contract_Summary.html');
+    html = embedLogo(html);
+    html = html
+      .replaceAll('{dept_name_khmer}', escapeHtml(departmentNameKhmer))
+      .replaceAll(
+        '{summary_title_line_1}',
+        `ចំណាយប្រាក់គ្រូដឹកនាំចុះ ${escapeHtml(programLabelKh)} សម្រាប់ថ្នាក់បរិញ្ញាបត្រជំនាន់ទី ${generationKh}`
+      )
+      .replaceAll('{summary_title_line_2}', 'នៃបណ្ឌិតសភាបច្ចេកវិទ្យាឌីជីថលកម្ពុជា')
+      .replaceAll('{summary_date_range_kh}', formatAdvisorSummaryDateRangeKh(startDate, endDate))
+      .replaceAll('{summary_rows}', summaryRows)
+      .replaceAll('{summary_total_usd}', `$${formatMoneySummary(totalUsd)}`)
+      .replaceAll('{summary_total_khr}', `${toKhmerDigits(formatMoneySummary(totalKhr))}៛`);
+
+    let browser;
+    let pdfBuffer;
+    try {
+      browser = await puppeteer.launch({
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      });
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: 'networkidle0' });
+      pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
+    } finally {
+      if (browser) {
+        await browser.close();
+      }
+    }
+
+    const safeDepartment = String(departmentName)
+      .replace(/[^A-Za-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '') || 'Department';
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${safeDepartment}_AdvisorContractSummary_${startDate}_${endDate}.pdf"`
+    );
+    return res.send(pdfBuffer);
+  } catch (e) {
+    console.error('[generateAdvisorSummaryPdf]', e);
+    return res.status(HTTP_STATUS.SERVER_ERROR).json({
+      message: 'Failed to generate advisor contract summary PDF',
+      error: e.message,
+    });
   }
 }
 

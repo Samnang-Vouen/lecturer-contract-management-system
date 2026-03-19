@@ -5,6 +5,7 @@ import {
   createAdvisorContract,
   listAdvisorContracts,
   getAdvisorContract,
+  generateAdvisorSummaryPdf,
   generateAdvisorPdf,
   updateAdvisorStatus,
   editAdvisorContract,
@@ -25,6 +26,12 @@ router.get(
   '/',
   authorizeRoles(['admin', 'management', 'superadmin', 'lecturer', 'advisor']),
   listAdvisorContracts
+);
+
+router.get(
+  '/summary/pdf',
+  authorizeRoles(['admin']),
+  generateAdvisorSummaryPdf
 );
 
 router.post(

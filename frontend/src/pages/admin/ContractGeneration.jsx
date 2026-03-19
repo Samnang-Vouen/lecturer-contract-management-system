@@ -10,6 +10,7 @@ import ContractActionsMenu from '../../components/admin/contractsGeneration/Cont
 import ContractFilters from '../../components/admin/contractsGeneration/ContractFilters';
 import ContractGenerationHeader from '../../components/admin/contractsGeneration/ContractGenerationHeader';
 import ContractGenerationDialog from '../../components/admin/contractsGeneration/ContractGenerationDialog';
+import ContractSummaryDialog from '../../components/admin/contractsGeneration/ContractSummaryDialog';
 import ContractGridSection from '../../components/admin/contractsGeneration/ContractGridSection';
 import ContractDeleteDialog from '../../components/admin/contractsGeneration/ContractDeleteDialog';
 import ContractRedoEditDialog from '../../components/admin/contractsGeneration/ContractRedoEditDialog';
@@ -31,6 +32,7 @@ export default function ContractGeneration() {
     }
   });
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
+  const [showSummaryDialog, setShowSummaryDialog] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState({ open: false, id: null, label: '' });
   const [advisorContracts, setAdvisorContracts] = useState([]);
   const [advisorTotal, setAdvisorTotal] = useState(0);
@@ -92,7 +94,10 @@ export default function ContractGeneration() {
 
   return (
     <div className="p-4 md:p-6 space-y-6">
-      <ContractGenerationHeader onGenerate={() => setShowGenerateDialog(true)} />
+      <ContractGenerationHeader
+        onGenerate={() => setShowGenerateDialog(true)}
+        onOpenSummary={() => setShowSummaryDialog(true)}
+      />
 
       {/* Contract Generation Dialog */}
       <ContractGenerationDialog
@@ -106,6 +111,12 @@ export default function ContractGeneration() {
         resolveLecturerUserId={contractMappings.resolveLecturerUserId}
         onCreate={handleCreateContract}
         onCreateAdvisor={handleCreateAdvisorContract}
+      />
+
+      <ContractSummaryDialog
+        open={showSummaryDialog}
+        onOpenChange={setShowSummaryDialog}
+        currentAcademicYear={academicYear}
       />
 
       {/* Redo edit dialog (REQUEST_REDO) */}

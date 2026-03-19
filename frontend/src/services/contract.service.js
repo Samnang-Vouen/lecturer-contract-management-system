@@ -37,6 +37,22 @@ export function getAdvisorContractPdfUrl(id) {
   return `${axiosInstance.defaults.baseURL}/advisor-contracts/${id}/pdf`;
 }
 
+export async function getAdvisorContractSummaryPdfBlob(params) {
+  const res = await axiosInstance.get('/advisor-contracts/summary/pdf', {
+    params,
+    responseType: 'blob',
+  });
+  return res.data;
+}
+
+export async function getLecturerContractSummaryPdfBlob(params) {
+  const res = await axiosInstance.get('/teaching-contracts/summary/pdf', {
+    params,
+    responseType: 'blob',
+  });
+  return res.data;
+}
+
 export async function uploadContractSignature(id, file, who = 'lecturer') {
   const form = new FormData();
   form.append('file', file);

@@ -13,17 +13,19 @@ const getSystemHealthColor = (health) => {
   }
 };
 
-export default function DashboardHeader({ 
-  authUser, 
-  realTimeStats, 
-  selectedTimeRange, 
-  setSelectedTimeRange, 
-  notifications, 
-  showNotifications, 
-  setShowNotifications, 
-  isRefreshing, 
-  onRefresh, 
-  lastUpdated 
+export default function DashboardHeader({
+  authUser,
+  realTimeStats,
+  selectedTimeRange,
+  setSelectedTimeRange,
+  notifications,
+  showNotifications,
+  setShowNotifications,
+  unreadCount,
+  notifContainerRef,
+  isRefreshing,
+  onRefresh,
+  lastUpdated
 }) {
   const navigate = useNavigate();
 
@@ -90,7 +92,7 @@ export default function DashboardHeader({
         </motion.select>
 
         {/* Notifications */}
-        <div className='relative'>
+        <div className='relative' ref={notifContainerRef}>
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -98,13 +100,13 @@ export default function DashboardHeader({
             className='p-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors relative shadow-sm'
           >
             <Bell className='w-4 h-4 sm:w-5 sm:h-5 text-gray-600' />
-            {notifications.length > 0 && (
-              <motion.span 
+            {unreadCount > 0 && (
+              <motion.span
                 animate={{ scale: [1, 1.2, 1] }}
                 transition={{ duration: 1, repeat: Infinity }}
                 className='absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center'
               >
-                {notifications.length}
+                {unreadCount}
               </motion.span>
             )}
           </motion.button>

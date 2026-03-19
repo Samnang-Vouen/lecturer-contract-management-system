@@ -23,7 +23,7 @@ export default function AdminHome() {
   // Custom hooks for data management
   const { dashboardData, isLoading, isRefreshing, lastUpdated, fetchDashboardData } = useDashboardStats(selectedTimeRange);
   const realTimeStats = useRealTimeStats();
-  const { notifications, showNotifications, setShowNotifications } = useNotifications();
+  const { notifications, unreadCount, showNotifications, setShowNotifications, notifContainerRef } = useNotifications();
 
   // Auto-refresh every 5 minutes
   useEffect(() => {
@@ -52,6 +52,8 @@ export default function AdminHome() {
           notifications={notifications}
           showNotifications={showNotifications}
           setShowNotifications={setShowNotifications}
+          unreadCount={unreadCount}
+          notifContainerRef={notifContainerRef}
           isRefreshing={isRefreshing}
           onRefresh={() => fetchDashboardData(true)}
           lastUpdated={lastUpdated}
