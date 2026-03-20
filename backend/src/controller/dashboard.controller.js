@@ -5,6 +5,7 @@ import {
   Candidate,
   Department,
   TeachingContract,
+  AdvisorContract,
   TeachingContractCourse,
   Course,
   LecturerCourse,
@@ -23,6 +24,7 @@ import {
   DASHBOARD_ACTIVITIES_SLICE_LIMIT,
   CANDIDATE_ACTIVE_STATUSES,
   CONTRACT_STATUS_ALIAS_MAP,
+  DASHBOARD_OPEN_CONTRACT_STATUSES,
   DASHBOARD_MONTH_WINDOW,
 } from '../config/constants.js';
 
@@ -54,6 +56,191 @@ export const getDashboardStats = async (req, res) => {
 
     // Helper where for Users within department (if scoped)
     const scopedUserWhere = !isSuper && deptName ? { department_name: deptName } : undefined;
+
+    const buildTeachingContractScope = () =>
+      !isSuper && deptId
+        ? [
+            {
+              model: TeachingContractCourse,
+              as: 'contractCourses',
+              required: true,
+              attributes: [],
+              include: [
+                { model: Course, attributes: [], required: true, where: { dept_id: deptId } },
+              ],
+            },
+          ]
+        : [];
+
+    const buildAdvisorContractScope = () =>
+      !isSuper && deptName
+        ? [
+            {
+              model: User,
+              as: 'lecturer',
+              required: true,
+              attributes: [],
+              where: { department_name: deptName },
+            },
+          ]
+        : [];
+
+    const buildLegacyAdvisorContractScope = () =>
+      !isSuper && deptName
+        ? [
+            {
+              model: User,
+              as: 'lecturer',
+              required: true,
+              attributes: [],
+              where: { department_name: deptName },
+            },
+          ]
+        : [];
+
+    const countScopedContracts = async (baseWhere) => {
+      if (isSuper) {
+        return safe(
+          () =>
+            TeachingContract.count({
+              where: baseWhere,
+              distinct: true,
+            }),
+          0
+        );
+      }
+
+      const [teachingCount, advisorCount] = await Promise.all([
+        safe(
+          () =>
+            TeachingContract.count({
+              where: { ...baseWhere, contract_type: 'TEACHING' },
+              include: buildTeachingContractScope(),
+              distinct: true,
+            }),
+          0
+        ),
+        safe(
+          () =>
+            TeachingContract.count({
+              where: { ...baseWhere, contract_type: 'ADVISOR' },
+              include: buildAdvisorContractScope(),
+              distinct: true,
+            }),
+          0
+        ),
+      ]);
+
+      return Number(teachingCount || 0) + Number(advisorCount || 0);
+    };
+
+    const groupedScopedContractStatus = async () => {
+      const normalizeRows = (rows) =>
+        Array.isArray(rows)
+          ? rows.map((row) => ({
+              status: String(row.get('status') || ''),
+              count: Number(row.get('count') || 0),
+            }))
+          : [];
+
+      if (isSuper) {
+        return safe(
+          () =>
+            TeachingContract.findAll({
+              attributes: [
+                'status',
+                [
+                  sequelize.fn('COUNT', sequelize.fn('DISTINCT', sequelize.col('TeachingContract.id'))),
+                  'count',
+                ],
+              ],
+              group: ['TeachingContract.status'],
+            }),
+          []
+        );
+      }
+
+      const [teachingRows, advisorRows] = await Promise.all([
+        safe(
+          () =>
+            TeachingContract.findAll({
+              attributes: [
+                'status',
+                [
+                  sequelize.fn('COUNT', sequelize.fn('DISTINCT', sequelize.col('TeachingContract.id'))),
+                  'count',
+                ],
+              ],
+              where: { contract_type: 'TEACHING' },
+              include: buildTeachingContractScope(),
+              group: ['TeachingContract.status'],
+            }),
+          []
+        ),
+        safe(
+          () =>
+            TeachingContract.findAll({
+              attributes: [
+                'status',
+                [
+                  sequelize.fn('COUNT', sequelize.fn('DISTINCT', sequelize.col('TeachingContract.id'))),
+                  'count',
+                ],
+              ],
+              where: { contract_type: 'ADVISOR' },
+              include: buildAdvisorContractScope(),
+              group: ['TeachingContract.status'],
+            }),
+          []
+        ),
+      ]);
+
+      return [...normalizeRows(teachingRows), ...normalizeRows(advisorRows)];
+    };
+
+    const LEGACY_ADVISOR_OPEN_STATUSES = ['DRAFT', 'WAITING_MANAGEMENT'];
+
+    const countLegacyAdvisorContracts = async (baseWhere) =>
+      safe(
+        () =>
+          AdvisorContract.count({
+            where: baseWhere,
+            include: buildLegacyAdvisorContractScope(),
+            distinct: true,
+          }),
+        0
+      );
+
+    const groupedLegacyAdvisorContractStatus = async () => {
+      const rows = await safe(
+        () =>
+          AdvisorContract.findAll({
+            attributes: [
+              'status',
+              [
+                sequelize.fn('COUNT', sequelize.fn('DISTINCT', sequelize.col('AdvisorContract.id'))),
+                'count',
+              ],
+            ],
+            include: buildLegacyAdvisorContractScope(),
+            group: ['AdvisorContract.status'],
+          }),
+        []
+      );
+
+      return Array.isArray(rows)
+        ? rows.map((row) => {
+            const rawStatus = String(row.get('status') || '')
+              .toUpperCase()
+              .replace(/\s+/g, '_');
+
+            return {
+              status: rawStatus === 'DRAFT' ? 'WAITING_ADVISOR' : rawStatus,
+              count: Number(row.get('count') || 0),
+            };
+          })
+        : [];
+    };
 
     // 1) Active lecturers: union of (A) explicit department mapping and (B) actually teaching courses in dept
     let activeLecturersCount = 0;
@@ -119,48 +306,21 @@ export const getDashboardStats = async (req, res) => {
     // Note: ensure 'today' is defined for date comparisons below
     const today = new Date();
     const tcWhere = {
-      status: { [Op.in]: ['WAITING_LECTURER', 'WAITING_MANAGEMENT'] },
+      status: { [Op.in]: DASHBOARD_OPEN_CONTRACT_STATUSES },
       [Op.or]: [{ end_date: null }, { end_date: { [Op.gte]: today } }],
     };
     // For admin: scope contracts by courses in their department; superadmin sees all
-    const tcIncludeCourses =
-      !isSuper && deptId
-        ? [
-            {
-              model: TeachingContractCourse,
-              as: 'contractCourses',
-              required: true,
-              attributes: [],
-              include: [
-                { model: Course, attributes: [], required: true, where: { dept_id: deptId } },
-              ],
-            },
-          ]
-        : [];
-    const teachingActive = await safe(
-      () =>
-        TeachingContract.count({
-          where: tcWhere,
-          include: tcIncludeCourses,
-          distinct: true,
-        }),
-      0
-    );
+    const tcIncludeCourses = buildTeachingContractScope();
+    const teachingActive = await countScopedContracts(tcWhere);
 
     // Contracts data source mandated: teaching_contracts only
     const activeContractsCount = teachingActive;
 
-    // 3b) Pending contracts (awaiting management signature)
-    const pendingWhere = { status: { [Op.in]: ['WAITING_MANAGEMENT'] } };
-    const pendingContractsCount = await safe(
-      () =>
-        TeachingContract.count({
-          where: pendingWhere,
-          include: tcIncludeCourses,
-          distinct: true,
-        }),
-      0
-    );
+    // 3b) Pending contracts (awaiting lecturer, advisor, or management signature)
+    const pendingWhere = { status: { [Op.in]: DASHBOARD_OPEN_CONTRACT_STATUSES } };
+    const pendingContractsCount =
+      (await countScopedContracts(pendingWhere)) +
+      (await countLegacyAdvisorContracts({ status: { [Op.in]: LEGACY_ADVISOR_OPEN_STATUSES } }));
 
     // 4) Recruitment in progress (Candidates) — pending/interview/discussion
     const candWhere = { status: { [Op.in]: CANDIDATE_ACTIVE_STATUSES } };
@@ -169,34 +329,30 @@ export const getDashboardStats = async (req, res) => {
 
     // 4b) Contract status distribution (from teaching_contracts)
     // Use a lean include (attributes: []) to apply department scoping without selecting extra columns
-    const tcIncludeLean = (tcIncludeCourses || []).map((i) => ({ ...i, attributes: [] }));
-    const statusRows = await safe(
-      () =>
-        TeachingContract.findAll({
-          attributes: [
-            'status',
-            [
-              sequelize.fn('COUNT', sequelize.fn('DISTINCT', sequelize.col('TeachingContract.id'))),
-              'count',
-            ],
-          ],
-          include: tcIncludeLean,
-          group: ['TeachingContract.status'],
-        }),
-      []
-    );
+    const statusRows = [
+      ...(await groupedScopedContractStatus()),
+      ...(await groupedLegacyAdvisorContractStatus()),
+    ];
     // Bucket into the requested categories, supporting both legacy and new status names
-    const contractStatus = { WAITING_LECTURER: 0, WAITING_MANAGEMENT: 0, COMPLETED: 0 };
+    const contractStatus = {
+      WAITING_LECTURER: 0,
+      WAITING_ADVISOR: 0,
+      WAITING_MANAGEMENT: 0,
+      COMPLETED: 0,
+    };
     for (const r of statusRows) {
-      const raw = String(r.get('status') || '')
+      const raw = String(typeof r.get === 'function' ? r.get('status') || '' : r.status || '')
         .toUpperCase()
         .replace(/\s+/g, '_');
-      const count = Number(r.get('count') || 0);
+      const count = typeof r.get === 'function' ? Number(r.get('count') || 0) : Number(r.count || 0);
       const normalized = CONTRACT_STATUS_ALIAS_MAP[raw] || raw;
       let bucket = null;
       switch (normalized) {
         case 'WAITING_LECTURER':
           bucket = 'WAITING_LECTURER';
+          break;
+        case 'WAITING_ADVISOR':
+          bucket = 'WAITING_ADVISOR';
           break;
         case 'WAITING_MANAGEMENT':
           bucket = 'WAITING_MANAGEMENT';
@@ -588,30 +744,12 @@ export const getDashboardRealtime = async (req, res) => {
     // Reuse active contracts calculation (teaching contracts only)
     const today = new Date();
     const tcWhere = {
-      status: { [Op.in]: ['WAITING_LECTURER', 'WAITING_MANAGEMENT'] },
+      status: { [Op.in]: DASHBOARD_OPEN_CONTRACT_STATUSES },
       [Op.or]: [{ end_date: null }, { end_date: { [Op.gte]: today } }],
     };
-    const includeCourseScope =
-      !isSuper && deptId
-        ? [
-            {
-              model: TeachingContractCourse,
-              as: 'contractCourses',
-              required: true,
-              attributes: [],
-              include: [
-                { model: Course, attributes: [], required: true, where: { dept_id: deptId } },
-              ],
-            },
-          ]
-        : [];
     let teachingActive = 0;
     try {
-      teachingActive = await TeachingContract.count({
-        where: tcWhere,
-        include: includeCourseScope,
-        distinct: true,
-      });
+      teachingActive = await countScopedContracts(tcWhere);
     } catch {
       teachingActive = 0;
     }

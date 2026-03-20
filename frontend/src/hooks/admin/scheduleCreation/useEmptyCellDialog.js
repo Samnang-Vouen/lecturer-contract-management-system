@@ -20,6 +20,19 @@ export function useEmptyCellDialog({
   handleGenerateGroupPdf,
   handleGenerateAll,
 }) {
+  const buildClearedCustomCellsByGroup = useCallback((scope, group) => {
+    const targetGroups = scope === "single" && group
+      ? [group]
+      : (selectedGroupIds.length > 0
+          ? visibleGroups.filter((item) => selectedGroupIds.includes(item.id))
+          : visibleGroups);
+
+    return targetGroups.reduce((acc, item) => {
+      if (item?.id) acc[item.id] = {};
+      return acc;
+    }, {});
+  }, [selectedGroupIds, visibleGroups]);
+
   const openEmptyCellDialog = useCallback(async (scope, group = null) => {
     setEmptyCellText("");
     setSelectedEmptySessionKeys([]);
@@ -101,17 +114,19 @@ export function useEmptyCellDialog({
   const handleGenerateWithBlankEmptyCells = useCallback(async () => {
     const pendingGroup = emptyCellDialog.group;
     const pendingScope = emptyCellDialog.scope;
+    const clearedCustomCellsByGroup = buildClearedCustomCellsByGroup(pendingScope, pendingGroup);
     closeEmptyCellDialog();
 
     if (pendingScope === "single" && pendingGroup) {
-      await handleGenerateGroupPdf(pendingGroup, undefined);
+      await handleGenerateGroupPdf(pendingGroup, clearedCustomCellsByGroup);
       return;
     }
 
     if (pendingScope === "all") {
-      await handleGenerateAll(undefined);
+      await handleGenerateAll(clearedCustomCellsByGroup);
     }
   }, [
+    buildClearedCustomCellsByGroup,
     closeEmptyCellDialog,
     emptyCellDialog.group,
     emptyCellDialog.scope,

@@ -7,6 +7,7 @@ import {
 
 const chartColors = {
   warning: '#F59E0B',
+  secondaryWarning: '#F97316',
   info: '#06B6D4',
   success: '#10B981',
 };
@@ -18,6 +19,12 @@ export default function ContractStatusChart({ statusCounts }) {
       key: 'WAITING_LECTURER', 
       count: Number(statusCounts?.WAITING_LECTURER || 0), 
       color: chartColors.warning 
+    },
+    {
+      status: 'Waiting Advisor',
+      key: 'WAITING_ADVISOR',
+      count: Number(statusCounts?.WAITING_ADVISOR || 0),
+      color: chartColors.secondaryWarning
     },
     { 
       status: 'Waiting Management', 

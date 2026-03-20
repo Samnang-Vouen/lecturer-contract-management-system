@@ -1,5 +1,6 @@
 import { Op } from 'sequelize';
-import { User, LecturerProfile, TeachingContract, Candidate } from '../model/index.js';
+import { User, LecturerProfile, TeachingContract, AdvisorContract, Candidate } from '../model/index.js';
+import { DASHBOARD_OPEN_CONTRACT_STATUSES } from '../config/constants.js';
 
 /**
  * Get Superadmin-wide dashboard stats (system totals).
@@ -12,16 +13,31 @@ export async function getSuperAdminDashboardData() {
   // Contracts by status/time windows
   const today = new Date();
 
-  const pendingContracts = await TeachingContract.count({
-    where: { status: { [Op.in]: ['WAITING_LECTURER', 'WAITING_MANAGEMENT'] } },
-  });
+  const [teachingPendingContracts, advisorPendingContracts] = await Promise.all([
+    TeachingContract.count({
+      where: { status: { [Op.in]: DASHBOARD_OPEN_CONTRACT_STATUSES } },
+    }),
+    AdvisorContract.count({
+      where: { status: { [Op.in]: ['DRAFT', 'WAITING_MANAGEMENT'] } },
+    }),
+  ]);
+  const pendingContracts = teachingPendingContracts + advisorPendingContracts;
 
-  const activeContracts = await TeachingContract.count({
-    where: {
-      status: { [Op.in]: ['WAITING_LECTURER', 'WAITING_MANAGEMENT'] },
-      [Op.or]: [{ end_date: null }, { end_date: { [Op.gte]: today } }],
-    },
-  });
+  const [teachingActiveContracts, advisorActiveContracts] = await Promise.all([
+    TeachingContract.count({
+      where: {
+        status: { [Op.in]: DASHBOARD_OPEN_CONTRACT_STATUSES },
+        [Op.or]: [{ end_date: null }, { end_date: { [Op.gte]: today } }],
+      },
+    }),
+    AdvisorContract.count({
+      where: {
+        status: { [Op.in]: ['DRAFT', 'WAITING_MANAGEMENT'] },
+        [Op.or]: [{ end_date: null }, { end_date: { [Op.gte]: today } }],
+      },
+    }),
+  ]);
+  const activeContracts = teachingActiveContracts + advisorActiveContracts;
 
   const expiredContracts = await TeachingContract.count({
     where: { end_date: { [Op.lt]: today } },

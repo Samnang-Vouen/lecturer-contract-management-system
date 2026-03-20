@@ -1,8 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import {
-  getDashboardStats,
-  getTeachingContractsTotal,
-} from '../../../services/dashboard.service';
+import { getDashboardStats } from '../../../services/dashboard.service';
 
 export function useDashboardStats(selectedTimeRange) {
   const [dashboardData, setDashboardData] = useState({
@@ -26,21 +23,7 @@ export function useDashboardStats(selectedTimeRange) {
       if (showRefresh) setIsRefreshing(true);
       else setIsLoading(true);
 
-      const [
-        statsRes,
-        waitLecturerRes,
-        waitManagementRes,
-        statusWaitingLecturerRes,
-        statusWaitingManagementRes,
-        statusCompletedRes,
-      ] = await Promise.all([
-        getDashboardStats(selectedTimeRange),
-        getTeachingContractsTotal('MANAGEMENT_SIGNED').catch(() => ({ data: { total: 0 } })),
-        getTeachingContractsTotal('LECTURER_SIGNED').catch(() => ({ data: { total: 0 } })),
-        getTeachingContractsTotal('WAITING_LECTURER').catch(() => ({ data: { total: 0 } })),
-        getTeachingContractsTotal('WAITING_MANAGEMENT').catch(() => ({ data: { total: 0 } })),
-        getTeachingContractsTotal('COMPLETED').catch(() => ({ data: { total: 0 } })),
-      ]);
+      const statsRes = await getDashboardStats(selectedTimeRange);
 
       const rawStats = statsRes.data || {};
       const normalizedStats = { ...rawStats };
@@ -49,15 +32,16 @@ export function useDashboardStats(selectedTimeRange) {
         delete normalizedStats.renewals;
       }
 
-      const pendingCount = Number(waitLecturerRes?.data?.total || 0) + Number(waitManagementRes?.data?.total || 0);
+      const pendingCount = Number(normalizedStats?.pendingContracts?.count || 0);
       const prevCount = Number(lastPendingCountRef.current || 0);
       const changePct = prevCount > 0 ? Math.round(((pendingCount - prevCount) / prevCount) * 100) : 0;
       lastPendingCountRef.current = pendingCount;
 
       const deptScopedContractStatus = {
-        WAITING_LECTURER: Number(statusWaitingLecturerRes?.data?.total || 0),
-        WAITING_MANAGEMENT: Number(statusWaitingManagementRes?.data?.total || 0),
-        COMPLETED: Number(statusCompletedRes?.data?.total || 0)
+        WAITING_LECTURER: Number(normalizedStats?.contractStatus?.WAITING_LECTURER || 0),
+        WAITING_ADVISOR: Number(normalizedStats?.contractStatus?.WAITING_ADVISOR || 0),
+        WAITING_MANAGEMENT: Number(normalizedStats?.contractStatus?.WAITING_MANAGEMENT || 0),
+        COMPLETED: Number(normalizedStats?.contractStatus?.COMPLETED || 0),
       };
 
       setDashboardData(prev => ({
