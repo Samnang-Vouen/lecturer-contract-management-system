@@ -849,6 +849,15 @@ export const updateCourseMapping = async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
     const deptId = await resolveDeptId(req);
+    const hasOwn = (key) => Object.prototype.hasOwnProperty.call(req.body || {}, key);
+    const parseIdArray = (raw) =>
+      Array.from(
+        new Set(
+          (Array.isArray(raw) ? raw : [])
+            .map((x) => parseInt(String(x), 10))
+            .filter((n) => Number.isInteger(n) && n > 0)
+        )
+      );
 
     const rawIds = Array.isArray(req.body?.ids) ? req.body.ids : null;
     const ids = rawIds
@@ -871,6 +880,26 @@ export const updateCourseMapping = async (req, res) => {
       if (forbidden) return res.status(403).json({ message: 'Access denied' });
     }
     const mapping = mappings[0];
+    const explicitTheoryGroupIds = hasOwn('theory_group_ids') ? parseIdArray(req.body.theory_group_ids) : null;
+    const explicitLabGroupIds = hasOwn('lab_group_ids') ? parseIdArray(req.body.lab_group_ids) : null;
+    const explicitGroupSelectionRequested = explicitTheoryGroupIds !== null || explicitLabGroupIds !== null;
+    const explicitTheoryGroupSet = new Set((explicitTheoryGroupIds || []).map(String));
+    const explicitLabGroupSet = new Set((explicitLabGroupIds || []).map(String));
+    const existingGroupedMappings = mappings.filter((m) => m?.group_id);
+    const existingGroupIdSet = new Set(existingGroupedMappings.map((m) => String(m.group_id)));
+
+    if (explicitGroupSelectionRequested) {
+      const unknownGroupIds = [...new Set([...explicitTheoryGroupSet, ...explicitLabGroupSet])].filter(
+        (gid) => !existingGroupIdSet.has(gid)
+      );
+      if (unknownGroupIds.length) {
+        return res.status(400).json({
+          message: 'Some selected groups do not belong to this mapping batch',
+          errors: unknownGroupIds.map((gid) => `Group ${gid} is not part of the edited mapping set`),
+        });
+      }
+    }
+
     const allowed = [
       'lecturer_profile_id',
       'group_count',
@@ -912,6 +941,20 @@ export const updateCourseMapping = async (req, res) => {
       const errors = [];
       const usedSlots = new Map();
 
+      const getRequestedModes = (row) => {
+        const gid = row?.group_id ? String(row.group_id) : null;
+        if (explicitGroupSelectionRequested && gid) {
+          return {
+            inTheory: explicitTheoryGroupSet.has(gid),
+            inLab: explicitLabGroupSet.has(gid),
+          };
+        }
+        return {
+          inTheory: (parseInt(String(row?.theory_groups ?? 0), 10) || 0) > 0,
+          inLab: (parseInt(String(row?.lab_groups ?? 0), 10) || 0) > 0,
+        };
+      };
+
       // If client explicitly sends {}, treat as request to clear all structured assignments.
       if (!structuredClearAll) {
         for (const m of mappings) {
@@ -920,8 +963,15 @@ export const updateCourseMapping = async (req, res) => {
             errors.push('Structured availability requires group-specific mappings (group_id is missing).');
             continue;
           }
-          const inTheory = (parseInt(String(m?.theory_groups ?? 0), 10) || 0) > 0;
-          const inLab = (parseInt(String(m?.lab_groups ?? 0), 10) || 0) > 0;
+          const { inTheory, inLab } = getRequestedModes(m);
+
+          if (!inTheory && !inLab) {
+            structuredPerGroupId.set(gid, {
+              availability: null,
+              availability_assignments: [],
+            });
+            continue;
+          }
 
           const rowTheoryHours =
             String(m?.theory_hours || '').trim().toLowerCase() === '30h' ? '30h' : '15h';
@@ -1174,40 +1224,82 @@ export const updateCourseMapping = async (req, res) => {
       }
     }
 
+    const groupedBatchEdit = explicitGroupSelectionRequested && existingGroupedMappings.length === mappings.length;
+    const buildPerMappingPatch = (m) => {
+      const perPatch = { ...patch };
+      const gid = m.group_id ? String(m.group_id) : null;
+
+      if (groupedBatchEdit && gid) {
+        const wantsTheory = explicitTheoryGroupSet.has(gid);
+        const wantsLab = explicitLabGroupSet.has(gid);
+
+        if (!wantsTheory && !wantsLab) {
+          perPatch.lecturer_profile_id = null;
+          perPatch.status = 'Pending';
+          perPatch.contacted_by = null;
+          perPatch.comment = null;
+          perPatch.availability = null;
+          perPatch.availability_assignments = [];
+          perPatch.room_number = null;
+          perPatch.theory_room_number = null;
+          perPatch.lab_room_number = null;
+          return perPatch;
+        }
+
+        perPatch.theory_groups = wantsTheory ? 1 : 0;
+        perPatch.theory_hours = wantsTheory
+          ? String('theory_hours' in patch ? patch.theory_hours : m.theory_hours || '15h').toLowerCase() === '30h'
+            ? '30h'
+            : '15h'
+          : null;
+        perPatch.lab_groups = wantsLab ? 1 : 0;
+        perPatch.lab_hours = wantsLab ? '30h' : null;
+        perPatch.group_count = 1;
+        perPatch.type_hours = wantsTheory ? 'Theory (15h)' : 'Lab (30h)';
+        perPatch.theory_15h_combined = false;
+      }
+
+      if (structuredModeRequested) {
+        if (structuredClearAll) {
+          perPatch.availability = null;
+          perPatch.availability_assignments = [];
+        } else if (gid && structuredPerGroupId.has(gid)) {
+          const st = structuredPerGroupId.get(gid);
+          perPatch.availability = st.availability;
+          perPatch.availability_assignments = st.availability_assignments;
+        }
+      }
+
+      if (gid && theoryRoomByGroupPatch && gid in theoryRoomByGroupPatch) {
+        perPatch.theory_room_number = theoryRoomByGroupPatch[gid];
+      }
+      if (gid && labRoomByGroupPatch && gid in labRoomByGroupPatch) {
+        perPatch.lab_room_number = labRoomByGroupPatch[gid];
+      }
+
+      if (groupedBatchEdit && gid) {
+        if (!explicitTheoryGroupSet.has(gid)) perPatch.theory_room_number = null;
+        if (!explicitLabGroupSet.has(gid)) perPatch.lab_room_number = null;
+      }
+
+      if (
+        !('room_number' in perPatch) &&
+        ('theory_room_number' in perPatch || 'lab_room_number' in perPatch)
+      ) {
+        const finalTheory =
+          'theory_room_number' in perPatch ? perPatch.theory_room_number : m.theory_room_number;
+        const finalLab =
+          'lab_room_number' in perPatch ? perPatch.lab_room_number : m.lab_room_number;
+        perPatch.room_number = finalTheory || finalLab || null;
+      }
+
+      return perPatch;
+    };
+
     if (theoryRoomByGroupPatch || labRoomByGroupPatch) {
       await Promise.all(
         mappings.map((m) => {
-          const perPatch = { ...patch };
-          const gid = m.group_id ? String(m.group_id) : null;
-
-          if (structuredModeRequested) {
-            if (structuredClearAll) {
-              perPatch.availability = null;
-              perPatch.availability_assignments = [];
-            } else if (gid && structuredPerGroupId.has(gid)) {
-              const st = structuredPerGroupId.get(gid);
-              perPatch.availability = st.availability;
-              perPatch.availability_assignments = st.availability_assignments;
-            }
-          }
-
-          if (gid && theoryRoomByGroupPatch && gid in theoryRoomByGroupPatch) {
-            perPatch.theory_room_number = theoryRoomByGroupPatch[gid];
-          }
-          if (gid && labRoomByGroupPatch && gid in labRoomByGroupPatch) {
-            perPatch.lab_room_number = labRoomByGroupPatch[gid];
-          }
-          if (
-            !('room_number' in perPatch) &&
-            ('theory_room_number' in perPatch || 'lab_room_number' in perPatch)
-          ) {
-            const finalTheory =
-              'theory_room_number' in perPatch ? perPatch.theory_room_number : m.theory_room_number;
-            const finalLab =
-              'lab_room_number' in perPatch ? perPatch.lab_room_number : m.lab_room_number;
-            perPatch.room_number = finalTheory || finalLab || null;
-          }
-          return m.update(perPatch);
+          return m.update(buildPerMappingPatch(m));
         })
       );
       try {
@@ -1219,23 +1311,8 @@ export const updateCourseMapping = async (req, res) => {
     }
 
     await Promise.all(
-      mappings.map((m) => {
-        const perPatch = { ...patch };
-        const gid = m.group_id ? String(m.group_id) : null;
-        if (structuredModeRequested) {
-          if (structuredClearAll) {
-            perPatch.availability = null;
-            perPatch.availability_assignments = [];
-          } else if (gid && structuredPerGroupId.has(gid)) {
-            const st = structuredPerGroupId.get(gid);
-            perPatch.availability = st.availability;
-            perPatch.availability_assignments = st.availability_assignments;
-          }
-        }
-        return m.update(perPatch);
-      })
+      mappings.map((m) => m.update(buildPerMappingPatch(m)))
     );
-    await Promise.all(mappings.map((m) => m.update(patch)));
     try {
       await Promise.all(mappings.map((m) => syncScheduleForCourseMapping(m.id)));
     } catch (syncErr) {

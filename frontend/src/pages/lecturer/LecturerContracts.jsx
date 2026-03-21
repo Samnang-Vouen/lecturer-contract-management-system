@@ -43,6 +43,7 @@ export default function LecturerContracts() {
     openViewDialog,
     openSignDialog,
     openRedoDialog,
+    requestRedo,
   } = useContractActions(lecturerProfile, authUser, fetchContracts);
 
   // Handle deep-linked contracts
@@ -101,6 +102,7 @@ export default function LecturerContracts() {
         isOpen={redoOpen}
         onClose={() => setRedoOpen(false)}
         contract={selectedContract}
+        onSubmit={requestRedo}
       />
     </div>
   );

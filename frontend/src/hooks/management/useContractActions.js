@@ -7,7 +7,10 @@ import {
   uploadContractSignature,
   updateContractStatus,
 } from '../../services/contract.service';
-import { uploadAdvisorContractSignature } from '../../services/advisorContract.service';
+import {
+  uploadAdvisorContractSignature,
+  updateAdvisorContractStatus,
+} from '../../services/advisorContract.service';
 
 /**
  * Custom hook for contract actions (preview, download, approve, upload)
@@ -80,10 +83,25 @@ export const useContractActions = (fetchContracts) => {
     }
   };
 
+  const requestRedoAsManagement = async (contract, remarks) => {
+    const { id, type } = toContractMeta(contract);
+    try {
+      if (type === 'ADVISOR') {
+        await updateAdvisorContractStatus(id, 'REQUEST_REDO', remarks);
+      } else {
+        await updateContractStatus(id, 'REQUEST_REDO', remarks);
+      }
+      await fetchContracts();
+    } catch (e) {
+      throw e;
+    }
+  };
+
   return {
     previewPdf,
     downloadPdf,
     approveAsManagement,
+    requestRedoAsManagement,
     uploadManagementSignature,
     downloading,
     downloadingId,

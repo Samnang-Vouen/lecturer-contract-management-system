@@ -234,6 +234,10 @@ export async function runSchemaBootstrapping(sequelize) {
         'management_signed_at',
         'ALTER TABLE `Advisor_Contracts` ADD COLUMN `management_signed_at` DATETIME NULL AFTER `advisor_signed_at`'
       );
+      await addIfMissing(
+        'management_remarks',
+        'ALTER TABLE `Advisor_Contracts` ADD COLUMN `management_remarks` TEXT NULL AFTER `management_signed_at`'
+      );
     } catch (e) {
       console.error('[schema] ensureAdvisorContractColumns failed:', e.message);
     }

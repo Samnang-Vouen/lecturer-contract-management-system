@@ -7,7 +7,10 @@ import {
   uploadContractSignature,
   createRedoRequest,
 } from '../../../services/contract.service';
-import { uploadAdvisorContractSignature } from '../../../services/advisorContract.service';
+import {
+  uploadAdvisorContractSignature,
+  updateAdvisorContractStatus,
+} from '../../../services/advisorContract.service';
 import { makePdfFilenameForContract } from '../../../utils/lecturerContractHelpers';
 
 /**
@@ -96,9 +99,18 @@ export const useContractActions = (lecturerProfile, authUser, fetchContracts) =>
    * Submit a redo request for the given contract id with a reason message.
    * Called after the lecturer fills in the redo reason dialog.
    */
-  const requestRedo = async (contractId, message) => {
+  const requestRedo = async (contract, message) => {
+    const contractId = typeof contract === 'object' ? contract?.id : contract;
+    const contractType = String(
+      (typeof contract === 'object' ? contract?.contract_type : selectedContract?.contract_type) || ''
+    ).toUpperCase();
+
     try {
-      await createRedoRequest(contractId, message);
+      if (contractType === 'ADVISOR') {
+        await updateAdvisorContractStatus(contractId, 'REQUEST_REDO');
+      } else {
+        await createRedoRequest(contractId, message);
+      }
       setRedoOpen(false);
       await fetchContracts();
     } catch (e) {

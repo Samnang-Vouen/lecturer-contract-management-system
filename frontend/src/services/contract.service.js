@@ -63,8 +63,9 @@ export async function uploadContractSignature(id, file, who = 'lecturer') {
   return res.data;
 }
 
-export async function updateContractStatus(id, status) {
-  const res = await axiosInstance.patch(`/teaching-contracts/${id}/status`, { status });
+export async function updateContractStatus(id, status, remarks) {
+  const payload = remarks ? { status, remarks } : { status };
+  const res = await axiosInstance.patch(`/teaching-contracts/${id}/status`, payload);
   return res.data;
 }
 

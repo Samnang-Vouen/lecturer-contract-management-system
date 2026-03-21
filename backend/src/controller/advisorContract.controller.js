@@ -52,6 +52,28 @@ async function ensureUserHasRole(userId, roleName, { transaction } = {}) {
   }
 }
 
+async function userHasRole(userId, roleName, { transaction } = {}) {
+  const normalized = String(roleName || '').trim().toLowerCase();
+  if (!normalized) return false;
+
+  const role = await Role.findOne({
+    where: sequelize.where(
+      sequelize.fn('LOWER', sequelize.col('role_type')),
+      normalized
+    ),
+    transaction,
+  });
+
+  if (!role) return false;
+
+  const existing = await UserRole.findOne({
+    where: { user_id: userId, role_id: role.id },
+    transaction,
+  });
+
+  return !!existing;
+}
+
 function toKhmerDigits(str) {
   const map = ['០', '១', '២', '៣', '៤', '៥', '៦', '៧', '៨', '៩'];
   return String(str).replace(/[0-9]/g, (d) => map[d]);
@@ -784,12 +806,17 @@ async function requireAdvisorStatusUpdateAccess(req, res, contractId) {
 
     let privilegedRole = null;
     const elevatedRoles = ['admin', 'management', 'superadmin'];
-    for (const roleName of elevatedRoles) {
-      // Reuse existing role-checking helper; ignore transaction for this check.
-      const hasRole = await ensureUserHasRole(currentUser.id, roleName);
-      if (hasRole) {
-        privilegedRole = roleName;
-        break;
+    const currentRole = String(currentUser.role || '').trim().toLowerCase();
+
+    if (elevatedRoles.includes(currentRole)) {
+      privilegedRole = currentRole;
+    } else {
+      for (const roleName of elevatedRoles) {
+        const hasRole = await userHasRole(currentUser.id, roleName);
+        if (hasRole) {
+          privilegedRole = roleName;
+          break;
+        }
       }
     }
 
@@ -822,11 +849,23 @@ export async function updateAdvisorStatus(req, res) {
     const id = parseInt(req.params.id, 10);
     const body = req.validated?.body || req.body || {};
     const status = String(body.status || '').trim().toUpperCase().replace(/\s+/g, '_');
+    const remarks = String(body.remarks || '').trim();
 
     const found = await requireAdvisorStatusUpdateAccess(req, res, id);
     if (!found) return;
 
-    await found.update({ status });
+    if (status === 'REQUEST_REDO' && !remarks) {
+      return res
+        .status(HTTP_STATUS.BAD_REQUEST)
+        .json({ message: 'remarks is required when requesting redo' });
+    }
+
+    const updatePayload = { status };
+    if (status === 'REQUEST_REDO') {
+      updatePayload.management_remarks = remarks;
+    }
+
+    await found.update(updatePayload);
 
     const notificationSocket = getNotificationSocket();
     if (status === 'REQUEST_REDO') {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, Download } from 'lucide-react';
+import { Eye, Download, FilePen } from 'lucide-react';
 import { getStatusLabel } from '../../../utils/contractUtils';
 
 /**
@@ -8,12 +8,14 @@ import { getStatusLabel } from '../../../utils/contractUtils';
 export default function ContractCardFooter({ 
   contract, 
   onSign,
+  onRedo,
   onPreview,
   onDownload,
   onShowDetail,
   isDownloading
 }) {
   const status = getStatusLabel(contract.status);
+  const canRedo = String(contract?.status || '').trim().toUpperCase().replace(/\s+/g, '_') === 'WAITING_MANAGEMENT';
 
   return (
     <div className="mt-4 pt-3.5 border-t border-gray-200 flex items-center justify-between">
@@ -33,6 +35,18 @@ export default function ContractCardFooter({
         >
           <Eye className="w-4 h-4" />
         </button>
+        {canRedo ? (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRedo(contract);
+            }}
+            className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 transition-all duration-200"
+            title="Request redo"
+          >
+            <FilePen className="w-4 h-4" />
+          </button>
+        ) : null}
         <button
           onClick={(e) => {
             e.stopPropagation();

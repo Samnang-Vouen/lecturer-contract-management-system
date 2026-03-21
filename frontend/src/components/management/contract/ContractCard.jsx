@@ -20,6 +20,7 @@ export default function ContractCard({
   onPreview, 
   onDownload, 
   onSign, 
+  onRedo,
   onShowDetail,
   downloadingId 
 }) {
@@ -126,6 +127,7 @@ export default function ContractCard({
       <ContractCardFooter 
         contract={contract} 
         onSign={onSign}
+        onRedo={onRedo}
         onPreview={onPreview}
         onDownload={handleDownload}
         onShowDetail={onShowDetail}

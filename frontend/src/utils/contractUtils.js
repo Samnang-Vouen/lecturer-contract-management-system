@@ -20,6 +20,8 @@ export const getStatusLabel = (status) => {
       return { label: 'waiting lecturer', class: 'bg-amber-50 text-amber-700 border-amber-200', icon: Clock };
     case 'MANAGEMENT_SIGNED':
       return { label: 'waiting lecturer', class: 'bg-amber-50 text-amber-700 border-amber-200', icon: Clock };
+    case 'REQUEST_REDO':
+      return { label: 'request redo', class: 'bg-red-50 text-red-700 border-red-200', icon: AlertCircle };
     case 'COMPLETED':
       return { label: 'completed', class: 'bg-green-50 text-green-700 border-green-200', icon: CircleCheck };
     case 'CONTRACT_ENDED':

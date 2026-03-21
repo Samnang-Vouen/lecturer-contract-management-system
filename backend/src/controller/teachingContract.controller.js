@@ -1651,8 +1651,9 @@ export async function updateStatus(req, res) {
 
     // REQUEST_REDO can be requested by the lecturer (own contract) or management-side roles
     if (status === 'REQUEST_REDO') {
-      const canRequestRedo =
-        role === 'lecturer' || role === 'management';
+      const isLecturerSideRole = role === 'lecturer' || role === 'advisor';
+      const isManagementSideRole = role === 'admin' || role === 'management' || role === 'superadmin';
+      const canRequestRedo = isLecturerSideRole || isManagementSideRole;
       if (!canRequestRedo) {
         return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied' });
       }
@@ -1671,7 +1672,7 @@ export async function updateStatus(req, res) {
           {
             contract_id: contract.id,
             requester_user_id: req.user.id,
-            requester_role: role === 'lecturer' ? 'LECTURER' : 'MANAGEMENT',
+            requester_role: isLecturerSideRole ? 'LECTURER' : 'MANAGEMENT',
             message: String(remarks).trim(),
           },
           { transaction: tx }
@@ -1801,8 +1802,9 @@ export async function createRedoRequest(req, res) {
     if (!contract) return;
 
     const role = String(req.user?.role || '').toLowerCase();
+    const isLecturerSideRole = role === 'lecturer' || role === 'advisor';
 
-    const requesterRole = role === 'lecturer' ? 'LECTURER' : 'MANAGEMENT';
+    const requesterRole = isLecturerSideRole ? 'LECTURER' : 'MANAGEMENT';
 
     const tx = await sequelize.transaction();
     try {

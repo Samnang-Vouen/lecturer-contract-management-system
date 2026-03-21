@@ -40,6 +40,12 @@ export default function ContractDetailDialog({ open, onOpenChange, contract }) {
           </div>
         </DialogHeader>
         <div className="space-y-4">
+          {contract.management_remarks ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 whitespace-pre-line">
+              <div className="font-medium text-amber-950 mb-1">Redo Remarks</div>
+              {contract.management_remarks}
+            </div>
+          ) : null}
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <div className="text-gray-500">Lecturer</div>
