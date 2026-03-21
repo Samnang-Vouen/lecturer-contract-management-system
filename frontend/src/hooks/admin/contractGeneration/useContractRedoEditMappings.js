@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react';
+import { aggregateContractMappings } from '../../../utils/contractHelpers';
 import { buildSelectionState } from './contractRedoEdit.helpers';
 
 export function useContractRedoEditMappings({
@@ -35,9 +36,14 @@ export function useContractRedoEditMappings({
     return Array.isArray(nextYearMappings) ? nextYearMappings : [];
   }, [effectiveTeachYear, currentAcademicYear, mappings, mappingsByYear]);
 
+  const normalizedYearMappings = useMemo(
+    () => aggregateContractMappings(yearMappings),
+    [yearMappings]
+  );
+
   const filteredMappings = useMemo(() => {
     const query = String(courseQuery || '').toLowerCase().trim();
-    return (Array.isArray(yearMappings) ? yearMappings : []).filter((mapping) => {
+    return normalizedYearMappings.filter((mapping) => {
       const status = String(mapping?.status || '').toLowerCase();
       if (status && status !== 'accepted') return false;
       if (contractLecturerId && typeof mappingUserId === 'function') {
@@ -51,7 +57,7 @@ export function useContractRedoEditMappings({
       const meta = `${mapping?.term || ''} ${mapping?.year_level || ''}`.toLowerCase();
       return courseName.includes(query) || courseCode.includes(query) || className.includes(query) || meta.includes(query);
     });
-  }, [yearMappings, courseQuery, contractLecturerId, mappingUserId]);
+  }, [normalizedYearMappings, courseQuery, contractLecturerId, mappingUserId]);
 
   useEffect(() => {
     if (!open || advisor || !effectiveTeachYear) return;
@@ -66,8 +72,8 @@ export function useContractRedoEditMappings({
       setDidInitSelection(true);
       return;
     }
-    if (!Array.isArray(yearMappings) || yearMappings.length === 0) return;
-    const nextState = buildSelectionState({ yearMappings, contract, contractLecturerId, mappingUserId });
+    if (!Array.isArray(normalizedYearMappings) || normalizedYearMappings.length === 0) return;
+    const nextState = buildSelectionState({ yearMappings: normalizedYearMappings, contract, contractLecturerId, mappingUserId });
     setSelectedMappingIds(nextState.selected);
     setCombineByMapping(nextState.combined);
     setDidInitSelection(true);
@@ -76,7 +82,7 @@ export function useContractRedoEditMappings({
     advisor,
     didInitSelection,
     canSelectFromMappings,
-    yearMappings,
+    normalizedYearMappings,
     contract,
     contractLecturerId,
     mappingUserId,
@@ -88,7 +94,7 @@ export function useContractRedoEditMappings({
   return {
     canSelectFromMappings,
     effectiveTeachYear,
-    yearMappings,
+    yearMappings: normalizedYearMappings,
     filteredMappings,
   };
 }

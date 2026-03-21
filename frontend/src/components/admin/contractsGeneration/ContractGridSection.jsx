@@ -31,9 +31,8 @@ export default function ContractGridSection({ filteredContracts, totalBase, cont
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <FileText className="w-5 h-5 text-blue-600" />
-          <h2 className="text-lg font-semibold">Contracts ({(filteredContracts || []).length} of {totalBase})</h2>
+          <h2 className="text-lg font-semibold">Contracts ({(filteredContracts || []).length})</h2>
         </div>
-        <div className="text-sm text-gray-600">{(filteredContracts || []).length} of {totalBase} shown</div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

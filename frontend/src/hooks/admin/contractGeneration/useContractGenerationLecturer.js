@@ -1,10 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
 import { getLecturerDetail } from '../../../services/lecturer.service';
-import { normId } from '../../../utils/contractHelpers';
+import { aggregateContractMappings, normId } from '../../../utils/contractHelpers';
 import {
   buildLecturerSelectedCoursesPayload,
-  dedupeByKey,
-  mappingNaturalKey,
   parseRateOrNull,
 } from './contractGenerationDialog.helpers';
 
@@ -53,14 +51,17 @@ export function useContractGenerationLecturer({ mappings, mappingUserId, resolve
           return false;
         }
       }
-      if (!query) return true;
+      return true;
+    });
+    const aggregated = aggregateContractMappings(filtered);
+    if (!query) return aggregated;
+    return aggregated.filter((mapping) => {
       const courseName = mapping.course?.name?.toLowerCase() || '';
       const courseCode = mapping.course?.code?.toLowerCase() || '';
       const className = mapping.class?.name?.toLowerCase() || '';
       const meta = `${mapping.term || ''} ${mapping.year_level || ''}`.toLowerCase();
       return courseName.includes(query) || courseCode.includes(query) || className.includes(query) || meta.includes(query);
     });
-    return dedupeByKey(filtered, mappingNaturalKey);
   }, [mappings, dlgCourseQuery, dlgLecturerKey, mappingUserId]);
 
   const handleLecturerChange = async (value) => {
@@ -93,7 +94,7 @@ export function useContractGenerationLecturer({ mappings, mappingUserId, resolve
     else if (startDate && endDate <= startDate) nextErrors.endDate = 'End Date must be after Start Date';
     if (!dlgItems.length) nextErrors.description = 'Please add at least one duty';
 
-    const selectedMappings = dedupeByKey((mappings || []).filter((mapping) => dlgSelectedMappingIds.has(mapping.id)), mappingNaturalKey);
+    const selectedMappings = dlgFilteredMappings.filter((mapping) => dlgSelectedMappingIds.has(mapping.id));
     if (!selectedMappings.length) nextErrors.courses = 'Please select at least one course to include in this contract.';
     setDlgErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;

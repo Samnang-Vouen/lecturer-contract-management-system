@@ -73,6 +73,7 @@ export function useContractGenerationAdvisor({ open, dlgContractType, resolveLec
 
   const handleCreateAdvisor = async () => {
     const nextErrors = {};
+    const selectedResponsibilities = [advCapstone1, advCapstone2, advInternship1, advInternship2].filter(Boolean).length;
     const today = new Date();
     const startDate = advStartDate ? new Date(advStartDate) : null;
     const endDate = advEndDate ? new Date(advEndDate) : null;
@@ -81,7 +82,7 @@ export function useContractGenerationAdvisor({ open, dlgContractType, resolveLec
     else if (!advLecturerId) nextErrors.lecturer = 'Lecturer is still loading. Please wait a moment and try again.';
     if (!advRole) nextErrors.role = 'Role is required';
     if (!advHourlyRate) nextErrors.hourlyRate = 'Hourly Rate is required';
-    if (!(advCapstone1 || advCapstone2 || advInternship1 || advInternship2)) nextErrors.responsibilities = 'Please select at least one responsibility.';
+    if (selectedResponsibilities !== 1) nextErrors.responsibilities = 'Please select exactly one responsibility.';
     if (!advHoursPerStudent) nextErrors.hoursPerStudent = 'Number of Hour per Student is required';
     if (!advStudents.length) nextErrors.students = 'Please add at least one student.';
     else if (advStudents.some((student) => !String(student?.project_title || '').trim() || !String(student?.company_name || '').trim())) nextErrors.students = 'Each student must include Project/Topic Title and Company Name.';

@@ -1,4 +1,4 @@
-import { hoursFromMapping, normId, toBool } from '../../../utils/contractHelpers';
+import { canCombineTheoryFromMapping, hoursFromMapping, normId, toBool } from '../../../utils/contractHelpers';
 
 export function mappingNaturalKey(mapping) {
   const courseId = normId(mapping?.course?.id);
@@ -29,7 +29,9 @@ export function parseRateOrNull(value) {
 export function buildLecturerSelectedCoursesPayload({ mappings, dlgSelectedMappingIds, dlgCombineByMapping }) {
   return (mappings || []).map((mapping) => {
     if (!dlgSelectedMappingIds.has(mapping.id)) return null;
-    const theoryCombined = dlgCombineByMapping?.[mapping.id] != null ? !!dlgCombineByMapping[mapping.id] : toBool(mapping.theory_combined);
+    const theoryCombined = canCombineTheoryFromMapping(mapping)
+      ? (dlgCombineByMapping?.[mapping.id] != null ? !!dlgCombineByMapping[mapping.id] : toBool(mapping.theory_combined))
+      : false;
     return {
       course_id: mapping.course?.id,
       class_id: mapping.class?.id,

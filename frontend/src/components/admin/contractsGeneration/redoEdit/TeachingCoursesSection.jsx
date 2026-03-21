@@ -2,7 +2,7 @@ import React from 'react';
 import { Search } from 'lucide-react';
 import { Checkbox } from '../../../ui/Checkbox';
 import Input from '../../../ui/Input';
-import { hoursFromMapping } from '../../../../utils/contractHelpers';
+import { canCombineTheoryFromMapping, getMappingTheoryHourLabel, hoursFromMapping } from '../../../../utils/contractHelpers';
 
 export default function TeachingCoursesSection({
   canSelectFromMappings,
@@ -77,12 +77,8 @@ export default function TeachingCoursesSection({
           <div className="p-3 text-sm text-gray-500">No courses found for {effectiveTeachYear || 'this year'}.</div>
         ) : filteredMappings.map((mapping) => {
           const checked = selectedMappingIds.has(mapping.id);
-          const typeHours = String(mapping.type_hours || '');
-          const theoryHours = String(mapping.theory_hours || '').toLowerCase();
-          const is15h = theoryHours === '15h' || (!theoryHours && /15h/i.test(typeHours));
-          const is30h = theoryHours === '30h' || (!theoryHours && /30h/i.test(typeHours));
-          const theoryGroups = Number(mapping.theory_groups ?? mapping.groups_15h ?? mapping.groups_theory ?? mapping.group_count_theory ?? 0) || 0;
-          const canCombineTheory = (is15h || is30h) && theoryGroups > 1;
+          const theoryHours = getMappingTheoryHourLabel(mapping);
+          const canCombineTheory = canCombineTheoryFromMapping(mapping);
           const combined = canCombineTheory ? !!(combineByMapping?.[mapping.id] ?? mapping.theory_combined) : false;
           const computedHours = hoursFromMapping({ ...mapping, theory_combined: combined });
 
@@ -107,7 +103,7 @@ export default function TeachingCoursesSection({
                     <label className="mt-2 inline-flex items-center gap-2 text-xs text-gray-700 select-none">
                       <Checkbox checked={combined} onCheckedChange={(value) => setCombineByMapping((prev) => ({ ...(prev || {}), [mapping.id]: !!value }))} />
                       Combine groups into 1 class
-                      <span className="text-gray-500">({is15h ? '15h' : '30h'})</span>
+                      <span className="text-gray-500">({theoryHours})</span>
                     </label>
                   ) : null}
                 </div>
