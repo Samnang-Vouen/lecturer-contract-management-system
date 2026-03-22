@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, Download, SquarePen, User, Building2, Calendar, DollarSign, Clock, CheckCircle, AlertCircle, FileText, MoreVertical } from 'lucide-react';
+import { Eye, Download, SquarePen, User, Building2, Calendar, DollarSign, Clock, CheckCircle, AlertCircle, FileText, MessageSquare } from 'lucide-react';
 import Badge from '../../ui/Badge.jsx';
 import Button from '../../ui/Button.jsx';
 
@@ -11,7 +11,8 @@ export default function ContractCard({
   ratesByLecturer, 
   onPreview, 
   onDownload,
-  onEdit
+  onEdit,
+  onViewRedoMessage,
 }) {
   // Map backend status to display status
   const getStatusDisplay = () => {
@@ -101,6 +102,7 @@ export default function ContractCard({
   const contractType = String(contract.contract_type || '').toUpperCase();
   const isRequestRedo = statusRaw === 'REQUEST_REDO';
   const canEdit = isRequestRedo;
+  const canViewRedoMessage = isRequestRedo;
 
   // Get lecturer display name
   const lecturerProfile = contract.lecturer?.LecturerProfile || {};
@@ -176,6 +178,11 @@ export default function ContractCard({
   const handleEdit = (e) => {
     e.stopPropagation();
     onEdit?.(contract);
+  };
+
+  const handleViewRedoMessage = (e) => {
+    e.stopPropagation();
+    onViewRedoMessage?.(contract);
   };
 
   return (
@@ -255,6 +262,16 @@ export default function ContractCard({
               <span className="whitespace-nowrap">{statusDisplay.label}</span>
             </div>
             <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
+              {canViewRedoMessage && (
+                <button
+                  onClick={handleViewRedoMessage}
+                  className="p-2 rounded-lg bg-white border border-orange-200 hover:border-orange-300 hover:bg-orange-50 text-orange-600 hover:text-orange-700 transition-all duration-200 shadow-sm"
+                  title="View redo message"
+                  aria-label="View redo message"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                </button>
+              )}
               {canEdit && (
                 <button
                   onClick={handleEdit}

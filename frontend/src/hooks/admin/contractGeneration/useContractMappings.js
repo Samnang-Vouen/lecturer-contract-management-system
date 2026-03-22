@@ -31,6 +31,10 @@ export function useContractMappings(academicYear) {
     return normId(raw);
   }, [profileToUser]);
 
+  useEffect(() => {
+    setMappings(Array.isArray(mappingsByYear?.[academicYear]) ? mappingsByYear[academicYear] : []);
+  }, [academicYear, mappingsByYear]);
+
   // Fetch mappings for current academic year
   useEffect(() => {
     let cancelled = false;
@@ -86,9 +90,15 @@ export function useContractMappings(academicYear) {
           collected = allAccepted.filter((m) => yearMatches(m, academicYear));
         }
 
-        if (!cancelled) setMappings(collected);
+        if (!cancelled) {
+          setMappings(collected);
+          setMappingsByYear((prev) => ({ ...prev, [academicYear]: collected }));
+        }
       } catch {
-        if (!cancelled) setMappings([]);
+        if (!cancelled) {
+          setMappings([]);
+          setMappingsByYear((prev) => ({ ...prev, [academicYear]: [] }));
+        }
       }
     })();
 
@@ -121,7 +131,10 @@ export function useContractMappings(academicYear) {
 
   // Fetch profile-to-user mapping for accepted mappings
   useEffect(() => {
-    const accepted = (mappings || []).filter(m => String(m.status || '').toLowerCase() === 'accepted');
+    const accepted = [
+      ...(Array.isArray(mappings) ? mappings : []),
+      ...Object.values(mappingsByYear || {}).flatMap((rows) => (Array.isArray(rows) ? rows : [])),
+    ].filter((m) => String(m.status || '').toLowerCase() === 'accepted');
     const profileIds = Array.from(new Set(accepted.map(m => m.lecturer_profile_id).filter(Boolean)));
     const missing = profileIds.filter(pid => !(pid in profileToUser));
     if (missing.length === 0) return;
@@ -151,7 +164,7 @@ export function useContractMappings(academicYear) {
         // ignore mapping failures
       }
     })();
-  }, [mappings, profileToUser]);
+  }, [mappings, mappingsByYear, profileToUser]);
 
   // Fetch mappings for contracts with different academic years
   const fetchMappingsForYear = useCallback(async (year) => {

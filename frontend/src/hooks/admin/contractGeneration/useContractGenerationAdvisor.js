@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { getAdvisorDetail, listAdvisors } from '../../../services/advisor.service';
+import { listAdvisors } from '../../../services/advisor.service';
+import { getLecturerDetail } from '../../../services/lecturer.service';
 import { normId } from '../../../utils/contractHelpers';
 import { parseStudentLine } from './contractGenerationDialog.helpers';
 
@@ -57,18 +58,42 @@ export function useContractGenerationAdvisor({ open, dlgContractType, resolveLec
     setAdvErrors({});
   };
 
-  const handleAdvisorLecturerChange = async (value) => {
+  useEffect(() => {
+    let cancelled = false;
+
+    const syncSelectedAdvisor = async () => {
+      if (!advLecturerKey) {
+        setAdvLecturerId('');
+        setAdvHourlyRate('');
+        return;
+      }
+
+      const resolvedUserId = resolveLecturerUserId ? resolveLecturerUserId(advLecturerKey) : normId(advLecturerKey);
+      setAdvLecturerId(resolvedUserId || '');
+
+      if (!resolvedUserId) {
+        setAdvHourlyRate('');
+        return;
+      }
+
+      try {
+        const body = await getLecturerDetail(resolvedUserId);
+        if (!cancelled) setAdvHourlyRate(body?.hourlyRateThisYear || '');
+      } catch {
+        if (!cancelled) setAdvHourlyRate('');
+      }
+    };
+
+    syncSelectedAdvisor();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [advLecturerKey, resolveLecturerUserId]);
+
+  const handleAdvisorLecturerChange = (value) => {
     setAdvLecturerKey(value);
-    const resolvedUserId = resolveLecturerUserId ? resolveLecturerUserId(value) : normId(value);
-    setAdvLecturerId(resolvedUserId || '');
     setAdvErrors((prev) => ({ ...prev, lecturer: '' }));
-    try {
-      if (!resolvedUserId) throw new Error('Lecturer user id not resolved');
-      const body = await getAdvisorDetail(resolvedUserId);
-      setAdvHourlyRate(body?.hourlyRateThisYear || '');
-    } catch {
-      setAdvHourlyRate('');
-    }
   };
 
   const handleCreateAdvisor = async () => {

@@ -15,7 +15,7 @@ export default function AdvisorBasicsSection({ lecturers, advisorUsers, advisorU
     <>
       <div className="space-y-1 mb-4">
         <label className="block text-sm font-medium">Advisor Name <span className="text-red-600">*</span></label>
-        <Select className="w-full cursor-pointer" value={advLecturerKey} onValueChange={handleAdvisorLecturerChange} placeholder="Enter advisor name">
+        <Select className="w-full cursor-pointer" value={advLecturerKey} onValueChange={handleAdvisorLecturerChange} placeholder="Select advisor name">
           {sortedAdvisorOptions.map((user) => (
             <SelectItem key={user.id} value={String(user.id)}>{getAdvisorDisplayName(user)}</SelectItem>
           ))}

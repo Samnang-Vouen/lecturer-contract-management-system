@@ -778,7 +778,7 @@ export async function listContracts(req, res) {
         include: [
           {
             model: LecturerProfile,
-            attributes: ['candidate_id', 'title', 'full_name_english', 'full_name_khmer', 'position'],
+            attributes: ['id', 'candidate_id', 'title', 'full_name_english', 'full_name_khmer', 'position'],
             required: false,
           },
         ],

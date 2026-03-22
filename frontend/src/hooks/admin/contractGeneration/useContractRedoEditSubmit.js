@@ -108,8 +108,22 @@ export function useContractRedoEditSubmit({
 
     if (canSelectFromMappings) {
       const selectedCoursesPayload = buildSelectedCourses({ yearMappings, selectedMappingIds, contractLecturerId, mappingUserId, combineByMapping });
+      const availableKeys = new Set(
+        (yearMappings || [])
+          .filter((mapping) => {
+            const status = String(mapping?.status || '').toLowerCase();
+            if (status && status !== 'accepted') return false;
+            if (!contractLecturerId || typeof mappingUserId !== 'function') return true;
+            const mappingLecturerId = mappingUserId(mapping);
+            return !mappingLecturerId || mappingLecturerId === contractLecturerId;
+          })
+          .map((mapping) => courseKey(mapping?.course?.id ?? mapping?.course_id, mapping?.class?.id ?? mapping?.class_id))
+      );
       const selectedKeys = new Set(selectedCoursesPayload.map((course) => courseKey(course.course_id, course.class_id)));
-      const preserved = existingCourses.filter((course) => !selectedKeys.has(courseKey(course.course_id, course.class_id)));
+      const preserved = existingCourses.filter((course) => {
+        const key = courseKey(course.course_id, course.class_id);
+        return key && !selectedKeys.has(key) && !availableKeys.has(key);
+      });
       nextCourseList = [...selectedCoursesPayload, ...preserved];
       const firstCourse = selectedCoursesPayload[0] || preserved[0] || null;
       if (firstCourse?.term != null) derivedTerm = firstCourse.term;

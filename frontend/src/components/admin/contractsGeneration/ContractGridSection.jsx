@@ -25,7 +25,13 @@ function ContractSkeletonCard({ index }) {
   );
 }
 
-export default function ContractGridSection({ filteredContracts, totalBase, contractData, contractActions, handleOpenRedoEdit }) {
+export default function ContractGridSection({
+  filteredContracts,
+  contractData,
+  contractActions,
+  handleOpenRedoEdit,
+  handleOpenRedoMessage,
+}) {
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -46,6 +52,7 @@ export default function ContractGridSection({ filteredContracts, totalBase, cont
             onPreview={contractActions.previewPdf}
             onDownload={contractActions.downloadPdf}
             onEdit={handleOpenRedoEdit}
+            onViewRedoMessage={handleOpenRedoMessage}
           />
         ))}
 

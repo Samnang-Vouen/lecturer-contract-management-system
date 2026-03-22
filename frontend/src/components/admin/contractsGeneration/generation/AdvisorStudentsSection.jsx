@@ -37,7 +37,7 @@ export default function AdvisorStudentsSection(props) {
             if (!row) return;
             props.setAdvStudents((prev) => [...prev, { ...row, project_title: String(props.advProjectTitle || '').trim(), company_name: String(props.advCompanyName || '').trim() }]);
             props.setAdvStudentInput('');
-          }} placeholder="Student Name" />
+          }} placeholder="Student Name, Student ID (optional)" />
         </>
       ) : null}
 

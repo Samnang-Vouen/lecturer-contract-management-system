@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getLecturerDetail } from '../../../services/lecturer.service';
 import { aggregateContractMappings, normId } from '../../../utils/contractHelpers';
 import {
@@ -64,20 +64,44 @@ export function useContractGenerationLecturer({ mappings, mappingUserId, resolve
     });
   }, [mappings, dlgCourseQuery, dlgLecturerKey, mappingUserId]);
 
-  const handleLecturerChange = async (value) => {
+  useEffect(() => {
+    let cancelled = false;
+
+    const syncSelectedLecturer = async () => {
+      if (!dlgLecturerKey) {
+        setDlgLecturerId('');
+        setDlgHourlyRate('');
+        return;
+      }
+
+      const resolvedUserId = resolveLecturerUserId ? resolveLecturerUserId(dlgLecturerKey) : normId(dlgLecturerKey);
+      setDlgLecturerId(resolvedUserId || '');
+
+      if (!resolvedUserId) {
+        setDlgHourlyRate('');
+        return;
+      }
+
+      try {
+        const body = await getLecturerDetail(resolvedUserId);
+        if (!cancelled) setDlgHourlyRate(body?.hourlyRateThisYear || '');
+      } catch {
+        if (!cancelled) setDlgHourlyRate('');
+      }
+    };
+
+    syncSelectedLecturer();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dlgLecturerKey, resolveLecturerUserId]);
+
+  const handleLecturerChange = (value) => {
     setDlgLecturerKey(value);
-    const resolvedUserId = resolveLecturerUserId ? resolveLecturerUserId(value) : normId(value);
-    setDlgLecturerId(resolvedUserId || '');
     setDlgErrors((prev) => ({ ...prev, lecturer: '' }));
     setDlgSelectedMappingIds(new Set());
     setDlgCombineByMapping({});
-    try {
-      if (!resolvedUserId) throw new Error('Lecturer user id not resolved');
-      const body = await getLecturerDetail(resolvedUserId);
-      setDlgHourlyRate(body?.hourlyRateThisYear || '');
-    } catch {
-      setDlgHourlyRate('');
-    }
   };
 
   const handleCreateLecturer = async () => {

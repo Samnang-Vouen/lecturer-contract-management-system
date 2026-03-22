@@ -22,7 +22,7 @@ export default function AdvisorStudentsSection({ students, updateStudent, addStu
               <Input
                 value={student?.student_code || ''}
                 onChange={(e) => updateStudent(idx, { student_code: e.target.value })}
-                placeholder="Student code (optional)"
+                placeholder="Student ID (optional)"
               />
               <Input
                 value={student?.project_title || ''}
