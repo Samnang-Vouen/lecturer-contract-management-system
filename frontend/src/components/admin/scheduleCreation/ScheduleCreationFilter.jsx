@@ -1,8 +1,9 @@
 import React from "react";
 import { Loader2 } from "lucide-react";
+import Select, { SelectItem } from "../../ui/Select.jsx";
 import { safeArray } from "../../../utils/scheduleCreation";
 
-export default function ScheduleCreationSidebar({
+export default function ScheduleCreationFilter({
   isLoading,
   academicYearOptions,
   selectedAcademicYear,
@@ -23,33 +24,37 @@ export default function ScheduleCreationSidebar({
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Filters</p>
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-600">Academic Year</label>
-            <select
+            <Select
               value={selectedAcademicYear}
-              onChange={(event) => setSelectedAcademicYear(event.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              onValueChange={setSelectedAcademicYear}
+              className="w-full"
+              buttonClassName="min-h-10 rounded-lg border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:ring-2 focus:ring-blue-100"
+              oneLine
             >
               {academicYearOptions.map((year) => (
-                <option key={year} value={year}>
+                <SelectItem key={year} value={year}>
                   {year === "all" ? "All Academic Years" : year}
-                </option>
+                </SelectItem>
               ))}
-            </select>
+            </Select>
           </div>
 
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-600">Specialization</label>
-            <select
+            <Select
               value={selectedSpecialization}
-              onChange={(event) => setSelectedSpecialization(event.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              onValueChange={setSelectedSpecialization}
+              className="w-full"
+              buttonClassName="min-h-10 rounded-lg border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:ring-2 focus:ring-blue-100"
+              oneLine
             >
-              <option value="all">All Specializations</option>
+              <SelectItem value="all">All Specializations</SelectItem>
               {safeArray(specializations).map((spec) => (
-                <option key={spec.id} value={String(spec.id)}>
+                <SelectItem key={spec.id} value={String(spec.id)}>
                   {spec.name}
-                </option>
+                </SelectItem>
               ))}
-            </select>
+            </Select>
           </div>
         </div>
 

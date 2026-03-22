@@ -73,6 +73,13 @@ export function getPreviewDateText(startTerm, endTerm) {
   return `Start term: ${formatDisplayDate(startTerm)} | End term: ${formatDisplayDate(endTerm)}`;
 }
 
+function normalizeSessionType(value) {
+  const raw = String(value || "").trim().toUpperCase();
+  if (raw === "LAB") return "LAB";
+  if (raw === "THEORY") return "THEORY";
+  return "THEORY";
+}
+
 export function buildPreviewGridFromMappings(mappings) {
   const grid = {};
 
@@ -93,7 +100,8 @@ export function buildPreviewGridFromMappings(mappings) {
 
     if (assignments.length > 0) {
       assignments.forEach((assignment) => {
-        const room = String(assignment?.groupType || "").toUpperCase() === "LAB"
+        const sessionType = normalizeSessionType(assignment?.groupType);
+        const room = sessionType === "LAB"
           ? labRoom || fallbackRoom || "TBA"
           : theoryRoom || fallbackRoom || labRoom || "TBA";
 
@@ -109,17 +117,18 @@ export function buildPreviewGridFromMappings(mappings) {
 
           if (!grid[slot]) grid[slot] = {};
           if (!grid[slot][day]) grid[slot][day] = [];
-          grid[slot][day].push({ course, teacher, room });
+          grid[slot][day].push({ course, teacher, room, sessionType });
         });
       });
       return;
     }
 
     parseAvailabilityToSlots(mapping?.availability).forEach(({ day, slot }) => {
+      const sessionType = normalizeSessionType();
       const room = theoryRoom || labRoom || fallbackRoom || "TBA";
       if (!grid[slot]) grid[slot] = {};
       if (!grid[slot][day]) grid[slot][day] = [];
-      grid[slot][day].push({ course, teacher, room });
+      grid[slot][day].push({ course, teacher, room, sessionType });
     });
   });
 
