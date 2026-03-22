@@ -10,7 +10,7 @@ import express from 'express';
 
 const router = express.Router();
 
-router.get('/', getSchedule);
+router.get('/', protect, authorizeRoles(['admin', 'lecturer', 'advisor']), getSchedule);
 router.post('/bulk', createBulkSchedule);
 router.post('/', createSchedule);
 router.put('/:id', editSchedule);

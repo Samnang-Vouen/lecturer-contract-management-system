@@ -18,10 +18,28 @@ import sequelize from '../config/db.js';
 export const getSchedule = async (req, res) => {
   try {
     const { class_name, dept_name, specialization, schedule_id } = req.query;
+    const userRole = String(req.user?.role || '').toLowerCase();
 
     let whereClause = {};
     if (schedule_id) {
       whereClause.schedule_id = schedule_id;
+    }
+
+    let lecturerProfileId = null;
+    if (userRole === 'lecturer') {
+      const profile = await LecturerProfile.findOne({
+        where: { user_id: req.user.id },
+        attributes: ['id'],
+      });
+
+      if (!profile) {
+        return res.status(200).json({
+          schedule: [],
+          message: 'Schedule entries retrieved successfully',
+        });
+      }
+
+      lecturerProfileId = profile.id;
     }
 
     const schedule = await ScheduleEntry.findAll({
@@ -37,6 +55,7 @@ export const getSchedule = async (req, res) => {
           model: CourseMapping,
           attributes: ['id', 'academic_year', 'year_level', 'term'],
           required: true,
+          where: lecturerProfileId ? { lecturer_profile_id: lecturerProfileId } : undefined,
           include: [
             { model: Course, attributes: ['course_name', 'course_code'] },
             { model: LecturerProfile, attributes: ['title', 'full_name_english'] },

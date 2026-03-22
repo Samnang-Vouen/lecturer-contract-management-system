@@ -71,6 +71,19 @@ function startDateFromAcademicYear(academicYear) {
   return `${m[1]}-10-01`;
 }
 
+function parseAvailabilityAssignments(raw) {
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
 async function syncScheduleForCourseMapping(mappingId, cachedTimeSlotMap = null) {
   const mapping = await CourseMapping.findByPk(mappingId, {
     include: [
@@ -120,34 +133,69 @@ async function syncScheduleForCourseMapping(mappingId, cachedTimeSlotMap = null)
       transaction: t,
     });
 
-    const sessionType =
-      (mapping.theory_groups || 0) > 0 && (mapping.lab_groups || 0) > 0
-        ? 'Lab + Theory'
-        : (mapping.lab_groups || 0) > 0
-          ? 'Lab'
-          : 'Theory';
-    const room =
-      mapping.theory_room_number || mapping.lab_room_number || mapping.room_number || 'TBA';
+    const timeSlotMap =
+      cachedTimeSlotMap ||
+      new Map((await TimeSlot.findAll({ attributes: ['id', 'label'], transaction: t })).map((ts) => [ts.label, ts.id]));
 
-    // Upsert entries that are currently in availability
-    const upsertEntries = slots.map((slot) => ({
+    const structuredAssignments = parseAvailabilityAssignments(mapping.availability_assignments);
+    const structuredEntries = structuredAssignments.flatMap((assignment) => {
+      const rawType = String(assignment?.groupType || '').trim().toUpperCase();
+      const sessionType = rawType === 'LAB' ? 'Lab' : rawType === 'THEORY' ? 'Theory' : null;
+      if (!sessionType) return [];
+
+      const room =
+        sessionType === 'Lab'
+          ? mapping.lab_room_number || mapping.room_number || mapping.theory_room_number || 'TBA'
+          : mapping.theory_room_number || mapping.room_number || mapping.lab_room_number || 'TBA';
+
+      return (Array.isArray(assignment?.assignedSessions) ? assignment.assignedSessions : []).flatMap((assigned) => {
+        const day = normalizeDay(assigned?.day);
+        const session = normalizeSession(assigned?.session || assigned?.sessionId);
+        const timeSlotLabel = session ? SESSION_TO_RANGE[session]?.timeSlot : null;
+        const timeSlotId = timeSlotLabel ? timeSlotMap.get(timeSlotLabel) : null;
+        if (!day || !timeSlotId) return [];
+
+        return [{
+          schedule_id: schedule.id,
+          course_mapping_id: mapping.id,
+          day_of_week: day,
+          time_slot_id: timeSlotId,
+          room,
+          session_type: sessionType,
+        }];
+      });
+    });
+
+    const fallbackSessionType =
+      (mapping.lab_groups || 0) > 0 && (mapping.theory_groups || 0) === 0
+        ? 'Lab'
+        : 'Theory';
+    const fallbackRoom =
+      fallbackSessionType === 'Lab'
+        ? mapping.lab_room_number || mapping.room_number || mapping.theory_room_number || 'TBA'
+        : mapping.theory_room_number || mapping.room_number || mapping.lab_room_number || 'TBA';
+
+    const upsertEntries = (structuredEntries.length > 0 ? structuredEntries : slots.map((slot) => ({
       schedule_id: schedule.id,
       course_mapping_id: mapping.id,
       day_of_week: slot.day_of_week,
       time_slot_id: slot.time_slot_id,
-      room,
-      session_type: sessionType,
-    }));
+      room: fallbackRoom,
+      session_type: fallbackSessionType,
+    })));
 
     if (upsertEntries.length > 0) {
+      await ScheduleEntry.destroy({
+        where: { course_mapping_id: mapping.id, schedule_id: schedule.id },
+        transaction: t,
+      });
       await ScheduleEntry.bulkCreate(upsertEntries, {
-        updateOnDuplicate: ['room', 'session_type'],
         transaction: t,
       });
     }
 
     // Delete stale entries for this mapping that are no longer in the current availability
-    const currentSlotKeys = slots.map((s) => `${s.day_of_week}__${s.time_slot_id}`);
+    const currentSlotKeys = upsertEntries.map((s) => `${s.day_of_week}__${s.time_slot_id}`);
     const existingEntries = await ScheduleEntry.findAll({
       where: { course_mapping_id: mapping.id, schedule_id: schedule.id },
       attributes: ['id', 'day_of_week', 'time_slot_id'],

@@ -767,8 +767,26 @@ export const getSchedules = async (req, res) => {
   try {
     const { class_name, dept_name, specialization, group_id } = req.query;
     const groupId = safeInt(group_id);
+    const userRole = String(req.user?.role || '').toLowerCase();
 
-    const schedules = await Schedule.findAll({
+    let lecturerProfileId = null;
+    if (userRole === 'lecturer') {
+      const profile = await LecturerProfile.findOne({
+        where: { user_id: req.user.id },
+        attributes: ['id'],
+      });
+
+      if (!profile) {
+        return res.status(200).json({
+          schedules: [],
+          message: 'Schedule retrieved successfully.',
+        });
+      }
+
+      lecturerProfileId = profile.id;
+    }
+
+    const rows = await Schedule.findAll({
       where: groupId ? { group_id: groupId } : undefined,
       attributes: ['id', 'group_id', 'notes', 'custom_cells', 'start_date', 'created_at'],
       include: [
@@ -778,8 +796,14 @@ export const getSchedules = async (req, res) => {
           required: true,
           include: [
             {
+              model: CourseMapping,
+              attributes: [],
+              required: Boolean(lecturerProfileId),
+              where: lecturerProfileId ? { lecturer_profile_id: lecturerProfileId } : undefined,
+            },
+            {
               model: ClassModel,
-              attributes: ['name'],
+              attributes: ['name', 'start_term', 'end_term'],
               required: !!class_name || !!specialization || !!dept_name,
               where: class_name ? { name: class_name } : undefined,
               include: [
@@ -802,6 +826,13 @@ export const getSchedules = async (req, res) => {
           ],
         },
       ],
+    });
+
+    const seenScheduleIds = new Set();
+    const schedules = rows.filter((schedule) => {
+      if (seenScheduleIds.has(schedule.id)) return false;
+      seenScheduleIds.add(schedule.id);
+      return true;
     });
 
     return res.status(200).json({
