@@ -83,7 +83,12 @@ const AdvisorContract = sequelize.define(
     management_signature_path: { type: DataTypes.STRING(512), allowNull: true },
     advisor_signed_at: { type: DataTypes.DATE, allowNull: true },
     management_signed_at: { type: DataTypes.DATE, allowNull: true },
+    advisor_remarks: { type: DataTypes.TEXT, allowNull: true },
     management_remarks: { type: DataTypes.TEXT, allowNull: true },
+    latest_redo_requester_role: {
+      type: DataTypes.ENUM('ADVISOR', 'MANAGEMENT'),
+      allowNull: true,
+    },
 
     status: {
       type: DataTypes.ENUM('DRAFT', 'WAITING_MANAGEMENT', 'REQUEST_REDO', 'COMPLETED',  'CONTRACT_ENDED'),

@@ -1,6 +1,6 @@
 import React from 'react';
-import { Eye, Download, FilePen } from 'lucide-react';
-import { getStatusLabel } from '../../../utils/contractUtils';
+import { Eye, Download, FilePen, MessageSquare } from 'lucide-react';
+import { getManagementStatusLabel, hasManagementRedoMessage } from '../../../utils/contractUtils';
 
 /**
  * Contract card footer with status badge and action buttons
@@ -9,13 +9,15 @@ export default function ContractCardFooter({
   contract, 
   onSign,
   onRedo,
+  onViewRedoMessage,
   onPreview,
   onDownload,
   onShowDetail,
   isDownloading
 }) {
-  const status = getStatusLabel(contract.status);
+  const status = getManagementStatusLabel(contract);
   const canRedo = String(contract?.status || '').trim().toUpperCase().replace(/\s+/g, '_') === 'WAITING_MANAGEMENT';
+  const hasRedoRequest = hasManagementRedoMessage(contract);
 
   return (
     <div className="mt-4 pt-3.5 border-t border-gray-200 flex items-center justify-between">
@@ -45,6 +47,18 @@ export default function ContractCardFooter({
             title="Request redo"
           >
             <FilePen className="w-4 h-4" />
+          </button>
+        ) : null}
+        {hasRedoRequest ? (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewRedoMessage(contract);
+            }}
+            className="p-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 transition-all duration-200"
+            title="View redo message"
+          >
+            <MessageSquare className="w-4 h-4" />
           </button>
         ) : null}
         <button

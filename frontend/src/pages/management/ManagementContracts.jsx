@@ -6,9 +6,11 @@ import ContractGrid from '../../components/management/contract/ContractGrid';
 import UploadSignatureDialog from '../../components/management/contract/UploadSignatureDialog';
 import ContractDetailDialog from '../../components/management/contract/ContractDetailDialog';
 import ContractRedoDialog from '../../components/management/contract/ContractRedoDialog';
+import ContractRedoMessageDialog from '../../components/management/contract/ContractRedoMessageDialog';
 import { useContracts } from '../../hooks/management/useContracts';
 import { useContractActions } from '../../hooks/management/useContractActions';
 import { useUploadDialog } from '../../hooks/management/useUploadDialog';
+import { hasManagementRedoMessage } from '../../utils/contractUtils';
 
 export default function ManagementContracts() {
   // Custom hooks
@@ -51,6 +53,8 @@ export default function ManagementContracts() {
   const [detailContract, setDetailContract] = useState(null);
   const [redoOpen, setRedoOpen] = useState(false);
   const [redoContract, setRedoContract] = useState(null);
+  const [redoMessageOpen, setRedoMessageOpen] = useState(false);
+  const [redoMessageContract, setRedoMessageContract] = useState(null);
 
   // Handlers
   const handleSignClick = (contract) => {
@@ -86,6 +90,15 @@ export default function ManagementContracts() {
     setRedoOpen(true);
   };
 
+  const handleOpenRedoMessage = (contract) => {
+    if (!hasManagementRedoMessage(contract)) {
+      return;
+    }
+
+    setRedoMessageContract(contract);
+    setRedoMessageOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
       <div className="p-8 space-y-6">
@@ -113,6 +126,7 @@ export default function ManagementContracts() {
           onDownload={downloadPdf} 
           onSign={handleSignClick} 
           onRedo={handleOpenRedo}
+          onViewRedoMessage={handleOpenRedoMessage}
           onShowDetail={handleShowDetail}
           downloadingId={downloadingId} 
         />
@@ -138,6 +152,12 @@ export default function ManagementContracts() {
           onOpenChange={setRedoOpen}
           contract={redoContract}
           onSubmit={requestRedoAsManagement}
+        />
+
+        <ContractRedoMessageDialog
+          open={redoMessageOpen}
+          onOpenChange={setRedoMessageOpen}
+          contract={redoMessageContract}
         />
       </div>
     </div>

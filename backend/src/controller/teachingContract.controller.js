@@ -836,9 +836,35 @@ export async function listContracts(req, res) {
     try {
       const role2 = req.user?.role;
       if (['admin', 'management', 'superadmin'].includes(role2)) {
+        const latestRedoRequesterRoleByContractId = new Map();
+        const contractIds = rows.map((row) => row.id).filter(Boolean);
+
+        if (contractIds.length) {
+          const Sequelize2 = (await import('sequelize')).default;
+          const redoRows = await ContractRedoRequest.findAll({
+            attributes: ['contract_id', 'requester_role', 'created_at'],
+            where: {
+              contract_id: {
+                [Sequelize2.Op.in]: contractIds,
+              },
+            },
+            order: [
+              ['contract_id', 'ASC'],
+              ['created_at', 'DESC'],
+            ],
+          });
+
+          for (const redoRow of redoRows) {
+            if (!latestRedoRequesterRoleByContractId.has(redoRow.contract_id)) {
+              latestRedoRequesterRoleByContractId.set(redoRow.contract_id, redoRow.requester_role);
+            }
+          }
+        }
+
         const enriched = [];
         for (const row of rows) {
           const plain = row.toJSON();
+          plain.latest_redo_requester_role = latestRedoRequesterRoleByContractId.get(plain.id) || null;
           let hourlyRateUsd = null;
           
           // First, check if the contract itself has an hourly_rate

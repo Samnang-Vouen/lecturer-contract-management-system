@@ -57,10 +57,7 @@ async function userHasRole(userId, roleName, { transaction } = {}) {
   if (!normalized) return false;
 
   const role = await Role.findOne({
-    where: sequelize.where(
-      sequelize.fn('LOWER', sequelize.col('role_type')),
-      normalized
-    ),
+    where: { role_type: normalized },
     transaction,
   });
 
@@ -854,63 +851,116 @@ export async function updateAdvisorStatus(req, res) {
     const found = await requireAdvisorStatusUpdateAccess(req, res, id);
     if (!found) return;
 
+    const isOwnerRequester = found.lecturer_user_id === req.user?.id;
+    const redoRequesterRole = isOwnerRequester ? 'ADVISOR' : 'MANAGEMENT';
+
     if (status === 'REQUEST_REDO' && !remarks) {
       return res
         .status(HTTP_STATUS.BAD_REQUEST)
         .json({ message: 'remarks is required when requesting redo' });
     }
 
+    if (status === 'REQUEST_REDO') {
+      const allowedTransitions = isOwnerRequester
+        ? ['DRAFT', 'WAITING_MANAGEMENT', 'REQUEST_REDO']
+        : ['WAITING_MANAGEMENT', 'REQUEST_REDO'];
+
+      if (!allowedTransitions.includes(String(found.status || '').toUpperCase())) {
+        return res
+          .status(HTTP_STATUS.BAD_REQUEST)
+          .json({ message: 'Invalid status transition' });
+      }
+    }
+
     const updatePayload = { status };
     if (status === 'REQUEST_REDO') {
-      updatePayload.management_remarks = remarks;
+      updatePayload.advisor_remarks = redoRequesterRole === 'ADVISOR' ? remarks : null;
+      updatePayload.management_remarks = redoRequesterRole === 'MANAGEMENT' ? remarks : null;
+      updatePayload.latest_redo_requester_role = redoRequesterRole;
+      updatePayload.advisor_signature_path = null;
+      updatePayload.management_signature_path = null;
+      updatePayload.advisor_signed_at = null;
+      updatePayload.management_signed_at = null;
+    } else {
+      updatePayload.advisor_remarks = null;
+      updatePayload.management_remarks = null;
+      updatePayload.latest_redo_requester_role = null;
     }
 
     await found.update(updatePayload);
 
     const notificationSocket = getNotificationSocket();
-    if (status === 'REQUEST_REDO') {
-      try {
-        await notificationSocket.notifyLecturer({
-          user_id: found.lecturer_user_id,
-          type: 'status_change',
-          message: `Advisor contract #${found.id} has been sent back for revision`,
-          contract_id: found.id,
-          data: { contractId: found.id, status, at: new Date().toISOString() },
-        });
-      } catch (notifErr) {
-        console.error('[updateAdvisorStatus] notifyLecturer failed:', notifErr.message);
-      }
-      try {
-        await notificationSocket.notifyRole({
-          role: 'admin',
-          type: 'status_change',
-          message: `Advisor contract #${found.id} status updated to ${status.replace(/_/g, ' ').toLowerCase()}`,
-          contractId: found.id,
-        });
-      } catch (notifErr) {
-        console.error('[updateAdvisorStatus] notifyRole(admin) failed:', notifErr.message);
-      }
-    } else {
-      try {
-        await notificationSocket.notifyRole({
-          role: 'management',
-          type: 'status_change',
-          message: `Advisor contract #${found.id} status updated to ${status.replace(/_/g, ' ').toLowerCase()}`,
-          contractId: found.id,
-          department_name: found.lecturer.department_name,
-        });
-      } catch (notifErr) {
-        console.error('[updateAdvisorStatus] notifyRole(management) failed:', notifErr.message);
-      }
-      try {
-        await notificationSocket.notifyRole({
-          role: 'admin',
-          type: 'status_change',
-          message: `Advisor contract #${found.id} status updated to ${status.replace(/_/g, ' ').toLowerCase()}`,
-          contractId: found.id,
-        });
-      } catch (notifErr) {
-        console.error('[updateAdvisorStatus] notifyRole(admin) failed:', notifErr.message);
+    const lecturerDepartmentName = found.lecturer?.department_name || req.user?.department_name || null;
+
+    if (notificationSocket) {
+      if (status === 'REQUEST_REDO') {
+        if (redoRequesterRole === 'ADVISOR') {
+          try {
+            await notificationSocket.notifyRole({
+              role: 'management',
+              type: 'status_change',
+              message: `Advisor contract #${found.id} redo requested by advisor`,
+              contractId: found.id,
+              department_name: lecturerDepartmentName,
+            });
+          } catch (notifErr) {
+            console.error('[updateAdvisorStatus] notifyRole(management) failed:', notifErr.message);
+          }
+          try {
+            await notificationSocket.notifyRole({
+              role: 'admin',
+              type: 'status_change',
+              message: `Advisor contract #${found.id} redo requested by advisor`,
+              contractId: found.id,
+            });
+          } catch (notifErr) {
+            console.error('[updateAdvisorStatus] notifyRole(admin) failed:', notifErr.message);
+          }
+        } else {
+          try {
+            await notificationSocket.notifyLecturer({
+              user_id: found.lecturer_user_id,
+              type: 'status_change',
+              message: `Advisor contract #${found.id} has been sent back for revision`,
+              contract_id: found.id,
+              data: { contractId: found.id, status, at: new Date().toISOString() },
+            });
+          } catch (notifErr) {
+            console.error('[updateAdvisorStatus] notifyLecturer failed:', notifErr.message);
+          }
+          try {
+            await notificationSocket.notifyRole({
+              role: 'admin',
+              type: 'status_change',
+              message: `Advisor contract #${found.id} status updated to ${status.replace(/_/g, ' ').toLowerCase()}`,
+              contractId: found.id,
+            });
+          } catch (notifErr) {
+            console.error('[updateAdvisorStatus] notifyRole(admin) failed:', notifErr.message);
+          }
+        }
+      } else {
+        try {
+          await notificationSocket.notifyRole({
+            role: 'management',
+            type: 'status_change',
+            message: `Advisor contract #${found.id} status updated to ${status.replace(/_/g, ' ').toLowerCase()}`,
+            contractId: found.id,
+            department_name: lecturerDepartmentName,
+          });
+        } catch (notifErr) {
+          console.error('[updateAdvisorStatus] notifyRole(management) failed:', notifErr.message);
+        }
+        try {
+          await notificationSocket.notifyRole({
+            role: 'admin',
+            type: 'status_change',
+            message: `Advisor contract #${found.id} status updated to ${status.replace(/_/g, ' ').toLowerCase()}`,
+            contractId: found.id,
+          });
+        } catch (notifErr) {
+          console.error('[updateAdvisorStatus] notifyRole(admin) failed:', notifErr.message);
+        }
       }
     }
 
@@ -954,6 +1004,9 @@ export async function editAdvisorContract(req, res) {
       management_signature_path: null,
       advisor_signed_at: null,
       management_signed_at: null,
+      advisor_remarks: null,
+      management_remarks: null,
+      latest_redo_requester_role: null,
     };
 
     if (body.role !== undefined) updatePayload.role = body.role;

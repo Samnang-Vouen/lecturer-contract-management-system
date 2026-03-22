@@ -235,9 +235,30 @@ export async function runSchemaBootstrapping(sequelize) {
         'ALTER TABLE `Advisor_Contracts` ADD COLUMN `management_signed_at` DATETIME NULL AFTER `advisor_signed_at`'
       );
       await addIfMissing(
-        'management_remarks',
-        'ALTER TABLE `Advisor_Contracts` ADD COLUMN `management_remarks` TEXT NULL AFTER `management_signed_at`'
+        'advisor_remarks',
+        'ALTER TABLE `Advisor_Contracts` ADD COLUMN `advisor_remarks` TEXT NULL AFTER `management_signed_at`'
       );
+      await addIfMissing(
+        'management_remarks',
+        'ALTER TABLE `Advisor_Contracts` ADD COLUMN `management_remarks` TEXT NULL AFTER `advisor_remarks`'
+      );
+      await addIfMissing(
+        'latest_redo_requester_role',
+        "ALTER TABLE `Advisor_Contracts` ADD COLUMN `latest_redo_requester_role` ENUM('ADVISOR','MANAGEMENT') NULL AFTER `management_remarks`"
+      );
+
+      try {
+        await sequelize.query(`
+          UPDATE \`Advisor_Contracts\`
+          SET advisor_remarks = management_remarks,
+              management_remarks = NULL
+          WHERE latest_redo_requester_role = 'ADVISOR'
+            AND management_remarks IS NOT NULL
+            AND (advisor_remarks IS NULL OR advisor_remarks = '')
+        `);
+      } catch (e) {
+        console.warn('[schema] backfill Advisor_Contracts advisor_remarks failed:', e.message);
+      }
     } catch (e) {
       console.error('[schema] ensureAdvisorContractColumns failed:', e.message);
     }

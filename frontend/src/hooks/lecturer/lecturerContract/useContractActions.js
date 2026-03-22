@@ -23,6 +23,7 @@ export const useContractActions = (lecturerProfile, authUser, fetchContracts) =>
   const [viewOpen, setViewOpen] = useState(false);
   const [signOpen, setSignOpen] = useState(false);
   const [redoOpen, setRedoOpen] = useState(false);
+  const [redoMessageOpen, setRedoMessageOpen] = useState(false);
 
   /**
    * Preview contract PDF in new tab
@@ -96,6 +97,14 @@ export const useContractActions = (lecturerProfile, authUser, fetchContracts) =>
   };
 
   /**
+   * Open redo message dialog for contract
+   */
+  const openRedoMessageDialog = (contract) => {
+    setSelectedContract(contract);
+    setRedoMessageOpen(true);
+  };
+
+  /**
    * Submit a redo request for the given contract id with a reason message.
    * Called after the lecturer fills in the redo reason dialog.
    */
@@ -107,7 +116,7 @@ export const useContractActions = (lecturerProfile, authUser, fetchContracts) =>
 
     try {
       if (contractType === 'ADVISOR') {
-        await updateAdvisorContractStatus(contractId, 'REQUEST_REDO');
+        await updateAdvisorContractStatus(contractId, 'REQUEST_REDO', message);
       } else {
         await createRedoRequest(contractId, message);
       }
@@ -145,12 +154,15 @@ export const useContractActions = (lecturerProfile, authUser, fetchContracts) =>
     setSignOpen,
     redoOpen,
     setRedoOpen,
+    redoMessageOpen,
+    setRedoMessageOpen,
     previewPdf,
     downloadPdf,
     uploadSignature,
     openViewDialog,
     openSignDialog,
     openRedoDialog,
+    openRedoMessageDialog,
     requestRedo,
   };
 };

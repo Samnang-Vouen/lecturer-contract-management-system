@@ -74,6 +74,11 @@ export async function createRedoRequest(id, message) {
   return res.data;
 }
 
+export async function listRedoRequests(id) {
+  const res = await axiosInstance.get(`/teaching-contracts/${id}/redo-requests`);
+  return res.data;
+}
+
 export async function fetchMyNotifications() {
   const res = await axiosInstance.get('/notifications');
   return res.data;
