@@ -71,6 +71,15 @@ const normalizeImportedGender = (value) => {
   return null;
 };
 
+const isImportedWorksheetRowEmpty = (row) => {
+  if (!row || typeof row !== 'object') return true;
+  return Object.values(row).every((value) => {
+    if (value === null || value === undefined) return true;
+    if (typeof value === 'string') return value.trim() === '';
+    return false;
+  });
+};
+
 const sanitizeDisplayName = (name) => {
   const base = path.basename(String(name || '')).trim();
   if (!base) return 'syllabus.pdf';
@@ -955,7 +964,10 @@ export const importLecturersFromExcel = async (req, res) => {
     const workbook = xlsx.read(file.buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
-    const rows = xlsx.utils.sheet_to_json(worksheet, { defval: '' });
+    const rawRows = xlsx.utils.sheet_to_json(worksheet, { defval: '' });
+    const rows = rawRows
+      .map((row, index) => ({ row, rowNumber: index + 2 }))
+      .filter(({ row }) => !isImportedWorksheetRowEmpty(row));
 
     if (!rows.length) {
       return res.status(400).json({ message: 'Excel file is empty' });
@@ -965,8 +977,7 @@ export const importLecturersFromExcel = async (req, res) => {
     const credentialsRows = [];
 
     for (let i = 0; i < rows.length; i += 1) {
-      const row = rows[i];
-      const rowNumber = i + 2;
+      const { row, rowNumber } = rows[i];
 
       try {
         const fullName = String(row.fullName || row.full_name || '').trim();
