@@ -18,7 +18,7 @@ const router = express.Router();
 router.get('/pdf', protect, authorizeRoles('admin', 'superadmin'), generateFilteredSchedulePDF);
 router.post('/generate-html', protect, authorizeRoles('admin', 'superadmin'), generateFilteredScheduleHTML);
 router.get('/generated-pdf', protect, authorizeRoles('admin', 'superadmin'), generateSchedulePDFFromSavedHTML);
-router.get('/', getSchedules);
+router.get('/', protect, authorizeRoles(['admin', 'lecturer', 'advisor', 'superadmin']), getSchedules);
 router.get('/:id', getScheduleById);
 router.post('/', createSchedule);
 router.put('/:id', updateSchedule);

@@ -68,7 +68,9 @@ export default function CourseMappingTable({ entries, courseMap, onEdit, onDelet
     const byCourse = new Map();
     (Array.isArray(entries) ? entries : []).forEach((m) => {
       const cid = m?.course_id ?? m?.course?.id;
-      const key = String(cid ?? 'unknown');
+      const classId = m?.class_id ?? m?.class?.id ?? 'unknown-class';
+      const lecturerId = m?.lecturer_profile_id ?? m?.lecturer?.id ?? 'unassigned';
+      const key = `${classId}::${cid ?? 'unknown-course'}::${lecturerId}`;
       if (!byCourse.has(key)) byCourse.set(key, []);
       byCourse.get(key).push(m);
     });

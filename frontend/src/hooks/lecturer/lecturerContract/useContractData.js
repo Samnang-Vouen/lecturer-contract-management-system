@@ -110,6 +110,7 @@ export const useContractData = () => {
       return (
         (statusFilter === 'WAITING_ADVISOR' && ds === 'WAITING_ADVISOR') ||
         (statusFilter === 'WAITING_LECTURER' && ds === 'WAITING_LECTURER') ||
+        (statusFilter === 'WAITING_RESPONSE' && ds === 'WAITING_RESPONSE') ||
         (statusFilter === 'WAITING_MANAGEMENT' && ds === 'WAITING_MANAGEMENT') ||
         (statusFilter === 'COMPLETED' && ds === 'COMPLETED') ||
         (statusFilter === 'CONTRACT_ENDED' && ds === 'CONTRACT_ENDED')

@@ -5,9 +5,12 @@ import PendingSignaturesAlert from '../../components/management/contract/Pending
 import ContractGrid from '../../components/management/contract/ContractGrid';
 import UploadSignatureDialog from '../../components/management/contract/UploadSignatureDialog';
 import ContractDetailDialog from '../../components/management/contract/ContractDetailDialog';
+import ContractRedoDialog from '../../components/management/contract/ContractRedoDialog';
+import ContractRedoMessageDialog from '../../components/management/contract/ContractRedoMessageDialog';
 import { useContracts } from '../../hooks/management/useContracts';
 import { useContractActions } from '../../hooks/management/useContractActions';
 import { useUploadDialog } from '../../hooks/management/useUploadDialog';
+import { hasManagementRedoMessage } from '../../utils/contractUtils';
 
 export default function ManagementContracts() {
   // Custom hooks
@@ -27,6 +30,7 @@ export default function ManagementContracts() {
   const {
     previewPdf,
     downloadPdf,
+    requestRedoAsManagement,
     uploadManagementSignature,
     downloadingId,
     uploading
@@ -47,6 +51,10 @@ export default function ManagementContracts() {
   // Detail dialog state
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailContract, setDetailContract] = useState(null);
+  const [redoOpen, setRedoOpen] = useState(false);
+  const [redoContract, setRedoContract] = useState(null);
+  const [redoMessageOpen, setRedoMessageOpen] = useState(false);
+  const [redoMessageContract, setRedoMessageContract] = useState(null);
 
   // Handlers
   const handleSignClick = (contract) => {
@@ -77,6 +85,20 @@ export default function ManagementContracts() {
     setDetailOpen(true);
   };
 
+  const handleOpenRedo = (contract) => {
+    setRedoContract(contract);
+    setRedoOpen(true);
+  };
+
+  const handleOpenRedoMessage = (contract) => {
+    if (!hasManagementRedoMessage(contract)) {
+      return;
+    }
+
+    setRedoMessageContract(contract);
+    setRedoMessageOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
       <div className="p-8 space-y-6">
@@ -93,6 +115,7 @@ export default function ManagementContracts() {
         <PendingSignaturesAlert
           contracts={contracts}
           onPreview={previewPdf}
+          onRedo={handleOpenRedo}
           onSign={handleSignClick}
           uploading={uploading}
         />
@@ -102,6 +125,8 @@ export default function ManagementContracts() {
           onPreview={previewPdf} 
           onDownload={downloadPdf} 
           onSign={handleSignClick} 
+          onRedo={handleOpenRedo}
+          onViewRedoMessage={handleOpenRedoMessage}
           onShowDetail={handleShowDetail}
           downloadingId={downloadingId} 
         />
@@ -120,6 +145,19 @@ export default function ManagementContracts() {
           open={detailOpen} 
           onOpenChange={setDetailOpen} 
           contract={detailContract} 
+        />
+
+        <ContractRedoDialog
+          open={redoOpen}
+          onOpenChange={setRedoOpen}
+          contract={redoContract}
+          onSubmit={requestRedoAsManagement}
+        />
+
+        <ContractRedoMessageDialog
+          open={redoMessageOpen}
+          onOpenChange={setRedoMessageOpen}
+          contract={redoMessageContract}
         />
       </div>
     </div>

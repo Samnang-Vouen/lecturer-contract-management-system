@@ -30,7 +30,7 @@ export function useMappingValidation({ isOpen, isEditMode, form, groupsForSelect
       for (const gid of thIds) {
         const list = assignments?.[gid]?.THEORY;
         const sessions = Array.isArray(list) ? list : [];
-        const min = 1;
+        const min = theoryHours === '30h' ? 2 : 1;
         const max = theoryHours === '30h' ? 2 : 1;
         if (sessions.length < min || sessions.length > max) {
           const gName = groupsForSelectedClass?.find?.((x) => String(x.id) === String(gid))?.name;

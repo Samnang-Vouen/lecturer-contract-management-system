@@ -778,7 +778,7 @@ export async function listContracts(req, res) {
         include: [
           {
             model: LecturerProfile,
-            attributes: ['candidate_id', 'title', 'full_name_english', 'full_name_khmer', 'position'],
+            attributes: ['id', 'candidate_id', 'title', 'full_name_english', 'full_name_khmer', 'position'],
             required: false,
           },
         ],
@@ -836,9 +836,35 @@ export async function listContracts(req, res) {
     try {
       const role2 = req.user?.role;
       if (['admin', 'management', 'superadmin'].includes(role2)) {
+        const latestRedoRequesterRoleByContractId = new Map();
+        const contractIds = rows.map((row) => row.id).filter(Boolean);
+
+        if (contractIds.length) {
+          const Sequelize2 = (await import('sequelize')).default;
+          const redoRows = await ContractRedoRequest.findAll({
+            attributes: ['contract_id', 'requester_role', 'created_at'],
+            where: {
+              contract_id: {
+                [Sequelize2.Op.in]: contractIds,
+              },
+            },
+            order: [
+              ['contract_id', 'ASC'],
+              ['created_at', 'DESC'],
+            ],
+          });
+
+          for (const redoRow of redoRows) {
+            if (!latestRedoRequesterRoleByContractId.has(redoRow.contract_id)) {
+              latestRedoRequesterRoleByContractId.set(redoRow.contract_id, redoRow.requester_role);
+            }
+          }
+        }
+
         const enriched = [];
         for (const row of rows) {
           const plain = row.toJSON();
+          plain.latest_redo_requester_role = latestRedoRequesterRoleByContractId.get(plain.id) || null;
           let hourlyRateUsd = null;
           
           // First, check if the contract itself has an hourly_rate
@@ -1651,8 +1677,9 @@ export async function updateStatus(req, res) {
 
     // REQUEST_REDO can be requested by the lecturer (own contract) or management-side roles
     if (status === 'REQUEST_REDO') {
-      const canRequestRedo =
-        role === 'lecturer' || role === 'management';
+      const isLecturerSideRole = role === 'lecturer' || role === 'advisor';
+      const isManagementSideRole = role === 'admin' || role === 'management' || role === 'superadmin';
+      const canRequestRedo = isLecturerSideRole || isManagementSideRole;
       if (!canRequestRedo) {
         return res.status(HTTP_STATUS.FORBIDDEN).json({ message: 'Access denied' });
       }
@@ -1671,7 +1698,7 @@ export async function updateStatus(req, res) {
           {
             contract_id: contract.id,
             requester_user_id: req.user.id,
-            requester_role: role === 'lecturer' ? 'LECTURER' : 'MANAGEMENT',
+            requester_role: isLecturerSideRole ? 'LECTURER' : 'MANAGEMENT',
             message: String(remarks).trim(),
           },
           { transaction: tx }
@@ -1801,8 +1828,9 @@ export async function createRedoRequest(req, res) {
     if (!contract) return;
 
     const role = String(req.user?.role || '').toLowerCase();
+    const isLecturerSideRole = role === 'lecturer' || role === 'advisor';
 
-    const requesterRole = role === 'lecturer' ? 'LECTURER' : 'MANAGEMENT';
+    const requesterRole = isLecturerSideRole ? 'LECTURER' : 'MANAGEMENT';
 
     const tx = await sequelize.transaction();
     try {

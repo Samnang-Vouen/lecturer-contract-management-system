@@ -3,7 +3,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { X } from 'lucide-react';
 import { 
   formatLecturerDisplay, 
-  getStatusLabel, 
+  getManagementRedoMessage,
+  getManagementStatusLabel,
+  hasManagementRedoMessage,
   formatMDY, 
   getHourlyRate, 
   calculateTotalHours, 
@@ -16,10 +18,12 @@ import {
 export default function ContractDetailDialog({ open, onOpenChange, contract }) {
   if (!contract) return null;
 
-  const status = getStatusLabel(contract.status);
+  const status = getManagementStatusLabel(contract);
   const hours = calculateTotalHours(contract);
   const rate = getHourlyRate(contract);
   const salary = calculateSalary(contract);
+  const showRedoMessage = hasManagementRedoMessage(contract);
+  const redoMessage = getManagementRedoMessage(contract);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -40,6 +44,12 @@ export default function ContractDetailDialog({ open, onOpenChange, contract }) {
           </div>
         </DialogHeader>
         <div className="space-y-4">
+          {showRedoMessage && redoMessage ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 whitespace-pre-line">
+              <div className="font-medium text-amber-950 mb-1">Management Redo Message</div>
+              {redoMessage}
+            </div>
+          ) : null}
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <div className="text-gray-500">Lecturer</div>

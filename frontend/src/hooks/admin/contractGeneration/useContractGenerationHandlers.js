@@ -21,6 +21,11 @@ export function useContractGenerationHandlers({ academicYear, contractActions, r
     setEditRedo({ open: true, contract });
   }, [setEditRedo]);
 
+  const handleOpenRedoMessage = useCallback((contract, setRedoMessage) => {
+    if (normalizeStatus(contract?.status) !== 'REQUEST_REDO') return;
+    setRedoMessage({ open: true, contract });
+  }, []);
+
   const handleSaveRedoEdit = useCallback(async (contract, payload) => {
     if (!contract?.id) return;
     if (String(contract?.contract_type || '').toUpperCase() === 'ADVISOR') {
@@ -36,6 +41,7 @@ export function useContractGenerationHandlers({ academicYear, contractActions, r
     handleCreateContract,
     handleCreateAdvisorContract,
     handleOpenRedoEdit,
+    handleOpenRedoMessage,
     handleSaveRedoEdit,
   };
 }

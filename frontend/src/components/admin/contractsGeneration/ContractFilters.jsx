@@ -3,6 +3,16 @@ import Input from '../../ui/Input';
 import Select, { SelectItem } from '../../ui/Select';
 import { Search } from 'lucide-react';
 
+const STATUS_OPTIONS = [
+  { value: '', label: 'All Status' },
+  { value: 'WAITING_MANAGEMENT', label: 'Waiting Management' },
+  { value: 'WAITING_LECTURER', label: 'Waiting Lecturer' },
+  { value: 'WAITING_ADVISOR', label: 'Waiting Advisor' },
+  { value: 'REQUEST_REDO', label: 'Request Redo' },
+  { value: 'COMPLETED', label: 'Completed' },
+  { value: 'CONTRACT_ENDED', label: 'Contract Ended' },
+];
+
 /**
  * ContractFilters - Search and filter controls for contracts list
  */
@@ -31,12 +41,11 @@ export default function ContractFilters({
           onValueChange={onStatusFilterChange} 
           placeholder="All Status"
         >
-          <SelectItem value="">All Status</SelectItem>
-          <SelectItem value="WAITING_MANAGEMENT">Waiting Management</SelectItem>
-          <SelectItem value="WAITING_LECTURER">Waiting Lecturer</SelectItem>
-          <SelectItem value="WAITING_ADVISOR">Waiting Advisor</SelectItem>
-          <SelectItem value="COMPLETED">Completed</SelectItem>
-          <SelectItem value="CONTRACT_ENDED">Contract Ended</SelectItem>
+          {STATUS_OPTIONS.map((option) => (
+            <SelectItem key={option.value || 'ALL_STATUS'} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
         </Select>
       </div>
     </div>

@@ -1,6 +1,11 @@
 import { createInitialCourseMappingForm, buildEditForm } from './courseMappingPage.form';
 import { buildAddPayload, buildEditPayload, validateAvailabilityAssignments } from './courseMappingPage.payloads';
 
+function getApiErrorMessage(error) {
+  const firstDetail = Array.isArray(error?.response?.data?.errors) ? error.response.data.errors[0] : '';
+  return firstDetail || error?.response?.data?.message || error?.message || 'Request failed';
+}
+
 export function useCourseMappingPageHandlers({
   state, classes, classMap, teachingTypeAdd, teachingTypeEdit, createMapping, updateMapping, deleteMapping,
 }) {
@@ -61,7 +66,7 @@ export function useCourseMappingPageHandlers({
     } catch (error) {
       console.error('[submitAdd] Error:', error);
       console.error('[submitAdd] Error response:', error.response?.data);
-      state.setAddError(error.response?.data?.message || error.message);
+      state.setAddError(getApiErrorMessage(error));
     }
   };
 
@@ -87,7 +92,7 @@ export function useCourseMappingPageHandlers({
       state.setEditOpen(false);
       state.setEditing(null);
     } catch (error) {
-      state.setEditError(error.response?.data?.message || error.message);
+      state.setEditError(getApiErrorMessage(error));
     }
   };
 

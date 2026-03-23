@@ -33,14 +33,106 @@ export const lecturerDisplayFromMapping = (m) => {
   return `${title ? `${title} ` : ''}${name || ''}`.trim();
 };
 
+export const getMappingTheoryHourLabel = (m) => {
+  const theoryHours = String(m?.theory_hours || '').trim().toLowerCase();
+  if (theoryHours === '15h' || theoryHours === '30h') return theoryHours;
+  const typeHours = String(m?.type_hours || '');
+  if (/15h/i.test(typeHours)) return '15h';
+  if (/30h/i.test(typeHours) && /theory/i.test(typeHours)) return '30h';
+  return '';
+};
+
+export const getMappingTheoryGroupCount = (m) => {
+  if (Array.isArray(m?._theoryGroupIds) && m._theoryGroupIds.length) return m._theoryGroupIds.length;
+  if (Array.isArray(m?.theory_group_ids) && m.theory_group_ids.length) return m.theory_group_ids.length;
+  return toInt(m?.theory_groups ?? m?.groups_15h ?? m?.groups_theory ?? m?.group_count_theory ?? 0);
+};
+
+export const getMappingLabGroupCount = (m) => {
+  if (Array.isArray(m?._labGroupIds) && m._labGroupIds.length) return m._labGroupIds.length;
+  if (Array.isArray(m?.lab_group_ids) && m.lab_group_ids.length) return m.lab_group_ids.length;
+  return toInt(m?.lab_groups ?? m?.practice_groups ?? m?.practical_groups ?? m?.groups_30h ?? m?.groups_lab ?? m?.group_count_lab ?? 0);
+};
+
+export const canCombineTheoryFromMapping = (m) => {
+  const theoryHours = getMappingTheoryHourLabel(m);
+  return (theoryHours === '15h' || theoryHours === '30h') && getMappingTheoryGroupCount(m) > 1;
+};
+
+export const aggregateContractMappings = (rows, getExtraKey) => {
+  const grouped = new Map();
+
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const courseId = normId(row?.course?.id ?? row?.course_id);
+    const classId = normId(row?.class?.id ?? row?.class_id);
+    const yearLevel = String(row?.year_level ?? '').trim();
+    const term = String(row?.term ?? '').trim();
+    const academicYear = String(row?.academic_year ?? row?.class?.academic_year ?? '').trim();
+    const extraKey = typeof getExtraKey === 'function' ? normId(getExtraKey(row)) : null;
+    const key = [courseId || '', classId || '', yearLevel, term, academicYear, extraKey || ''].join('|');
+    if (!key) continue;
+
+    if (!grouped.has(key)) {
+      grouped.set(key, {
+        first: row,
+        ids: [],
+        theoryGroupIds: new Set(),
+        labGroupIds: new Set(),
+        fallbackTheoryGroups: 0,
+        fallbackLabGroups: 0,
+        theoryHours: '',
+        labHours: '',
+        theoryCombined: false,
+      });
+    }
+
+    const current = grouped.get(key);
+    current.ids.push(row?.id);
+
+    const groupId = normId(row?.group?.id ?? row?.group_id);
+    const theoryGroups = getMappingTheoryGroupCount(row);
+    const labGroups = getMappingLabGroupCount(row);
+
+    if (groupId) {
+      if (theoryGroups > 0) current.theoryGroupIds.add(groupId);
+      if (labGroups > 0) current.labGroupIds.add(groupId);
+    } else {
+      current.fallbackTheoryGroups = Math.max(current.fallbackTheoryGroups, theoryGroups);
+      current.fallbackLabGroups = Math.max(current.fallbackLabGroups, labGroups);
+    }
+
+    const theoryHours = getMappingTheoryHourLabel(row);
+    if (!current.theoryHours && theoryHours) current.theoryHours = theoryHours;
+    if (!current.labHours && String(row?.lab_hours || '').trim()) current.labHours = String(row.lab_hours).trim().toLowerCase();
+    current.theoryCombined = current.theoryCombined || toBool(row?.theory_combined ?? row?.theory_15h_combined ?? row?.combine_theory_groups);
+  }
+
+  return Array.from(grouped.entries()).map(([key, current]) => {
+    const theoryGroups = current.theoryGroupIds.size || current.fallbackTheoryGroups;
+    const labGroups = current.labGroupIds.size || current.fallbackLabGroups;
+    const first = current.first;
+    return {
+      ...first,
+      id: current.ids.length === 1 && first?.id != null ? first.id : `agg:${key}`,
+      ids: current.ids.filter((value) => value != null),
+      theory_hours: current.theoryHours || first?.theory_hours || '',
+      theory_groups: theoryGroups,
+      lab_hours: current.labHours || first?.lab_hours || '',
+      lab_groups: labGroups,
+      theory_combined: current.theoryCombined,
+      _theoryGroupIds: Array.from(current.theoryGroupIds),
+      _labGroupIds: Array.from(current.labGroupIds),
+    };
+  });
+};
+
 export const hoursFromMapping = (m) => {
   if (!m || typeof m !== 'object') return 0;
-  const typeHoursStr = String(m.type_hours || '');
-  const th = String(m.theory_hours || '').toLowerCase();
-  const theory15 = th === '15h' || (!th && /15h/i.test(typeHoursStr));
-  const theory30 = th === '30h' || (!th && /30h/i.test(typeHoursStr));
-  const theoryGroups = toInt(m.theory_groups ?? m.groups_15h ?? m.groups_theory ?? m.group_count_theory ?? 0);
-  const labGroups = toInt(m.lab_groups ?? m.practice_groups ?? m.practical_groups ?? m.groups_30h ?? m.groups_lab ?? m.group_count_lab ?? 0);
+  const theoryHoursLabel = getMappingTheoryHourLabel(m);
+  const theory15 = theoryHoursLabel === '15h';
+  const theory30 = theoryHoursLabel === '30h';
+  const theoryGroups = getMappingTheoryGroupCount(m);
+  const labGroups = getMappingLabGroupCount(m);
   const theoryCombined = toBool(m.theory_combined ?? m.theory_15h_combined ?? m.combine_theory_groups ?? m.combined_theory ?? m.combine);
   let theoryHours = 0;
   if (theory15) theoryHours = theoryCombined ? (theoryGroups > 0 ? 15 : 0) : (15 * theoryGroups);

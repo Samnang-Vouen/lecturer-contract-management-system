@@ -38,10 +38,15 @@ export function deriveAdvisorContractStatus(contract) {
 }
 
 export function normalizeAdvisorContract(contract) {
+  const rawStatus = normalizeStatus(contract?.status || '');
   return {
     ...(contract || {}),
     contract_type: 'ADVISOR',
     status: deriveAdvisorContractStatus(contract || {}),
+    latest_redo_requester_role:
+      contract?.latest_redo_requester_role ||
+      (rawStatus === 'REQUEST_REDO' && contract?.advisor_remarks ? 'ADVISOR' : null) ||
+      (rawStatus === 'REQUEST_REDO' && contract?.management_remarks ? 'MANAGEMENT' : null),
   };
 }
 

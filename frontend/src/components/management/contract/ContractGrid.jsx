@@ -11,6 +11,8 @@ export default function ContractGrid({
   onPreview, 
   onDownload, 
   onSign, 
+  onRedo,
+  onViewRedoMessage,
   onShowDetail,
   downloadingId 
 }) {
@@ -46,6 +48,8 @@ export default function ContractGrid({
             onPreview={onPreview}
             onDownload={onDownload}
             onSign={onSign}
+            onRedo={onRedo}
+            onViewRedoMessage={onViewRedoMessage}
             onShowDetail={onShowDetail}
             downloadingId={downloadingId}
           />

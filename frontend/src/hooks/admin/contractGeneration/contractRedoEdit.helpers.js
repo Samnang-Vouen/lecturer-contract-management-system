@@ -1,4 +1,4 @@
-import { hoursFromMapping, normId, toBool } from '../../../utils/contractHelpers';
+import { canCombineTheoryFromMapping, hoursFromMapping, normId, toBool } from '../../../utils/contractHelpers';
 
 export function toDateInputValue(value) {
   if (!value) return '';
@@ -135,13 +135,9 @@ export function buildSelectedCourses({ yearMappings, selectedMappingIds, contrac
       return !mappingLecturerId || mappingLecturerId === contractLecturerId;
     })
     .map((mapping) => {
-      const typeHours = String(mapping.type_hours || '');
-      const theoryHours = String(mapping.theory_hours || '').toLowerCase();
-      const is15h = theoryHours === '15h' || (!theoryHours && /15h/i.test(typeHours));
-      const is30h = theoryHours === '30h' || (!theoryHours && /30h/i.test(typeHours));
-      const theoryGroups = Number(mapping.theory_groups ?? mapping.groups_15h ?? mapping.groups_theory ?? mapping.group_count_theory ?? 0) || 0;
-      const canCombineTheory = (is15h || is30h) && theoryGroups > 1;
-      const theoryCombined = canCombineTheory ? !!(combineByMapping?.[mapping.id] ?? mapping.theory_combined) : false;
+      const theoryCombined = canCombineTheoryFromMapping(mapping)
+        ? !!(combineByMapping?.[mapping.id] ?? mapping.theory_combined)
+        : false;
       return {
         course_id: mapping.course?.id,
         class_id: mapping.class?.id,

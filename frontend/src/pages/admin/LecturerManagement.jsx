@@ -108,6 +108,11 @@ export default function LecturerManagement() {
 
   // ── Handle lecturer creation (manual) ──────────────────────────────────────
   const handleLecturerCreated = (lec) => {
+    if (!lec) return;
+    if (Array.isArray(lec) || lec.bulkImport || lec.importedCount) {
+      refreshLecturers();
+      return;
+    }
     const raw = lec.email.split('@')[0].replace(/\./g, ' ');
     const display = raw.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
     const normalized = {

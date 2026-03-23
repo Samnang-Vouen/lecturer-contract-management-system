@@ -4,7 +4,7 @@ import { usePopoverPosition } from './usePopoverPosition.js';
 
 const LIMITS = {
   THEORY_15H: { min: 1, max: 1 },
-  THEORY_30H: { min: 1, max: 2 },
+  THEORY_30H: { min: 2, max: 2 },
   LAB: { min: 2, max: 2 },
 };
 
@@ -14,7 +14,8 @@ const normalizeIdArray = (arr) => Array.from(new Set((Array.isArray(arr) ? arr :
  * Manages the Availability popover state.
  *
  * New behavior (when Theory/Lab groups are selected):
- * - Theory: 1 session per selected group
+ * - Theory 15h: 1 session per selected group
+ * - Theory 30h: 2 sessions per selected group
  * - Lab: 2 sessions per selected group
  * - A time slot cannot be reused across groups/types
  *

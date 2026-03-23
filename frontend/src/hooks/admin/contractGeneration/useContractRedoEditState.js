@@ -5,6 +5,7 @@ import { extractTeachingCourses, isAdvisorContract, normalizeStringList, toDateI
 export function useContractRedoEditState({ open, contract, currentAcademicYear }) {
   const advisor = useMemo(() => isAdvisorContract(contract), [contract]);
   const contractLecturerId = useMemo(() => normId(contract?.lecturer_user_id ?? contract?.lecturer?.user_id ?? contract?.lecturer?.id ?? null), [contract]);
+  const contractLecturerProfileId = useMemo(() => normId(contract?.lecturer?.LecturerProfile?.id ?? null), [contract]);
 
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -136,6 +137,7 @@ export function useContractRedoEditState({ open, contract, currentAcademicYear }
   return {
     advisor,
     contractLecturerId,
+    contractLecturerProfileId,
     startDate,
     setStartDate,
     endDate,

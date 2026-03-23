@@ -20,6 +20,8 @@ export const getStatusLabel = (status) => {
       return { label: 'waiting lecturer', class: 'bg-amber-50 text-amber-700 border-amber-200', icon: Clock };
     case 'MANAGEMENT_SIGNED':
       return { label: 'waiting lecturer', class: 'bg-amber-50 text-amber-700 border-amber-200', icon: Clock };
+    case 'REQUEST_REDO':
+      return { label: 'request redo', class: 'bg-red-50 text-red-700 border-red-200', icon: AlertCircle };
     case 'COMPLETED':
       return { label: 'completed', class: 'bg-green-50 text-green-700 border-green-200', icon: CircleCheck };
     case 'CONTRACT_ENDED':
@@ -27,6 +29,103 @@ export const getStatusLabel = (status) => {
     default:
       return { label: 'draft', class: 'bg-gray-100 text-gray-700 border-gray-200', icon: Clock };
   }
+};
+
+export const getManagementStatusLabel = (contractOrStatus, latestRedoRequesterRole) => {
+  const status =
+    contractOrStatus && typeof contractOrStatus === 'object'
+      ? contractOrStatus.status
+      : contractOrStatus;
+  const requesterRole = String(
+    contractOrStatus && typeof contractOrStatus === 'object'
+      ? contractOrStatus.latest_redo_requester_role
+      : latestRedoRequesterRole
+  )
+    .trim()
+    .toUpperCase();
+  const st = String(status || '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '_');
+
+  if (st === 'REQUEST_REDO' && requesterRole === 'MANAGEMENT') {
+    return {
+      label: 'waiting for response',
+      class: 'bg-orange-50 text-orange-700 border-orange-200',
+      icon: Clock,
+    };
+  }
+
+  return getStatusLabel(status);
+};
+
+export const getRedoRequesterRole = (contract) => {
+  const requesterRole = String(contract?.latest_redo_requester_role || '')
+    .trim()
+    .toUpperCase();
+
+  if (requesterRole) {
+    return requesterRole;
+  }
+
+  if (contract?.advisor_remarks) {
+    return 'ADVISOR';
+  }
+
+  return contract?.management_remarks ? 'MANAGEMENT' : '';
+};
+
+export const getActiveRedoMessage = (contract) => {
+  const requesterRole = getRedoRequesterRole(contract);
+
+  if (requesterRole === 'ADVISOR') {
+    return contract?.advisor_remarks || contract?.management_remarks || '';
+  }
+
+  if (requesterRole === 'MANAGEMENT') {
+    return contract?.management_remarks || contract?.advisor_remarks || '';
+  }
+
+  return contract?.management_remarks || contract?.advisor_remarks || '';
+};
+
+export const hasRedoMessage = (contract) => {
+  const status = String(contract?.status || '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '_');
+
+  if (status !== 'REQUEST_REDO') {
+    return false;
+  }
+
+  return Boolean(getActiveRedoMessage(contract));
+};
+
+export const hasManagementRedoMessage = (contract) => {
+  const status = String(contract?.status || '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '_');
+
+  if (status !== 'REQUEST_REDO') {
+    return false;
+  }
+
+  const requesterRole = getRedoRequesterRole(contract);
+  if (requesterRole) {
+    return requesterRole === 'MANAGEMENT' && Boolean(contract?.management_remarks);
+  }
+
+  return Boolean(contract?.management_remarks);
+};
+
+export const getManagementRedoMessage = (contract) => {
+  if (!hasManagementRedoMessage(contract)) {
+    return '';
+  }
+
+  return contract?.management_remarks || '';
 };
 
 /**
