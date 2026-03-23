@@ -26,3 +26,8 @@ export async function getEvaluationSummary() {
   const res = await axiosInstance.get("/evaluations/summary/list");
   return res.data;
 }
+
+export async function getEvaluationResults(evaluationId) {
+  const res = await axiosInstance.get(`/evaluations/${evaluationId}/results`);
+  return res.data;
+}

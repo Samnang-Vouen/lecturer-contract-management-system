@@ -27,6 +27,8 @@
     "exceljs": "^4.4.0",
     "framer-motion": "^12.23.12",
     "hoist-non-react-statics": "^3.3.2",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.7",
     "libphonenumber-js": "^1.12.15",
     "lucide-react": "^0.539.0",
     "pdfmake": "^0.2.20",

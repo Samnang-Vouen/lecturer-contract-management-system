@@ -5,6 +5,17 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { FileText, FolderUp, Loader2, Search, Users } from "lucide-react";
+import toast from "react-hot-toast";
+import { listCourseMappings } from "../../services/courseMapping.service";
+import { listLecturers } from "../../services/lecturer.service";
+import {
+  getEvaluationResults,
+  getEvaluationSummary,
+  uploadEvaluationFile,
+} from "../../services/evaluation.service";
+import { getSocket } from "../../services/socket";
+import { useAuthStore } from "../../store/useAuthStore";
 
 // Modal for file upload
 function UploadModal({
@@ -27,7 +38,7 @@ function UploadModal({
   const [authToken, setAuthToken] = useState("");
   const [inputType, setInputType] = useState("lecturer-names");
   const [lecturerNamesText, setLecturerNamesText] = useState(() =>
-    JSON.stringify(getInitialLecturerNames())
+    JSON.stringify(getInitialLecturerNames()),
   );
   const [selectedFile, setSelectedFile] = useState(null);
   const [localError, setLocalError] = useState("");
@@ -280,16 +291,143 @@ function UploadModal({
     </div>
   );
 }
-import { FolderUp, Loader2, Search, Users } from "lucide-react";
-import toast from "react-hot-toast";
-import { listCourseMappings } from "../../services/courseMapping.service";
-import { listLecturers } from "../../services/lecturer.service";
-import {
-  getEvaluationSummary,
-  uploadEvaluationFile,
-} from "../../services/evaluation.service";
-import { getSocket } from "../../services/socket";
-import { useAuthStore } from "../../store/useAuthStore";
+
+function GeneratePdfModal({ open, onClose, onConfirm, rows, isGenerating }) {
+  const [mode, setMode] = useState("all");
+  const [selectedKeys, setSelectedKeys] = useState([]);
+
+  useEffect(() => {
+    if (!open) return;
+    setMode("all");
+    setSelectedKeys(toArray(rows).map((row) => row.key));
+  }, [open, rows]);
+
+  if (!open) return null;
+
+  const toggleKey = (key) => {
+    setSelectedKeys((prev) =>
+      prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key],
+    );
+  };
+
+  const selectedRows = toArray(rows).filter((row) =>
+    selectedKeys.includes(row.key),
+  );
+
+  const handleConfirm = () => {
+    if (mode === "all") {
+      onConfirm(toArray(rows), { mode: "all" });
+      return;
+    }
+
+    if (!selectedRows.length) {
+      toast.error("Please select at least one lecturer");
+      return;
+    }
+
+    onConfirm(selectedRows, { mode: "selected" });
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30"
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-2xl rounded-xl bg-white p-6 shadow-lg"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          className="absolute right-4 top-4 text-2xl text-red-500 hover:text-red-700"
+          onClick={onClose}
+          aria-label="Close"
+          disabled={isGenerating}
+        >
+          &times;
+        </button>
+
+        <h2 className="mb-4 text-2xl font-semibold">Generate PDF</h2>
+
+        <div className="mb-4 space-y-2">
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-800">
+            <input
+              type="radio"
+              name="pdf-mode"
+              value="all"
+              checked={mode === "all"}
+              onChange={() => setMode("all")}
+              disabled={isGenerating}
+            />
+            Generate for all visible lecturers ({toArray(rows).length})
+          </label>
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-800">
+            <input
+              type="radio"
+              name="pdf-mode"
+              value="selected"
+              checked={mode === "selected"}
+              onChange={() => setMode("selected")}
+              disabled={isGenerating}
+            />
+            Choose specific lecturer(s)
+          </label>
+        </div>
+
+        {mode === "selected" ? (
+          <div className="mb-4 max-h-72 overflow-y-auto rounded-xl border border-slate-200 p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs text-slate-500">
+                {selectedRows.length} selected
+              </p>
+              <button
+                type="button"
+                className="text-xs font-medium text-blue-600 hover:text-blue-800"
+                onClick={() =>
+                  setSelectedKeys(toArray(rows).map((row) => row.key))
+                }
+                disabled={isGenerating}
+              >
+                Select all
+              </button>
+            </div>
+            <div className="space-y-2">
+              {toArray(rows).map((row) => (
+                <label
+                  key={row.key}
+                  className="flex cursor-pointer items-start gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-50"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedKeys.includes(row.key)}
+                    onChange={() => toggleKey(row.key)}
+                    disabled={isGenerating}
+                  />
+                  <span className="text-sm text-slate-700">
+                    <span className="font-semibold text-slate-900">
+                      {row.lecturerName}
+                    </span>
+                    <span className="block text-xs text-slate-500">
+                      {row.course} - {row.term}
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        <button
+          type="button"
+          onClick={handleConfirm}
+          disabled={isGenerating}
+          className="w-full rounded bg-green-600 px-4 py-2.5 font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isGenerating ? "Generating..." : "Generate PDF"}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function toArray(value) {
   return Array.isArray(value) ? value : [];
@@ -329,6 +467,103 @@ function formatScore(score) {
     ? String(rounded)
     : rounded.toFixed(1);
   return `${scoreLabel}/5`;
+}
+
+const DEFAULT_QUESTION_TEXT_BY_ID = {
+  1: "How would you rate the clarity and organization of the course content and materials?",
+  2: "Do you feel the instructor effectively engages students through various teaching techniques?",
+  3: "Do you feel comfortable asking questions or seeking clarification from the instructor?",
+  4: "Do you receive timely and constructive feedback on your assignments and assessments?",
+  5: "Are the lecturer's teaching methods effective?",
+};
+
+function buildQuestionRowsFromResults(resultsBody, lecturerId) {
+  const groups = Object.values(resultsBody?.groups || {});
+  const questionCatalog = toArray(resultsBody?.question_catalog);
+  const questionMetaById = new Map(
+    questionCatalog.map((question) => [
+      String(question?.id),
+      {
+        orderNo: Number(question?.order_no),
+        text: String(question?.question_text || "").trim(),
+      },
+    ]),
+  );
+  const weightedByQuestion = new Map();
+  let overallWeightedSum = 0;
+  let overallWeight = 0;
+
+  groups.forEach((group) => {
+    const weight = Number(group?.responses_received);
+    const normalizedWeight = Number.isFinite(weight) && weight > 0 ? weight : 1;
+    const lecturerData = group?.lecturer_evaluations?.[String(lecturerId)];
+    if (!lecturerData) return;
+
+    const questionAverages = lecturerData.question_averages || {};
+    Object.entries(questionAverages).forEach(([questionId, score]) => {
+      const numeric = Number(score);
+      if (!Number.isFinite(numeric)) return;
+      const prev = weightedByQuestion.get(questionId) || { sum: 0, weight: 0 };
+      prev.sum += numeric * normalizedWeight;
+      prev.weight += normalizedWeight;
+      weightedByQuestion.set(questionId, prev);
+    });
+
+    const overall = Number(lecturerData.overall_average);
+    if (Number.isFinite(overall)) {
+      overallWeightedSum += overall * normalizedWeight;
+      overallWeight += normalizedWeight;
+    }
+  });
+
+  const sortedQuestionIds = Array.from(weightedByQuestion.keys()).sort(
+    (a, b) => {
+      const metaA = questionMetaById.get(String(a));
+      const metaB = questionMetaById.get(String(b));
+      const orderA = Number.isFinite(metaA?.orderNo)
+        ? metaA.orderNo
+        : Number(a);
+      const orderB = Number.isFinite(metaB?.orderNo)
+        ? metaB.orderNo
+        : Number(b);
+      return orderA - orderB;
+    },
+  );
+  if (!sortedQuestionIds.length) return null;
+
+  const questionOrders = [];
+  const questionRows = sortedQuestionIds.map((questionId) => {
+    const meta = questionMetaById.get(String(questionId));
+    const displayOrder = Number.isFinite(meta?.orderNo)
+      ? meta.orderNo
+      : Number(questionId);
+    questionOrders.push(displayOrder);
+
+    const stat = weightedByQuestion.get(questionId);
+    const avg = stat && stat.weight > 0 ? stat.sum / stat.weight : null;
+    const fallbackText = DEFAULT_QUESTION_TEXT_BY_ID[displayOrder] || "";
+    const questionText = meta?.text || fallbackText;
+    const questionTitle = questionText
+      ? `Q${displayOrder}. ${questionText}`
+      : `Q${displayOrder}`;
+    return [questionTitle, avg === null ? "-" : formatScore(avg)];
+  });
+
+  const overallAverage =
+    overallWeight > 0 ? overallWeightedSum / overallWeight : null;
+  const validOrders = questionOrders.filter((order) => Number.isFinite(order));
+  const minQuestionNo = validOrders.length ? Math.min(...validOrders) : 1;
+  const maxQuestionNo = validOrders.length
+    ? Math.max(...validOrders)
+    : sortedQuestionIds.length;
+
+  return {
+    questionRows,
+    questionCount: sortedQuestionIds.length,
+    overallAverage,
+    minQuestionNo,
+    maxQuestionNo,
+  };
 }
 
 async function fetchAllCourseMappings() {
@@ -405,6 +640,7 @@ function buildLecturerRows(
 
       grouped.set(key, {
         key,
+        evaluationId: summary?.evaluation_id || null,
         lecturerId,
         lecturerName,
         lecturerEmail:
@@ -474,7 +710,9 @@ export default function UploadEvaluation() {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [generateModalOpen, setGenerateModalOpen] = useState(false);
   const [uploadResult, setUploadResult] = useState(null);
 
   const loadRows = useCallback(async () => {
@@ -587,6 +825,197 @@ export default function UploadEvaluation() {
     return Math.max(...visibleRows.map((row) => row.groupNames.length || 0), 1);
   }, [visibleRows]);
 
+  const handleGeneratePDF = useCallback(async (targetRows, options = {}) => {
+    const rowsToGenerate = toArray(targetRows);
+    if (!rowsToGenerate.length) {
+      toast.error("No lecturer rows to export");
+      return;
+    }
+
+    const combineIntoSingleFile = options?.mode === "all";
+
+    setIsGeneratingPdf(true);
+
+    try {
+      const [{ jsPDF }, { default: autoTable }] = await Promise.all([
+        import("jspdf"),
+        import("jspdf-autotable"),
+      ]);
+
+      const isPositiveInt = (value) =>
+        Number.isInteger(Number(value)) && Number(value) > 0;
+
+      const evaluationIds = Array.from(
+        new Set(
+          rowsToGenerate
+            .map((row) => Number(row?.evaluationId))
+            .filter((id) => isPositiveInt(id)),
+        ),
+      );
+
+      const resultPairs = await Promise.all(
+        evaluationIds.map(async (evaluationId) => {
+          try {
+            const body = await getEvaluationResults(evaluationId);
+            return [evaluationId, body];
+          } catch (error) {
+            console.error(
+              `[UploadEvaluation] failed to load evaluation results for ${evaluationId}`,
+              error,
+            );
+            return [evaluationId, null];
+          }
+        }),
+      );
+      const resultsByEvaluationId = new Map(resultPairs);
+
+      let generatedCount = 0;
+      const sharedDoc = combineIntoSingleFile
+        ? new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" })
+        : null;
+
+      rowsToGenerate.forEach((row, index) => {
+        const doc =
+          sharedDoc ||
+          new jsPDF({
+            orientation: "landscape",
+            unit: "pt",
+            format: "a4",
+          });
+
+        if (sharedDoc && index > 0) {
+          doc.addPage();
+        }
+
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const leftX = 40;
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(24);
+        doc.text("Instructor Faculty Evaluation", pageWidth / 2, 48, {
+          align: "center",
+        });
+
+        doc.setFontSize(14);
+        doc.text("Instructor", leftX, 92);
+        doc.text(":", leftX + 110, 92);
+        doc.setFont("helvetica", "normal");
+        doc.text(String(row.lecturerName || "-"), leftX + 125, 92);
+
+        doc.setFont("helvetica", "bold");
+        doc.text("Subject", leftX, 120);
+        doc.text(":", leftX + 110, 120);
+        doc.setFont("helvetica", "normal");
+        doc.text(String(row.course || "-"), leftX + 125, 120);
+
+        doc.setFont("helvetica", "bold");
+        doc.text("Term", leftX, 148);
+        doc.text(":", leftX + 110, 148);
+        doc.setFont("helvetica", "normal");
+        doc.text(String(row.term || "-"), leftX + 125, 148);
+
+        doc.setFont("helvetica", "bold");
+        doc.text("Academic Year", leftX, 176);
+        doc.text(":", leftX + 110, 176);
+        doc.setFont("helvetica", "normal");
+        doc.text(String(row.academicYear || "-"), leftX + 125, 176);
+
+        const fallbackGroupRows = Array.from(
+          { length: Math.max(row.groupNames.length, 1) },
+          (_, index) => {
+            const groupName = row.groupNames[index];
+            if (!groupName) {
+              return ["-", "-"];
+            }
+            const score = row.groupScoreByName
+              ? row.groupScoreByName[groupName]
+              : null;
+            return [groupName, formatScore(score)];
+          },
+        );
+
+        const resultsBody = resultsByEvaluationId.get(
+          Number(row?.evaluationId),
+        );
+        const questionSummary = buildQuestionRowsFromResults(
+          resultsBody,
+          Number(row?.lecturerId),
+        );
+
+        const tableRows = questionSummary?.questionRows?.length
+          ? [
+              ...questionSummary.questionRows,
+              [
+                `Average of Q${questionSummary.minQuestionNo} to Q${questionSummary.maxQuestionNo}`,
+                questionSummary.overallAverage === null
+                  ? "-"
+                  : formatScore(questionSummary.overallAverage),
+              ],
+            ]
+          : fallbackGroupRows;
+
+        if (!questionSummary?.questionRows?.length) {
+          tableRows.push(["Total Point", formatScore(row.totalPoint)]);
+        }
+
+        autoTable(doc, {
+          startY: 210,
+          head: [
+            [
+              questionSummary?.questionRows?.length ? "Question" : "Group",
+              "Score",
+            ],
+          ],
+          body: tableRows,
+          theme: "grid",
+          styles: { fontSize: 12, cellPadding: 8, valign: "middle" },
+          headStyles: { fillColor: [224, 231, 239], textColor: [15, 23, 42] },
+          columnStyles: {
+            0: { cellWidth: 520 },
+            1: { cellWidth: 110, halign: "center" },
+          },
+        });
+
+        const safeName = String(row.lecturerName || "lecturer")
+          .replace(/[^a-zA-Z0-9-_ ]/g, "")
+          .trim()
+          .replace(/\s+/g, "_");
+        const safeCourse = String(row.course || "course")
+          .replace(/[^a-zA-Z0-9-_ ]/g, "")
+          .trim()
+          .replace(/\s+/g, "_");
+        const safeTerm = String(row.term || "term")
+          .replace(/[^a-zA-Z0-9-_ ]/g, "")
+          .trim()
+          .replace(/\s+/g, "_");
+
+        if (!sharedDoc) {
+          doc.save(
+            `evaluation_${safeName || "lecturer"}_${safeCourse || "course"}_${safeTerm || "term"}.pdf`,
+          );
+        }
+        generatedCount += 1;
+      });
+
+      if (sharedDoc) {
+        sharedDoc.save("lecturer-evaluation-list.pdf");
+      }
+
+      toast.success(
+        combineIntoSingleFile
+          ? `PDF generated for ${generatedCount} lecturers`
+          : generatedCount === 1
+            ? "PDF generated for selected lecturer"
+            : `Generated ${generatedCount} PDF files`,
+      );
+    } catch (error) {
+      console.error("[UploadEvaluation] failed to generate PDF", error);
+      toast.error("Failed to generate PDF");
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  }, []);
+
   const handleFileSelect = useCallback(
     async ({ file, lecturerNames, lecturerIds, inputType }) => {
       if (!file) return;
@@ -645,6 +1074,22 @@ export default function UploadEvaluation() {
     setModalOpen(true);
   }, [lecturerNamesForUpload.length]);
 
+  const onClickGenerate = useCallback(() => {
+    if (!visibleRows.length) {
+      toast.error("No lecturer is available for PDF generation");
+      return;
+    }
+    setGenerateModalOpen(true);
+  }, [visibleRows.length]);
+
+  const onConfirmGenerate = useCallback(
+    async (rowsToGenerate, options) => {
+      setGenerateModalOpen(false);
+      await handleGeneratePDF(rowsToGenerate, options);
+    },
+    [handleGeneratePDF],
+  );
+
   return (
     <>
       {/* Upload Modal */}
@@ -655,6 +1100,13 @@ export default function UploadEvaluation() {
         isUploading={isUploading}
         defaultLecturerNames={lecturerNamesForUpload}
         uploadResult={uploadResult}
+      />
+      <GeneratePdfModal
+        open={generateModalOpen}
+        onClose={() => setGenerateModalOpen(false)}
+        onConfirm={onConfirmGenerate}
+        rows={visibleRows}
+        isGenerating={isGeneratingPdf}
       />
       <div className="min-h-screen bg-slate-100 p-4 sm:p-6">
         <div className="mx-auto max-w-7xl space-y-5">
@@ -669,24 +1121,35 @@ export default function UploadEvaluation() {
                     Upload Evaluation
                   </h1>
                   <p className="text-sm text-slate-500">
-                    Upload Course Evaluation to each lecturer
+                    Upload Course Evaluation of Each lecturer
                   </p>
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={onClickUpload}
-                disabled={isUploading || isLoading}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isUploading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <FolderUp className="h-4 w-4" />
-                )}
-                Upload Files
-              </button>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={onClickUpload}
+                  disabled={isUploading || isLoading}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isUploading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <FolderUp className="h-4 w-4" />
+                  )}
+                  Upload Files
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-green-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  onClick={onClickGenerate}
+                  disabled={isGeneratingPdf || isLoading}
+                >
+                  <FileText className="h-4 w-4" />
+                  {isGeneratingPdf ? "Generating..." : "Generate PDF"}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -708,7 +1171,7 @@ export default function UploadEvaluation() {
               <div className="flex items-center gap-2">
                 <Users className="h-5 w-5 text-blue-600" />
                 <h2 className="text-xl font-semibold text-slate-900">
-                  Lecture List ({visibleRows.length})
+                  Lecturer List ({visibleRows.length})
                 </h2>
               </div>
               <p className="text-sm text-slate-500">
