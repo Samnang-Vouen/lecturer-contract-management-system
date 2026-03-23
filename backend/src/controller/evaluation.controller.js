@@ -359,6 +359,11 @@ export const getEvaluationResults = async (req, res) => {
       });
     });
 
+    const questionCatalog = await EvaluationQuestion.findAll({
+      order: [['order_no', 'ASC']],
+      attributes: ['id', 'question_text', 'order_no'],
+    });
+
     res.status(200).json({
       evaluation_id: evaluation.id,
       course_mapping_id: evaluation.course_mapping_id,
@@ -373,6 +378,7 @@ export const getEvaluationResults = async (req, res) => {
       },
       total_submissions: evaluation.EvaluationSubmissions?.length || 0,
       groups: groupedData,
+      question_catalog: questionCatalog,
     });
   } catch (err) {
     return res.status(500).json({
