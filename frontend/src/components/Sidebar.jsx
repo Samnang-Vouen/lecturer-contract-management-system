@@ -29,14 +29,14 @@ import {
 
 // Font styles
 const sidebarFont = {
-  fontFamily: `'Inter', 'Segoe UI', Arial, sans-serif`,
+  fontFamily: `'Inter', 'Kantumruy Pro', 'Segoe UI', Arial, sans-serif`,
   fontSize: "18px",
   fontWeight: 400,
   letterSpacing: "0.01em",
 };
 
 const sidebarHeadingFont = {
-  fontFamily: `'Inter', 'Segoe UI', Arial, sans-serif`,
+  fontFamily: `'Inter', 'Kantumruy Pro', 'Segoe UI', Arial, sans-serif`,
   fontSize: "20px",
   fontWeight: 600,
   letterSpacing: "0.01em",
@@ -472,6 +472,24 @@ export function Sidebar({
                   >
                     <FolderUp className="h-4 w-4" />
                     <span>Upload Evaluation</span>
+                  </div>
+                </Link>
+
+                <Link
+                  to="/admin/rate-hour"
+                  onClick={isMobile ? onClose : undefined}
+                >
+                  <div
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200 hover:bg-blue-50",
+                      location.pathname.includes("/admin/rate-hour")
+                        ? "bg-blue-50 text-blue-600"
+                        : "text-gray-600 hover:text-blue-600",
+                    )}
+                    style={sidebarFont}
+                  >
+                    <FileBarChart className="h-4 w-4" />
+                    <span>Rate Hour</span>
                   </div>
                 </Link>
               </>

@@ -13,6 +13,7 @@ import LecturerCourse from './lecturerCourse.model.js';
 import LecturerResearchField from './lecturerResearchField.model.js';
 import CourseMapping from './courseMapping.model.js';
 import Candidate from './candidate.model.js';
+import HourlyRateHistory from './hourlyRateHistory.model.js';
 import { InterviewQuestion } from './interviewQuestion.model.js';
 import { CandidateQuestion } from './candidateQuestion.model.js';
 import University from './university.model.js';
@@ -75,6 +76,19 @@ LecturerProfile.belongsTo(Candidate, {
 Candidate.hasOne(LecturerProfile, {
   foreignKey: 'candidate_id',
   onDelete: 'SET NULL',
+  onUpdate: 'CASCADE',
+});
+
+LecturerProfile.hasMany(HourlyRateHistory, {
+  foreignKey: 'lecturer_profile_id',
+  as: 'HourlyRateHistories',
+  onDelete: 'CASCADE',
+  onUpdate: 'CASCADE',
+});
+HourlyRateHistory.belongsTo(LecturerProfile, {
+  foreignKey: 'lecturer_profile_id',
+  as: 'LecturerProfile',
+  onDelete: 'CASCADE',
   onUpdate: 'CASCADE',
 });
 
@@ -470,6 +484,7 @@ export {
   LecturerResearchField,
   CourseMapping,
   Candidate,
+  HourlyRateHistory,
   InterviewQuestion,
   CandidateQuestion,
   University,
