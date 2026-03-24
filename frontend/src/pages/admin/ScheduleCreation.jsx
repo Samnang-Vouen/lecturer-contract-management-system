@@ -211,7 +211,7 @@ export default function ScheduleCreation() {
                 <button
                   type="button"
                   onClick={handleBackToGroups}
-                  className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50"
+                  className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50"
                   aria-label="Back to groups"
                 >
                   <ArrowLeft className="h-4 w-4" />
@@ -231,7 +231,7 @@ export default function ScheduleCreation() {
                   type="button"
                   onClick={() => openEmptyCellDialog("single", selectedPreviewGroup)}
                   disabled={isGroupPdfLoading}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isGroupPdfLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
                   {isGroupPdfLoading ? "Generating PDF..." : "Generate PDF"}
@@ -267,7 +267,7 @@ export default function ScheduleCreation() {
                       value={selectedAcademicYear}
                       onValueChange={handleAcademicYearChange}
                       className="w-full"
-                      buttonClassName="h-10 rounded-xl border-slate-300 bg-white text-sm text-slate-700 focus:ring-2 focus:ring-blue-100"
+                      buttonClassName="h-10 rounded-lg border-slate-300 bg-white text-sm text-slate-700 focus:ring-2 focus:ring-blue-100"
                       oneLine
                     >
                       {academicYearOptions.map((year) => (
@@ -284,7 +284,7 @@ export default function ScheduleCreation() {
                       value={selectedSpecialization}
                       onValueChange={handleSpecializationChange}
                       className="w-full"
-                      buttonClassName="h-10 rounded-xl border-slate-300 bg-white text-sm text-slate-700 focus:ring-2 focus:ring-blue-100"
+                      buttonClassName="h-10 rounded-lg border-slate-300 bg-white text-sm text-slate-700 focus:ring-2 focus:ring-blue-100"
                       oneLine
                     >
                       <SelectItem value="all">All Specializations</SelectItem>

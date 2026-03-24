@@ -89,7 +89,7 @@ const navItems = [
     category: null,
   },
   {
-    title: "Contract Management",
+    title: "Contracts",
     href: "/management/contracts",
     icon: FileText,
     roles: ["management"],

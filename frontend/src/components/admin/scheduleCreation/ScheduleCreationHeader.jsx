@@ -31,7 +31,7 @@ export default function ScheduleCreationHeader({
           type="button"
           onClick={() => openEmptyCellDialog("all")}
           disabled={isGenerateAllLoading || !canGenerateAll}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-shrink-0"
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-shrink-0"
         >
           {isGenerateAllLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
           Generate Specialization PDFs
