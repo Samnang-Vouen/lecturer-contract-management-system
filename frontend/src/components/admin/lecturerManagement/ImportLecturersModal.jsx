@@ -62,6 +62,7 @@ export function ImportLecturersPanel({ onClose, onImported, showIntro = true, sh
   const fileInputRef = useRef(null);
   const hasInvalidTitleError = results?.errors?.some((err) => /invalid title value/i.test(String(err?.error || '')));
   const hasInvalidGenderError = results?.errors?.some((err) => /invalid gender value/i.test(String(err?.error || '')));
+  const hasInvalidHourlyRateError = results?.errors?.some((err) => /invalid hourlyrate value|hourly rate must be a valid positive number/i.test(String(err?.error || '')));
 
   const acceptFile = (f) => {
     if (!f) return;
@@ -176,9 +177,14 @@ export function ImportLecturersPanel({ onClose, onImported, showIntro = true, sh
             {results.errors?.length > 0 && (
               <div>
                 <p className="text-sm font-medium text-red-700 mb-2">Errors:</p>
-                {(hasInvalidTitleError || hasInvalidGenderError) && (
+                {(hasInvalidTitleError || hasInvalidGenderError || hasInvalidHourlyRateError) && (
                   <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
                     <p className="text-xs font-medium text-amber-800">Accepted values</p>
+                    {hasInvalidHourlyRateError && (
+                      <p className="text-xs text-amber-700 mt-1">
+                        Hourly Rate: positive number, for example <span className="font-mono">12.50</span>
+                      </p>
+                    )}
                     {hasInvalidTitleError && (
                       <p className="text-xs text-amber-700 mt-1">
                         Title: <span className="font-mono">Mr</span>, <span className="font-mono">Ms</span>, <span className="font-mono">Mrs</span>, <span className="font-mono">Dr</span>, <span className="font-mono">Prof</span>
@@ -208,6 +214,7 @@ export function ImportLecturersPanel({ onClose, onImported, showIntro = true, sh
               <p className="text-sm text-gray-600">
                 Upload the recruitment-format Excel or CSV file to bulk-create lecturer and advisor accounts.
                 A temporary password is generated automatically for each imported user, and a credentials file is returned for download.
+                The Hourly Rate column is required and is saved with the imported account.
               </p>
             )}
 
@@ -261,11 +268,14 @@ export function ImportLecturersPanel({ onClose, onImported, showIntro = true, sh
             <div className="bg-amber-50 border border-amber-100 rounded-lg px-4 py-3">
               <p className="text-xs font-semibold text-amber-800 mb-1">Expected recruitment columns</p>
               <p className="text-xs text-amber-700 font-mono leading-relaxed">
-                fullName · email@cadt.edu.kh · phone · positionAppliedFor · title · gender
+                fullName · email@cadt.edu.kh · Hourly Rate · phone · positionAppliedFor · title · gender
               </p>
               <p className="text-xs text-amber-600 mt-2">
                 Advisor positions create advisor accounts. All other positions create lecturer accounts.
                 Imported emails must use the <span className="font-mono">@cadt.edu.kh</span> domain.
+              </p>
+              <p className="text-xs text-amber-600 mt-2">
+                Hourly Rate is required and must be a positive number.
               </p>
               <p className="text-xs text-amber-600 mt-2">
                 Title values: <span className="font-mono">Mr</span>, <span className="font-mono">Ms</span>, <span className="font-mono">Mrs</span>, <span className="font-mono">Dr</span>, <span className="font-mono">Prof</span>. Gender values: <span className="font-mono">male</span>, <span className="font-mono">female</span>, <span className="font-mono">other</span>.

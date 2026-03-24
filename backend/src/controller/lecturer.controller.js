@@ -71,6 +71,13 @@ const normalizeImportedGender = (value) => {
   return null;
 };
 
+const normalizeImportedHourlyRate = (value) => {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number.parseFloat(String(value).replace(/[^0-9.-]/g, ''));
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return parsed;
+};
+
 const isImportedWorksheetRowEmpty = (row) => {
   if (!row || typeof row !== 'object') return true;
   return Object.values(row).every((value) => {
@@ -982,6 +989,8 @@ export const importLecturersFromExcel = async (req, res) => {
       try {
         const fullName = String(row.fullName || row.full_name || '').trim();
         const email = String(row.email || '').trim().toLowerCase();
+        const rawHourlyRate =
+          row.hourlyRate ?? row.hourly_rate ?? row['Hourly Rate'] ?? row['hourly rate'] ?? '';
         const phone = String(row.phone || row.phone_number || '').trim();
         const titleInput = row.title ?? row.Title ?? '';
         const genderInput = row.gender ?? row.Gender ?? '';
@@ -990,10 +999,26 @@ export const importLecturersFromExcel = async (req, res) => {
         ).trim();
         const interviewDateValue = row.interviewDate || row.interview_date || '';
 
-        if (!fullName || !email) {
+        const missingFields = [];
+        if (!fullName) missingFields.push('fullName');
+        if (!email) missingFields.push('email');
+        if (rawHourlyRate === null || rawHourlyRate === undefined || String(rawHourlyRate).trim() === '') {
+          missingFields.push('hourlyRate');
+        }
+
+        if (missingFields.length > 0) {
           results.errors.push({
             row: rowNumber,
-            error: 'Missing required fields: fullName, email',
+            error: `Missing required fields: ${missingFields.join(', ')}`,
+          });
+          continue;
+        }
+
+        const hourlyRate = normalizeImportedHourlyRate(rawHourlyRate);
+        if (hourlyRate === null) {
+          results.errors.push({
+            row: rowNumber,
+            error: `Invalid hourlyRate value: ${rawHourlyRate}. Hourly Rate must be a valid positive number`,
           });
           continue;
         }
@@ -1076,9 +1101,24 @@ export const importLecturersFromExcel = async (req, res) => {
             { transaction }
           );
 
+          const candidate = await Candidate.create(
+            {
+              fullName,
+              email,
+              phone: phone || null,
+              positionAppliedFor: position || positionAppliedFor || null,
+              interviewDate: joinDate,
+              status: 'done',
+              hourlyRate,
+              dept_id: departmentRow.id,
+            },
+            { transaction }
+          );
+
           const profile = await LecturerProfile.create(
             {
               user_id: newUser.id,
+              candidate_id: candidate.id,
               employee_id: `EMP${String(Date.now()).slice(-6)}${String(i).padStart(2, '0')}`,
               full_name_english: fullName,
               position,
@@ -1111,6 +1151,7 @@ export const importLecturersFromExcel = async (req, res) => {
             profile: {
               position: profile.position,
               fullName: profile.full_name_english,
+              hourlyRate,
             },
           });
           credentialsRows.push({ email, tempPassword });
