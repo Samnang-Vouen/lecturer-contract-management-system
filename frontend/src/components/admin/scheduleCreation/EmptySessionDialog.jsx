@@ -159,13 +159,13 @@ export default function EmptySessionDialog({
         </div>
 
         <div className="shrink-0 flex flex-col-reverse gap-3 border-t border-slate-100 bg-white px-4 py-4 sm:flex-row sm:justify-end sm:px-6 sm:py-5">
-          <Button type="button" onClick={closeEmptyCellDialog} variant="outline" className="w-full rounded-xl sm:w-auto">Cancel</Button>
-          <Button type="button" onClick={handleGenerateWithBlankEmptyCells} variant="secondary" className="w-full rounded-xl sm:w-auto">Keep Blank</Button>
+          <Button type="button" onClick={closeEmptyCellDialog} variant="outline" className="w-full rounded-lg sm:w-auto">Cancel</Button>
+          <Button type="button" onClick={handleGenerateWithBlankEmptyCells} variant="secondary" className="w-full rounded-lg sm:w-auto">Keep Blank</Button>
           <Button
             type="button"
             onClick={handleConfirmEmptyCellDialog}
             disabled={emptyCellDialog.loading || !String(emptyCellText || "").trim() || selectedEmptySessionKeys.length === 0}
-            className="w-full rounded-xl sm:w-auto"
+            className="w-full rounded-lg sm:w-auto"
           >
             Generate
           </Button>
