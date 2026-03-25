@@ -8,7 +8,7 @@ import {
   getLecturerEvaluationPDF,
   getEvaluationSummary,
 } from '../controller/evaluation.controller.js';
-//import { protect, authorizeRoles } from '../middleware/auth.middleware.js';
+import { protect, authorizeRoles } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
@@ -50,8 +50,8 @@ const upload = multer({
   },
 });
 
-// Protect routes - only admin can upload evaluations
-// router.use(protect, authorizeRoles('admin'));
+
+router.use(protect, authorizeRoles('admin'));
 
 router.get('/:evaluationId/lecturer/:lecturerId/pdf', getLecturerEvaluationPDF);
 router.get('/:evaluationId/results', getEvaluationResults);
