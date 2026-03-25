@@ -45,7 +45,7 @@ export function validateAvailabilityAssignments(form) {
   for (const groupId of theorySet) {
     const theory = assignments?.[groupId]?.THEORY || assignments?.[groupId]?.theory || [];
     const count = Array.isArray(theory) ? theory.length : 0;
-    if (theoryHours === '30h' ? count < 1 || count > 2 : count !== 1) errors.push(`Theory Group ${groupId}: ${theoryHours === '30h' ? 'select 1–2 sessions.' : 'select exactly 1 session.'}`);
+    if (theoryHours === '30h' ? count !== 2 : count !== 1) errors.push(`Theory Group ${groupId}: ${theoryHours === '30h' ? 'select exactly 2 sessions.' : 'select exactly 1 session.'}`);
     consume(groupId, 'Theory', theory);
   }
 
@@ -104,6 +104,9 @@ export function buildEditPayload(editing, form, teachingPayload) {
     return payload;
   }
 
+  payload.theory_group_ids = toPositiveIntList(form.theory_group_ids);
+  payload.lab_group_ids = toPositiveIntList(form.lab_group_ids);
+  payload.group_ids = Array.from(new Set([...payload.theory_group_ids, ...payload.lab_group_ids]));
   payload.theory_room_by_group = sanitizeRoomMap(form.theory_group_ids, form.theory_room_by_group);
   payload.lab_room_by_group = sanitizeRoomMap(form.lab_group_ids, form.lab_room_by_group);
   if (hasAssignedSessions) payload.availability_assignments_by_group = assignments;

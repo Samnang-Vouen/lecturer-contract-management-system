@@ -21,7 +21,8 @@ export default function ContractsListCard({
   onDownload,
   onViewDetail,
   onSign,
-  onRedo
+  onRedo,
+  onViewRedoMessage,
 }) {
   const [menuOpenId, setMenuOpenId] = useState(null);
 
@@ -75,6 +76,7 @@ export default function ContractsListCard({
                   <SelectItem value="ALL">All statuses</SelectItem>
                   <SelectItem value="WAITING_ADVISOR">Waiting Advisor</SelectItem>
                   <SelectItem value="WAITING_LECTURER">Waiting Lecturer</SelectItem>
+                  <SelectItem value="WAITING_RESPONSE">Waiting Response</SelectItem>
                   <SelectItem value="WAITING_MANAGEMENT">Waiting Management</SelectItem>
                   <SelectItem value="COMPLETED">Completed</SelectItem>
                   <SelectItem value="CONTRACT_ENDED">Contract Ended</SelectItem>
@@ -108,6 +110,7 @@ export default function ContractsListCard({
                 onViewDetail={() => handleAction(onViewDetail, contract)}
                 onSign={() => handleAction(onSign, contract)}
                 onRedo={() => handleAction(onRedo, contract)}
+                onViewRedoMessage={() => handleAction(onViewRedoMessage, contract)}
               />
             ))}
 

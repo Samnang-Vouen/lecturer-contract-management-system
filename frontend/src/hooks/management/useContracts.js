@@ -3,11 +3,36 @@ import { listContracts } from '../../services/contract.service';
 import { listAdvisorContracts } from '../../services/advisorContract.service';
 import { parseDateOnlyToLocalDate } from '../../utils/lecturerContractHelpers';
 
-function mapAdvisorStatusFilter(status) {
-  const normalized = String(status || '')
+function normalizeStatusValue(value) {
+  return String(value || '')
     .trim()
     .toUpperCase()
     .replace(/\s+/g, '_');
+}
+
+function getManagementDisplayStatus(contract) {
+  const status = normalizeStatusValue(contract?.status);
+  const requesterRole = normalizeStatusValue(contract?.latest_redo_requester_role);
+
+  if (status === 'REQUEST_REDO' && requesterRole === 'MANAGEMENT') {
+    return 'WAITING_RESPONSE';
+  }
+
+  return status;
+}
+
+function mapServerStatusFilter(status) {
+  const normalized = normalizeStatusValue(status);
+
+  if (normalized === 'WAITING_RESPONSE' || normalized === 'REQUEST_REDO') {
+    return 'REQUEST_REDO';
+  }
+
+  return normalized || undefined;
+}
+
+function mapAdvisorStatusFilter(status) {
+  const normalized = mapServerStatusFilter(status);
 
   if (normalized === 'WAITING_ADVISOR') return 'DRAFT';
   if (normalized === 'WAITING_LECTURER') return '__NO_MATCH__';
@@ -62,19 +87,24 @@ export const useContracts = () => {
       ...raw,
       contract_type: 'ADVISOR',
       status: derivedStatus,
+      latest_redo_requester_role:
+        raw?.latest_redo_requester_role ||
+        (statusRaw === 'REQUEST_REDO' && raw?.advisor_remarks ? 'ADVISOR' : null) ||
+        (statusRaw === 'REQUEST_REDO' && raw?.management_remarks ? 'MANAGEMENT' : null),
     };
   };
 
   const fetchContracts = async () => {
     try {
       setLoading(true);
+      const teachingStatus = mapServerStatusFilter(status);
       const advisorStatus = mapAdvisorStatusFilter(status);
       const [teachingResult, advisorResult] = await Promise.allSettled([
         listContracts({
           page,
           limit,
           q: q || undefined,
-          status: status || undefined,
+          status: teachingStatus,
         }),
         // Advisor listing supports q + status; status is also normalized client-side.
         listAdvisorContracts({
@@ -113,7 +143,6 @@ export const useContracts = () => {
 
   // Client-side search: dynamic, case-insensitive, starts-with on lecturer name only (ignore titles)
   const filteredContracts = useMemo(() => {
-    const normStatus = (s) => String(s || '').trim().toUpperCase().replace(/\s+/g, '_');
     const normalize = (s) => (s || '').toLowerCase().replace(/\./g, ' ').replace(/\s+/g, ' ').trim();
     const stripTitle = (s) => {
       const titles = '(mr|mrs|ms|miss|dr|prof|professor)';
@@ -125,7 +154,20 @@ export const useContracts = () => {
     // Start with server results and apply status filter again client-side for robustness
     const base = (contracts || []).filter(c => {
       if (!status) return true;
-      return normStatus(c.status) === normStatus(status);
+
+      const selectedStatus = normalizeStatusValue(status);
+      const contractStatus = normalizeStatusValue(c?.status);
+      const displayStatus = getManagementDisplayStatus(c);
+
+      if (selectedStatus === 'WAITING_RESPONSE') {
+        return displayStatus === 'WAITING_RESPONSE';
+      }
+
+      if (selectedStatus === 'REQUEST_REDO') {
+        return contractStatus === 'REQUEST_REDO' && displayStatus !== 'WAITING_RESPONSE';
+      }
+
+      return displayStatus === selectedStatus;
     });
     
     if (!qName) return base;

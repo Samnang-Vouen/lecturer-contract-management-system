@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FileText, Eye, Download, Info, MoreVertical, X } from 'lucide-react';
+import { FileText, Eye, Download, MoreVertical, MessageSquare } from 'lucide-react';
 import ContractCardInfo from './ContractCardInfo';
 import ContractPeriod from './ContractPeriod';
 import ContractFinancials from './ContractFinancials';
@@ -7,7 +7,8 @@ import ContractCardFooter from './ContractCardFooter';
 import {
   formatContractId,
   deriveLecturerBaseName,
-  toSafePdfFilename
+  toSafePdfFilename,
+  hasManagementRedoMessage
 } from '../../../utils/contractUtils';
 
 /**
@@ -20,6 +21,8 @@ export default function ContractCard({
   onPreview, 
   onDownload, 
   onSign, 
+  onRedo,
+  onViewRedoMessage,
   onShowDetail,
   downloadingId 
 }) {
@@ -28,6 +31,7 @@ export default function ContractCard({
   
   const contractId = formatContractId(contract);
   const isDownloading = downloadingId === contract.id;
+  const hasRedoRequest = hasManagementRedoMessage(contract);
 
   // Close menu on outside click
   useEffect(() => {
@@ -115,6 +119,19 @@ export default function ContractCard({
                 <FileText className="w-4 h-4" />
                 <span>View Detail</span>
               </button>
+              {hasRedoRequest ? (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onViewRedoMessage(contract);
+                    setMenuOpen(false);
+                  }}
+                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 flex items-center gap-3 text-blue-600"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  <span>View Message</span>
+                </button>
+              ) : null}
             </div>
           )}
         </div>
@@ -126,6 +143,8 @@ export default function ContractCard({
       <ContractCardFooter 
         contract={contract} 
         onSign={onSign}
+        onRedo={onRedo}
+        onViewRedoMessage={onViewRedoMessage}
         onPreview={onPreview}
         onDownload={handleDownload}
         onShowDetail={onShowDetail}

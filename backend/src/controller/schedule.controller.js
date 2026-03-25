@@ -237,14 +237,21 @@ function baseGroupName(groupName) {
   return raw.replace(/[-\s]*G\d+$/i, '').trim() || raw;
 }
 
+function compactGroupLabel(groupName) {
+  const raw = String(groupName || '').trim();
+  if (!raw) return '';
+  const match = raw.match(/(^|[-\s])(G\d+)$/i);
+  if (match?.[2]) return match[2].toUpperCase();
+  return raw;
+}
+
 function formatGroupLabel(groupName, groupNumber) {
   const raw = String(groupName || '').trim();
-  if (raw && /(^|[-\s])G\d+$/i.test(raw)) return raw;
+  if (raw && /(^|[-\s])G\d+$/i.test(raw)) return compactGroupLabel(raw);
   const n = parseInt(String(groupNumber || ''), 10);
-  if (!Number.isInteger(n) || n <= 0) return raw;
-  if (new RegExp(`(^|[-\\s])G${n}$`, 'i').test(raw)) return raw;
-  const base = baseGroupName(raw);
-  return `${base || raw || 'Group'}-G${n}`;
+  if (!Number.isInteger(n) || n <= 0) return compactGroupLabel(raw);
+  if (new RegExp(`(^|[-\\s])G${n}$`, 'i').test(raw)) return `G${n}`;
+  return `G${n}`;
 }
 
 function compareGroupLabels(left, right) {
@@ -267,13 +274,32 @@ function roomForSessionType(mapping, sessionType, fallbackRoom) {
   if (sessionType === 'Lab') {
     return mapping?.lab_room_number || mapping?.room_number || fallbackRoom || 'TBA';
   }
+  if (sessionType === 'Theory + Lab') {
+    return mapping?.theory_room_number || mapping?.lab_room_number || mapping?.room_number || fallbackRoom || 'TBA';
+  }
   return mapping?.room_number || mapping?.theory_room_number || mapping?.lab_room_number || fallbackRoom || 'TBA';
 }
 
 function sessionLabelForDisplay(sessionType) {
+  if (sessionType === 'Theory + Lab') return 'Theory + Lab Class';
   if (sessionType === 'Theory') return 'Theory Class';
   if (sessionType === 'Lab') return 'Lab Class';
   return sessionType || 'Class';
+}
+
+function normalizeHoursLabel(value) {
+  return String(value || '').trim().toLowerCase().replace(/\s+/g, '');
+}
+
+function isTheoryThirtyHours(mapping) {
+  return normalizeHoursLabel(mapping?.theory_hours) === '30h';
+}
+
+function displaySessionTypeForMapping(mapping, sessionType) {
+  if (sessionType === 'Theory' && isTheoryThirtyHours(mapping)) {
+    return 'Theory + Lab';
+  }
+  return sessionType;
 }
 
 function formatLecturerDisplayName(title, fullName) {
@@ -295,7 +321,7 @@ function fallbackGroupLabels(mapping, sessionType, groupName) {
   const count =
     sessionType === 'Lab'
       ? Number(mapping?.lab_groups || 0)
-      : sessionType === 'Theory'
+      : sessionType === 'Theory' || sessionType === 'Theory + Lab'
         ? Number(mapping?.theory_groups || 0)
         : 0;
 
@@ -347,7 +373,7 @@ function collectCourseMappingScheduleItems({
         lecturerTitle,
         lecturerName,
         room,
-        sessionType,
+        sessionType: displaySessionTypeForMapping(mapping, sessionType),
         groupLabels: groupLabel ? [groupLabel] : [],
       });
     }
@@ -373,7 +399,7 @@ function collectCourseMappingScheduleItems({
       lecturerTitle,
       lecturerName,
       room,
-      sessionType,
+      sessionType: displaySessionTypeForMapping(mapping, sessionType),
       groupLabels,
     }));
   }
@@ -391,7 +417,7 @@ function collectCourseMappingScheduleItems({
         lecturerTitle,
         lecturerName,
         room,
-        sessionType,
+        sessionType: displaySessionTypeForMapping(mapping, sessionType),
         groupLabels,
       },
     ];
@@ -402,6 +428,7 @@ function collectCourseMappingScheduleItems({
 
 function mergeSessionTypes(sessionTypes) {
   const types = Array.from(sessionTypes || []).filter(Boolean);
+  if (types.includes('Theory + Lab')) return 'Theory + Lab';
   if (types.includes('Theory') && types.includes('Lab')) return 'Theory + Lab';
   return types[0] || 'Class';
 }
@@ -455,7 +482,8 @@ function buildEntriesByTimeAndDayForGroup({ allItems, pageGroupId }) {
 function computeSessionType(mapping) {
   const theoryGroups = Number(mapping?.theory_groups || 0);
   const labGroups = Number(mapping?.lab_groups || 0);
-  return theoryGroups > 0 && labGroups > 0 ? 'Lab + Theory' : labGroups > 0 ? 'Lab' : 'Theory';
+  if (theoryGroups > 0 && (labGroups > 0 || isTheoryThirtyHours(mapping))) return 'Theory + Lab';
+  return labGroups > 0 ? 'Lab' : 'Theory';
 }
 
 function computeRoom(mapping) {
@@ -507,7 +535,7 @@ function buildTimetableRowsHTML({ allTimeSlots, entriesByTimeAndDay, customCells
       .map((it) => {
         const lecturer = formatLecturerDisplayName(it?.lecturerTitle, it?.lecturerName);
         const sessionLabel = sessionLabelForDisplay(it?.sessionType);
-        const groupText = Array.isArray(it?.groupLabels) && it.groupLabels.length ? it.groupLabels.join(' + ') : '';
+        const groupText = Array.isArray(it?.groupLabels) && it.groupLabels.length > 1 ? it.groupLabels.join('+') : '';
 
         return `
           <div style="margin: 6px 0;">
@@ -698,7 +726,7 @@ async function buildScheduleHTMLFromCourseMappings({ academicYear, majorId, spec
     const dept_name_val = spec?.Department?.dept_name || 'N/A';
     const class_name_val = cls?.name || 'N/A';
     const specialization_val = spec?.name || 'N/A';
-    const group_name = grp?.name || 'N/A';
+    const group_name = compactGroupLabel(grp?.name || 'N/A');
     const num_of_student = grp?.num_of_student || 'N/A';
     const note = 'Auto-generated from accepted course mappings';
     const created_at = formatDate(new Date());
@@ -767,8 +795,26 @@ export const getSchedules = async (req, res) => {
   try {
     const { class_name, dept_name, specialization, group_id } = req.query;
     const groupId = safeInt(group_id);
+    const userRole = String(req.user?.role || '').toLowerCase();
 
-    const schedules = await Schedule.findAll({
+    let lecturerProfileId = null;
+    if (userRole === 'lecturer') {
+      const profile = await LecturerProfile.findOne({
+        where: { user_id: req.user.id },
+        attributes: ['id'],
+      });
+
+      if (!profile) {
+        return res.status(200).json({
+          schedules: [],
+          message: 'Schedule retrieved successfully.',
+        });
+      }
+
+      lecturerProfileId = profile.id;
+    }
+
+    const rows = await Schedule.findAll({
       where: groupId ? { group_id: groupId } : undefined,
       attributes: ['id', 'group_id', 'notes', 'custom_cells', 'start_date', 'created_at'],
       include: [
@@ -778,8 +824,14 @@ export const getSchedules = async (req, res) => {
           required: true,
           include: [
             {
+              model: CourseMapping,
+              attributes: [],
+              required: Boolean(lecturerProfileId),
+              where: lecturerProfileId ? { lecturer_profile_id: lecturerProfileId } : undefined,
+            },
+            {
               model: ClassModel,
-              attributes: ['name'],
+              attributes: ['name', 'start_term', 'end_term'],
               required: !!class_name || !!specialization || !!dept_name,
               where: class_name ? { name: class_name } : undefined,
               include: [
@@ -802,6 +854,13 @@ export const getSchedules = async (req, res) => {
           ],
         },
       ],
+    });
+
+    const seenScheduleIds = new Set();
+    const schedules = rows.filter((schedule) => {
+      if (seenScheduleIds.has(schedule.id)) return false;
+      seenScheduleIds.add(schedule.id);
+      return true;
     });
 
     return res.status(200).json({
@@ -1136,7 +1195,7 @@ export const generateFilteredSchedulePDF = async (req, res) => {
       const year_level = cm?.year_level || 'N/A';
       const dept_name_val = classDetails?.Specialization?.Department?.dept_name || 'N/A';
       const class_name_val = classDetails?.name || 'N/A';
-      const group_name = scheduleContainer?.Group?.name || 'N/A';
+      const group_name = compactGroupLabel(scheduleContainer?.Group?.name || 'N/A');
       const num_of_student = scheduleContainer?.Group?.num_of_student || 'N/A';
       const specialization_val = classDetails?.Specialization?.name || 'N/A';
       const note = scheduleContainer?.notes || 'N/A';

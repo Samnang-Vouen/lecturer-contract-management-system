@@ -1,63 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { X, Loader2, CheckCircle2, Copy, Check, Upload, FileSpreadsheet, Download } from 'lucide-react';
+import { X, Loader2, CheckCircle2, Copy } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { listCandidates } from '../services/candidate.service';
-import { createLecturer, createLecturerFromCandidate, importLecturersFromExcel } from '../services/lecturer.service';
+import { createLecturer, createLecturerFromCandidate } from '../services/lecturer.service';
 import { createAdvisor, createAdvisorFromCandidate } from '../services/advisor.service';
-
-// ── Copy button with check feedback ─────────────────────────────────────────
-function CopyButton({ text }) {
-  const [copied, setCopied] = useState(false);
-  const handle = async () => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast.error('Copy failed');
-    }
-  };
-  return (
-    <button
-      type="button"
-      onClick={handle}
-      className="px-2 py-1 text-xs rounded border bg-white hover:bg-gray-100"
-      title="Copy temp password"
-      aria-label="Copy temp password"
-    >
-      {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
-    </button>
-  );
-}
-
-// ── Template download ────────────────────────────────────────────────────────
-function downloadTemplate() {
-  const headers = [
-    'email', 'display_name', 'department_name', 'status', 'role',
-    'full_name_english', 'full_name_khmer', 'employee_id', 'position',
-    'phone_number', 'personal_email', 'country', 'occupation', 'place',
-    'short_bio', 'university', 'major', 'latest_degree', 'degree_year',
-    'qualifications', 'research_fields', 'join_date',
-    'bank_name', 'account_name', 'account_number', 'course_ids',
-  ];
-  const example = [
-    'john.doe@cadt.edu.kh', 'John Doe', 'Computer Science',
-    'active', 'lecturer', 'John Doe', '', 'EMP001', 'Lecturer',
-    '+855 12 345 678', 'john@gmail.com', 'Cambodia', 'Lecturer', 'Phnom Penh',
-    'Short bio here', 'Royal University of Phnom Penh', 'Computer Science',
-    'PhD', '2020', 'PhD in CS', 'AI, Machine Learning', '2024-01-15',
-    'ABA Bank', 'John Doe', '000123456', '1,2,3',
-  ];
-  const csv = [headers.join(','), example.join(',')].join('\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'lecturer_import_template.csv';
-  a.click();
-  URL.revokeObjectURL(url);
-}
+import { ImportLecturersPanel } from './admin/lecturerManagement/ImportLecturersModal';
 
 // ── Main Modal ───────────────────────────────────────────────────────────────
 export default function CreateLecturerModal({ isOpen, onClose, onLecturerCreated }) {
@@ -75,13 +23,6 @@ export default function CreateLecturerModal({ isOpen, onClose, onLecturerCreated
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [searchTimer, setSearchTimer] = useState(null);
-
-  // ── Import mode state ────────────────────────────────────────────────────
-  const [dragging, setDragging] = useState(false);
-  const [importFile, setImportFile] = useState(null);
-  const [importSubmitting, setImportSubmitting] = useState(false);
-  const [importResults, setImportResults] = useState(null);
-  const fileInputRef = useRef(null);
 
   // ── Body scroll lock ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -103,9 +44,6 @@ export default function CreateLecturerModal({ isOpen, onClose, onLecturerCreated
       setCandidateQuery('');
       setSuggestOpen(false);
       setAcceptedCandidates([]);
-      setImportFile(null);
-      setImportResults(null);
-      setDragging(false);
     }
   }, [isOpen]);
 
@@ -122,8 +60,6 @@ export default function CreateLecturerModal({ isOpen, onClose, onLecturerCreated
     setErrors({});
     setSuccessData(null);
     setSelectedCandidateId('');
-    setImportFile(null);
-    setImportResults(null);
     onClose();
   };
 
@@ -131,7 +67,6 @@ export default function CreateLecturerModal({ isOpen, onClose, onLecturerCreated
   const switchMode = (next) => {
     setMode(next);
     setSuccessData(null);
-    setImportResults(null);
     setErrors({});
   };
 
@@ -225,36 +160,6 @@ export default function CreateLecturerModal({ isOpen, onClose, onLecturerCreated
     } finally { setIsSubmitting(false); }
   };
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // IMPORT handlers
-  // ────────────────────────────────────────────────────────────────────────────
-  const acceptFile = (f) => {
-    if (!f) return;
-    if (!/\.(xlsx|xls|csv)$/i.test(f.name)) {
-      toast.error('Please upload an Excel (.xlsx / .xls) or CSV file');
-      return;
-    }
-    setImportFile(f);
-  };
-
-  const submitImport = async (e) => {
-    e.preventDefault();
-    if (!importFile) return;
-    setImportSubmitting(true);
-    try {
-      const data = await importLecturersFromExcel(importFile);
-      setImportResults(data);
-      if (data.success?.length) {
-        onLecturerCreated?.(data.success[0]); // notify parent to refresh
-        toast.success(`${data.success.length} lecturer${data.success.length > 1 ? 's' : ''} imported`);
-      } else {
-        toast.error('Import completed with errors');
-      }
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Import failed');
-    } finally { setImportSubmitting(false); }
-  };
-
   if (!isOpen) return null;
 
   // ── Mode toggle pill ─────────────────────────────────────────────────────
@@ -284,7 +189,9 @@ export default function CreateLecturerModal({ isOpen, onClose, onLecturerCreated
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-black/50" onClick={handleClose} />
       <div className="relative w-full h-full flex items-center justify-center p-4 pointer-events-none">
-        <div className="bg-white rounded-lg w-full max-w-md p-6 shadow-xl pointer-events-auto relative">
+        <div className={mode === 'import'
+          ? 'bg-white rounded-xl w-full max-w-lg shadow-xl pointer-events-auto relative flex flex-col max-h-[90vh]'
+          : 'bg-white rounded-lg w-full max-w-md p-6 shadow-xl pointer-events-auto relative'}>
 
           {/* Close button */}
           <button onClick={handleClose} className="absolute right-4 top-4 text-gray-400 hover:text-gray-600">
@@ -464,117 +371,23 @@ export default function CreateLecturerModal({ isOpen, onClose, onLecturerCreated
               IMPORT MODE
           ════════════════════════════════════════════════════════════════ */}
           {mode === 'import' && (
-            importResults ? (
-              /* Results screen */
-              <div>
-                <div className="flex items-start gap-3 mb-4">
-                  <CheckCircle2 className="w-5 h-5 text-green-500 mt-1 shrink-0" />
-                  <div>
-                    <h2 className="text-xl font-semibold">Import Complete</h2>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {importResults.success?.length || 0} created · {importResults.errors?.length || 0} failed · {importResults.total} rows processed
-                    </p>
-                  </div>
-                </div>
-
-                {/* Password list */}
-                {importResults.success?.length > 0 && (
-                  <div className="border rounded-md p-4 mb-4 bg-gray-50">
-                    <p className="text-sm font-medium mb-2">Temp Passwords — share securely:</p>
-                    <div className="divide-y divide-gray-100 max-h-52 overflow-y-auto">
-                      {importResults.success.map((item, i) => (
-                        <div key={i} className="flex items-center justify-between gap-3 py-2">
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">{item.email}</p>
-                            <p className="text-[10px] text-gray-500">Row {item.row}</p>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <span className="font-mono text-sm tracking-wider select-none">••••••••••</span>
-                            <CopyButton text={item.tempPassword} />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <p className="text-[10px] text-gray-500 mt-2">Masked for security. Use Copy to share privately.</p>
-                  </div>
-                )}
-
-                {/* Errors */}
-                {importResults.errors?.length > 0 && (
-                  <div className="border border-red-100 rounded-md bg-red-50 divide-y divide-red-100 max-h-40 overflow-y-auto mb-4">
-                    <p className="text-sm font-medium text-red-600 px-4 pt-3 pb-1">Errors:</p>
-                    {importResults.errors.map((err, i) => (
-                      <div key={i} className="px-4 py-2">
-                        <p className="text-xs font-medium text-red-700">Row {err.row}</p>
-                        <p className="text-xs text-red-600 mt-0.5">{err.error}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <button onClick={handleClose} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md">Close</button>
-              </div>
-            ) : (
-              /* Upload form */
-              <form onSubmit={submitImport} className="space-y-4">
+            <div>
+              <div className="px-6 pt-6">
                 <h2 className="text-xl font-semibold">Add Lecturer</h2>
-                <p className="text-sm text-gray-600">Upload an Excel or CSV file to bulk-create lecturer accounts. A temporary password is auto-generated for each row.</p>
+                <p className="text-sm text-gray-600 mt-1">Upload an Excel or CSV file to bulk-create lecturer accounts. A temporary password is auto-generated for each row.</p>
 
-                <ModeToggle />
-
-                {/* Template download */}
-                <button type="button" onClick={downloadTemplate} className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 hover:underline">
-                  <Download className="w-4 h-4" />
-                  Download template CSV
-                </button>
-
-                {/* Required columns hint */}
-                <div className="border rounded-md p-3 bg-gray-50">
-                  <p className="text-xs font-semibold text-gray-700 mb-1">Required columns</p>
-                  <p className="text-xs font-mono text-gray-600">email · display_name · department_name</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Optional: <span className="font-mono">role</span> (default: <em>lecturer</em>),{' '}
-                    <span className="font-mono">status</span> (default: <em>active</em>),{' '}
-                    <span className="font-mono">position</span>, <span className="font-mono">course_ids</span>, and more.
-                  </p>
+                <div className="mt-5">
+                  <ModeToggle />
                 </div>
+              </div>
 
-                {/* Drop zone */}
-                <div
-                  onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-                  onDragLeave={() => setDragging(false)}
-                  onDrop={(e) => { e.preventDefault(); setDragging(false); acceptFile(e.dataTransfer.files[0]); }}
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`border-2 border-dashed rounded-md p-6 text-center cursor-pointer transition-colors
-                    ${dragging ? 'border-blue-400 bg-blue-50'
-                      : importFile ? 'border-green-400 bg-green-50'
-                      : 'border-gray-300 bg-white hover:border-blue-400 hover:bg-blue-50/30'}`}
-                >
-                  <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden"
-                    onChange={(e) => acceptFile(e.target.files?.[0])} />
-                  {importFile ? (
-                    <div className="flex flex-col items-center gap-1.5">
-                      <FileSpreadsheet className="w-8 h-8 text-green-500" />
-                      <p className="text-sm font-medium text-green-700">{importFile.name}</p>
-                      <p className="text-xs text-green-600">{(importFile.size / 1024).toFixed(1)} KB · click to change</p>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center gap-1.5">
-                      <Upload className="w-8 h-8 text-gray-300" />
-                      <p className="text-sm font-medium text-gray-600">Drop file here or <span className="text-blue-600">browse</span></p>
-                      <p className="text-xs text-gray-400">.xlsx, .xls, or .csv</p>
-                    </div>
-                  )}
-                </div>
-
-                <div className="pt-2">
-                  <button type="submit" disabled={!importFile || importSubmitting}
-                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-2 rounded-md flex items-center justify-center transition-colors">
-                    {importSubmitting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Importing...</> : 'Import Lecturers'}
-                  </button>
-                </div>
-              </form>
-            )
+              <ImportLecturersPanel
+                onClose={handleClose}
+                onImported={(items) => onLecturerCreated?.({ bulkImport: true, importedCount: items?.length || 0 })}
+                showIntro={false}
+                showCancel={false}
+              />
+            </div>
           )}
 
         </div>

@@ -5,6 +5,7 @@ import PendingContractsCard from '../../components/lecturer/lecturerContract/Pen
 import ContractsListCard from '../../components/lecturer/lecturerContract/ContractsListCard';
 import ContractViewDialog from '../../components/lecturer/lecturerContract/ContractViewDialog';
 import ContractSignDialog from '../../components/lecturer/lecturerContract/ContractSignDialog';
+import ContractRedoMessageDialog from '../../components/lecturer/lecturerContract/ContractRedoMessageDialog';
 import { useContractData } from '../../hooks/lecturer/lecturerContract/useContractData';
 import { useContractActions } from '../../hooks/lecturer/lecturerContract/useContractActions';
 import { useDeepLinkedContract } from '../../hooks/lecturer/lecturerContract/useDeepLinkedContract';
@@ -35,7 +36,9 @@ export default function LecturerContracts() {
     setViewOpen,
     signOpen,
     redoOpen,
+    redoMessageOpen,
     setRedoOpen,
+    setRedoMessageOpen,
     setSignOpen,
     previewPdf,
     downloadPdf,
@@ -43,6 +46,8 @@ export default function LecturerContracts() {
     openViewDialog,
     openSignDialog,
     openRedoDialog,
+    openRedoMessageDialog,
+    requestRedo,
   } = useContractActions(lecturerProfile, authUser, fetchContracts);
 
   // Handle deep-linked contracts
@@ -78,6 +83,7 @@ export default function LecturerContracts() {
         onViewDetail={openViewDialog}
         onSign={openSignDialog}
         onRedo={openRedoDialog}
+        onViewRedoMessage={openRedoMessageDialog}
       />
 
       {/* View Contract Dialog */}
@@ -100,6 +106,13 @@ export default function LecturerContracts() {
       <ContractRedoDialog
         isOpen={redoOpen}
         onClose={() => setRedoOpen(false)}
+        contract={selectedContract}
+        onSubmit={requestRedo}
+      />
+
+      <ContractRedoMessageDialog
+        isOpen={redoMessageOpen}
+        onClose={() => setRedoMessageOpen(false)}
         contract={selectedContract}
       />
     </div>

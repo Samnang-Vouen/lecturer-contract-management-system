@@ -71,13 +71,13 @@ router.patch(
 // Redo request messages + tracking
 router.get(
   '/:id/redo-requests',
-  authorizeRoles(['admin', 'lecturer', 'management', 'superadmin']),
+  authorizeRoles(['admin', 'lecturer', 'management', 'superadmin', 'advisor']),
   listRedoRequests
 );
 
 router.post(
   '/:id/redo-requests',
-  authorizeRoles(['lecturer', 'management']),
+  authorizeRoles(['admin', 'lecturer', 'management', 'superadmin', 'advisor']),
   validate(RedoRequestCreateSchema, 'body'),
   createRedoRequest
 );

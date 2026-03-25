@@ -48,6 +48,7 @@ export const AdvisorContractStatusUpdateSchema = z.object({
       errorMap: () => ({ message: 'Invalid status' }),
     })
   ),
+  remarks: z.string().trim().max(2000).optional(),
 });
 
 export const AdvisorContractEditSchema = z

@@ -2,7 +2,8 @@ import React from 'react';
 import { Search } from 'lucide-react';
 import { Checkbox } from '../../../ui/Checkbox';
 import Input from '../../../ui/Input';
-import { hoursFromMapping } from '../../../../utils/contractHelpers';
+import { canCombineTheoryFromMapping, getMappingTheoryHourLabel, hoursFromMapping } from '../../../../utils/contractHelpers';
+import { courseKey } from '../../../../hooks/admin/contractGeneration/contractRedoEdit.helpers';
 
 export default function TeachingCoursesSection({
   canSelectFromMappings,
@@ -16,10 +17,14 @@ export default function TeachingCoursesSection({
   errors,
   courseQuery,
   setCourseQuery,
+  contractLecturerId,
+  mappingUserId,
+  yearMappings,
   filteredMappings,
   selectedMappingIds,
   combineByMapping,
   courses,
+  setCourses,
   updateCourseHours,
 }) {
   if (!canSelectFromMappings) {
@@ -44,6 +49,30 @@ export default function TeachingCoursesSection({
       </div>
     );
   }
+
+  const availableMappings = Array.isArray(yearMappings)
+    ? yearMappings.filter((mapping) => {
+        const status = String(mapping?.status || '').toLowerCase();
+        if (status && status !== 'accepted') return false;
+        if (!contractLecturerId || typeof mappingUserId !== 'function') return true;
+        const mappingLecturerId = mappingUserId(mapping);
+        return !mappingLecturerId || mappingLecturerId === contractLecturerId;
+      })
+    : [];
+
+  const availableKeys = new Set(
+    availableMappings.map((mapping) => courseKey(mapping?.course?.id ?? mapping?.course_id, mapping?.class?.id ?? mapping?.class_id))
+  );
+
+  const selectedMappings = availableMappings.filter((mapping) => selectedMappingIds.has(mapping.id));
+  const selectedKeys = new Set(
+    selectedMappings.map((mapping) => courseKey(mapping?.course?.id ?? mapping?.course_id, mapping?.class?.id ?? mapping?.class_id))
+  );
+
+  const preservedCourses = (courses || []).filter((course) => {
+    const key = courseKey(course?.course_id, course?.class_id);
+    return key && !selectedKeys.has(key) && !availableKeys.has(key);
+  });
 
   return (
     <div className="space-y-2">
@@ -72,17 +101,72 @@ export default function TeachingCoursesSection({
         {courseQuery ? <button type="button" onClick={() => setCourseQuery('')} className="text-xs text-gray-500 hover:text-gray-700">Clear</button> : null}
       </div>
 
+      {(selectedMappings.length || preservedCourses.length) ? (
+        <div className="rounded-lg border border-gray-200 divide-y bg-white">
+          <div className="px-3 py-2 text-sm font-medium text-gray-700">
+            Selected courses ({selectedMappings.length + preservedCourses.length})
+          </div>
+
+          {selectedMappings.map((mapping) => {
+            const canCombineTheory = canCombineTheoryFromMapping(mapping);
+            const combined = canCombineTheory ? !!(combineByMapping?.[mapping.id] ?? mapping.theory_combined) : false;
+            const computedHours = hoursFromMapping({ ...mapping, theory_combined: combined });
+
+            return (
+              <div key={`selected-${mapping.id}`} className="flex items-start justify-between gap-3 p-3">
+                <div className="min-w-0 text-sm">
+                  <div className="font-medium text-gray-900">{mapping.course?.name} <span className="text-gray-500 font-normal">({computedHours || '-'}h)</span></div>
+                  <div className="text-xs text-gray-600">{mapping.class?.name || 'Class'} • Year {mapping.year_level} • Term {mapping.term} • {mapping.academic_year}</div>
+                </div>
+                <button
+                  type="button"
+                  className="shrink-0 text-xs font-medium text-gray-600 hover:text-gray-900"
+                  onClick={() => {
+                    const next = new Set(Array.from(selectedMappingIds || []));
+                    next.delete(mapping.id);
+                    setSelectedMappingIds(next);
+                    setErrors((prev) => ({ ...(prev || {}), courses: '' }));
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            );
+          })}
+
+          {preservedCourses.map((course, idx) => {
+            const key = courseKey(course?.course_id, course?.class_id) || `preserved-${idx}`;
+
+            return (
+              <div key={`preserved-${key}`} className="flex items-start justify-between gap-3 p-3">
+                <div className="min-w-0 text-sm">
+                  <div className="font-medium text-gray-900">{course.course_name || `Course ${course.course_id || idx + 1}`} <span className="text-gray-500 font-normal">({course.hours || '-'}h)</span></div>
+                  <div className="text-xs text-gray-600">{course.class_name || 'Class unavailable'} • Year {course.year_level || '-'} • Term {course.term || '-'} • {course.academic_year || effectiveTeachYear}</div>
+                  <div className="mt-1 text-xs text-amber-700">This course is already on the contract but not available in the current mapping list.</div>
+                </div>
+                <button
+                  type="button"
+                  className="shrink-0 text-xs font-medium text-gray-600 hover:text-gray-900"
+                  onClick={() => {
+                    setCourses((prev) => (prev || []).filter((item) => courseKey(item?.course_id, item?.class_id) !== key));
+                    setErrors((prev) => ({ ...(prev || {}), courses: '' }));
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+
       <div className="rounded-lg border border-gray-200 max-h-56 overflow-y-auto divide-y bg-white">
         {filteredMappings.length === 0 ? (
           <div className="p-3 text-sm text-gray-500">No courses found for {effectiveTeachYear || 'this year'}.</div>
         ) : filteredMappings.map((mapping) => {
           const checked = selectedMappingIds.has(mapping.id);
-          const typeHours = String(mapping.type_hours || '');
-          const theoryHours = String(mapping.theory_hours || '').toLowerCase();
-          const is15h = theoryHours === '15h' || (!theoryHours && /15h/i.test(typeHours));
-          const is30h = theoryHours === '30h' || (!theoryHours && /30h/i.test(typeHours));
-          const theoryGroups = Number(mapping.theory_groups ?? mapping.groups_15h ?? mapping.groups_theory ?? mapping.group_count_theory ?? 0) || 0;
-          const canCombineTheory = (is15h || is30h) && theoryGroups > 1;
+          const theoryHours = getMappingTheoryHourLabel(mapping);
+          const canCombineTheory = canCombineTheoryFromMapping(mapping);
           const combined = canCombineTheory ? !!(combineByMapping?.[mapping.id] ?? mapping.theory_combined) : false;
           const computedHours = hoursFromMapping({ ...mapping, theory_combined: combined });
 
@@ -107,7 +191,7 @@ export default function TeachingCoursesSection({
                     <label className="mt-2 inline-flex items-center gap-2 text-xs text-gray-700 select-none">
                       <Checkbox checked={combined} onCheckedChange={(value) => setCombineByMapping((prev) => ({ ...(prev || {}), [mapping.id]: !!value }))} />
                       Combine groups into 1 class
-                      <span className="text-gray-500">({is15h ? '15h' : '30h'})</span>
+                      <span className="text-gray-500">({theoryHours})</span>
                     </label>
                   ) : null}
                 </div>

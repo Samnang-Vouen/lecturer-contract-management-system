@@ -89,6 +89,16 @@ export default function MappingFormDialog({
     [setForm, teachingType]
   );
 
+  const toggleAllTheoryGroups = useCallback(
+    (checked) => {
+      if (!teachingType?.theorySelected) return;
+      const next = checked ? groupsForSelectedClass.map((group) => String(group.id)) : [];
+      teachingType?.setTheoryGroups?.(String(next.length));
+      setForm((f) => ({ ...f, theory_group_ids: next }));
+    },
+    [groupsForSelectedClass, setForm, teachingType]
+  );
+
   const toggleLabGroup = useCallback(
     (groupId) => {
       if (!teachingType?.labSelected) return;
@@ -104,6 +114,16 @@ export default function MappingFormDialog({
       });
     },
     [setForm, teachingType]
+  );
+
+  const toggleAllLabGroups = useCallback(
+    (checked) => {
+      if (!teachingType?.labSelected) return;
+      const next = checked ? groupsForSelectedClass.map((group) => String(group.id)) : [];
+      teachingType?.setLabGroups?.(String(next.length));
+      setForm((f) => ({ ...f, lab_group_ids: next }));
+    },
+    [groupsForSelectedClass, setForm, teachingType]
   );
 
   const setTheoryRoomForGroup = useCallback(
@@ -161,6 +181,7 @@ export default function MappingFormDialog({
           groups={groupsForSelectedClass}
           selectedIds={form.theory_group_ids}
           onToggleGroup={toggleTheoryGroup}
+          onToggleAllGroups={toggleAllTheoryGroups}
           roomByGroup={form.theory_room_by_group}
           onRoomChange={setTheoryRoomForGroup}
           roomPlaceholder="A201"
@@ -181,6 +202,7 @@ export default function MappingFormDialog({
           groups={groupsForSelectedClass}
           selectedIds={form.lab_group_ids}
           onToggleGroup={toggleLabGroup}
+          onToggleAllGroups={toggleAllLabGroups}
           roomByGroup={form.lab_room_by_group}
           onRoomChange={setLabRoomForGroup}
           roomPlaceholder="B105"
@@ -234,11 +256,14 @@ export default function MappingFormDialog({
                   teachingType.setTheorySelected(v);
                   if (!v) {
                     teachingType.resetTheory();
-                    setForm((f) => ({ ...f, theory_group_ids: [] }));
+                    setForm((f) => ({ ...f, theory_group_ids: [], theory_hours: '' }));
                   }
                 }}
                 theoryHour={teachingType.theoryHour}
-                onTheoryHourChange={teachingType.setTheoryHour}
+                onTheoryHourChange={(value) => {
+                  teachingType.setTheoryHour(value);
+                  setForm((f) => ({ ...f, theory_hours: value }));
+                }}
                 labSelected={teachingType.labSelected}
                 onLabSelectedChange={(v) => {
                   teachingType.setLabSelected(v);

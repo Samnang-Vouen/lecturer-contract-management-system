@@ -55,13 +55,14 @@ export function useContractRedoEditSubmit({
     if (advisor) {
       const dutyList = normalizeStringList(duties);
       const studentList = Array.isArray(students) ? students : [];
+      const selectedResponsibilities = [capstone1, capstone2, internship1, internship2].filter(Boolean).length;
       if (!role) nextErrors.role = 'Role is required';
       if (!dutyList.length) nextErrors.duties = 'Please add at least one duty';
       if (!studentList.length) nextErrors.students = 'Please add at least one student';
       if (studentList.some((student) => !String(student?.student_name || '').trim() || !String(student?.project_title || '').trim() || !String(student?.company_name || '').trim())) {
         nextErrors.students = 'Each student must include name, project title, and company name';
       }
-      if (!(capstone1 || capstone2 || internship1 || internship2)) nextErrors.responsibilities = 'Select at least one responsibility';
+      if (selectedResponsibilities !== 1) nextErrors.responsibilities = 'Select exactly one responsibility';
       if (toNumOrNull(hoursPerStudent) == null) nextErrors.hoursPerStudent = 'Hours per student is required';
       if (toNumOrNull(hourlyRate) == null) nextErrors.hourlyRate = 'Hourly rate is required';
       setErrors(nextErrors);
@@ -107,8 +108,22 @@ export function useContractRedoEditSubmit({
 
     if (canSelectFromMappings) {
       const selectedCoursesPayload = buildSelectedCourses({ yearMappings, selectedMappingIds, contractLecturerId, mappingUserId, combineByMapping });
+      const availableKeys = new Set(
+        (yearMappings || [])
+          .filter((mapping) => {
+            const status = String(mapping?.status || '').toLowerCase();
+            if (status && status !== 'accepted') return false;
+            if (!contractLecturerId || typeof mappingUserId !== 'function') return true;
+            const mappingLecturerId = mappingUserId(mapping);
+            return !mappingLecturerId || mappingLecturerId === contractLecturerId;
+          })
+          .map((mapping) => courseKey(mapping?.course?.id ?? mapping?.course_id, mapping?.class?.id ?? mapping?.class_id))
+      );
       const selectedKeys = new Set(selectedCoursesPayload.map((course) => courseKey(course.course_id, course.class_id)));
-      const preserved = existingCourses.filter((course) => !selectedKeys.has(courseKey(course.course_id, course.class_id)));
+      const preserved = existingCourses.filter((course) => {
+        const key = courseKey(course.course_id, course.class_id);
+        return key && !selectedKeys.has(key) && !availableKeys.has(key);
+      });
       nextCourseList = [...selectedCoursesPayload, ...preserved];
       const firstCourse = selectedCoursesPayload[0] || preserved[0] || null;
       if (firstCourse?.term != null) derivedTerm = firstCourse.term;

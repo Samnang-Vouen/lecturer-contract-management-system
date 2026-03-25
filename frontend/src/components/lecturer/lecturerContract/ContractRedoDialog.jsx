@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FilePen, Loader2 } from "lucide-react";
+import toast from "react-hot-toast";
 import {
   Dialog,
   DialogContent,
@@ -9,27 +10,40 @@ import {
 } from "../../ui/Dialog";
 import Button from "../../ui/Button";
 
-export default function ContractRedoDialog({ isOpen, onClose }) {
+export default function ContractRedoDialog({ isOpen, onClose, contract, onSubmit }) {
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (!isOpen) {
+      setComment("");
+      setSubmitting(false);
+    }
+  }, [isOpen]);
+
+  const handleClose = () => {
+    if (submitting) return;
+    setComment("");
+    onClose();
+  };
+
   const handleSubmit = async () => {
-    if (!comment.trim()) return;
+    const message = comment.trim();
+    if (!message || !contract?.id || !onSubmit) return;
 
     setSubmitting(true);
     try {
-      console.log("Redo request submitted:", comment);
-      setComment("");
-      onClose();
+      await onSubmit(contract, message);
+      toast.success("Redo request submitted");
     } catch (error) {
-      console.error("Submission failed:", error);
+      toast.error(error?.response?.data?.message || "Failed to submit redo request");
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
       <DialogContent className="w-[95vw] sm:max-w-md p-0 overflow-hidden">
         <DialogHeader className="px-6 pt-5">
           <DialogTitle className="flex items-center gap-2">
@@ -61,7 +75,7 @@ export default function ContractRedoDialog({ isOpen, onClose }) {
           <div className="flex justify-end gap-2">
             <Button
               variant="outline"
-              onClick={onClose}
+              onClick={handleClose}
               className="h-10 px-4 min-w-[120px]"
             >
               Cancel
@@ -69,9 +83,9 @@ export default function ContractRedoDialog({ isOpen, onClose }) {
 
             <button
               onClick={handleSubmit}
-              disabled={submitting || !comment.trim()}
+              disabled={submitting || !comment.trim() || !contract?.id || !onSubmit}
               className={`h-10 px-4 min-w-[160px] border rounded-lg bg-blue-600 hover:bg-blue-700 text-white inline-flex items-center justify-center text-sm font-medium ${
-                submitting || !comment.trim()
+                submitting || !comment.trim() || !contract?.id || !onSubmit
                   ? "opacity-50 cursor-not-allowed"
                   : "cursor-pointer"
               }`}

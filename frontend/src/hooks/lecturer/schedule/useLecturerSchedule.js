@@ -45,6 +45,22 @@ const normalizeDay = (value) => {
   return DAY_ALIASES[key] || null;
 };
 
+const normalizeSessionKind = (value) => {
+  const raw = String(value || '').trim().toLowerCase();
+  if (raw === 'lab') return 'lab';
+  if (raw === 'theory') return 'theory';
+  if (raw.includes('lab') && raw.includes('theory')) return 'mixed';
+  return '';
+};
+
+const formatTeachingLoad = (groups, hours, fallbackHours = '') => {
+  const groupCount = Number(groups) || 0;
+  if (groupCount <= 0) return '';
+
+  const hourLabel = String(hours || fallbackHours || '').trim().toLowerCase();
+  return hourLabel ? `${groupCount} groups x ${hourLabel}` : `${groupCount} groups`;
+};
+
 export const useLecturerSchedule = (scheduleId) => {
   const [entries, setEntries] = useState([]);
   const [specialSlots, setSpecialSlots] = useState(DEFAULT_SPECIAL_SLOTS);
@@ -105,19 +121,30 @@ export const useLecturerSchedule = (scheduleId) => {
       }
 
       const cellEntries = grid[normalizedDay][timeLabel] || [];
+      const sessionKind = normalizeSessionKind(entry?.session_type);
+
       cellEntries.push({
         id: entry?.id,
-        course: entry?.CourseMapping?.Course?.course_name || '-',
-        lecturer: [
-          entry?.CourseMapping?.LecturerProfile?.title,
-          entry?.CourseMapping?.LecturerProfile?.full_name_english,
-        ]
-          .filter(Boolean)
-          .join(' ')
-          .trim() || '-',
-        room: entry?.room || '-',
-        sessionType: entry?.session_type || '-',
-        group: entry?.CourseMapping?.Group?.name || '-',
+        course: entry?.CourseMapping?.Course?.course_name || '',
+        group: entry?.CourseMapping?.Group?.name || '',
+        sessionKind,
+        theory:
+          sessionKind === 'theory'
+            ? formatTeachingLoad(
+                entry?.CourseMapping?.theory_groups,
+                entry?.CourseMapping?.theory_hours,
+                '15h'
+              )
+            : '',
+        lab:
+          sessionKind === 'lab'
+            ? formatTeachingLoad(
+                entry?.CourseMapping?.lab_groups,
+                entry?.CourseMapping?.lab_hours,
+                '30h'
+              )
+            : '',
+        room: entry?.room || '',
       });
 
       grid[normalizedDay][timeLabel] = cellEntries;

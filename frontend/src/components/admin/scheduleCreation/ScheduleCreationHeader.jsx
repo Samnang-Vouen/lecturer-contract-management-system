@@ -3,6 +3,9 @@ import { CalendarCheck, FileText, Loader2 } from "lucide-react";
 
 export default function ScheduleCreationHeader({
   isGenerateAllLoading,
+  canGenerateAll,
+  requiresSpecializationSelection,
+  selectedSpecializationName,
   openEmptyCellDialog,
 }) {
   return (
@@ -14,18 +17,24 @@ export default function ScheduleCreationHeader({
           </div>
           <div>
             <h1 className="text-3xl font-semibold text-slate-900">Schedule Creation</h1>
-            <p className="mt-0.5 text-sm text-slate-500">Generate PDF schedules for academic groups</p>
+            <p className="mt-0.5 text-sm text-slate-500">
+              {requiresSpecializationSelection
+                ? "Choose a specialization first, then fill the empty session dialog to generate PDFs"
+                : canGenerateAll
+                ? `Generate PDF schedules for ${selectedSpecializationName}`
+                : "Generate PDF schedules for the available specialization"}
+            </p>
           </div>
         </div>
 
         <button
           type="button"
           onClick={() => openEmptyCellDialog("all")}
-          disabled={isGenerateAllLoading}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-shrink-0"
+          disabled={isGenerateAllLoading || !canGenerateAll}
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-shrink-0"
         >
           {isGenerateAllLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
-          Generate All PDFs
+          Generate Specialization PDFs
         </button>
       </div>
     </div>

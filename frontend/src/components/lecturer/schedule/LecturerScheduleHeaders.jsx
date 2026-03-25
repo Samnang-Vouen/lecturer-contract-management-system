@@ -17,9 +17,6 @@ export default function LecturerScheduleHeader() {
           </div>
         </div>
         <div>
-          <Button className="inline-flex items-center gap-2 rounded-md bg-[#16A34A] px-3 py-3 text-base font-semibold text-white shadow-inner shadow-white/10 focus:not-data-focus:outline-none data-focus:outline data-focus:outline-white data-hover:bg-gray-600 data-open:bg-gray-700">
-            <FileText/> Generate PDF
-          </Button>
         </div>
       </div>
     </div>

@@ -1,13 +1,13 @@
 import React from 'react';
 import { motion as Motion } from 'framer-motion';
 import Button from '../../ui/Button.jsx';
-import { Clock, Eye, PenTool } from 'lucide-react';
+import { Clock, Eye, FilePen, PenTool } from 'lucide-react';
 import { formatContractId, getHourlyRate, calculateTotalHours, formatMDY } from '../../../utils/contractUtils.js';
 
 /**
  * Alert box showing contracts pending management signature
  */
-export default function PendingSignaturesAlert({ contracts, onPreview, onSign, uploading }) {
+export default function PendingSignaturesAlert({ contracts, onPreview, onRedo, onSign, uploading }) {
   const isEnded = (c) => {
     const st = String(c?.status || '').trim().toUpperCase().replace(/\s+/g, '_');
     if (st === 'CONTRACT_ENDED') return true;
@@ -81,6 +81,15 @@ export default function PendingSignaturesAlert({ contracts, onPreview, onSign, u
                 >
                   <Eye className="w-4 h-4 mr-1.5" />
                   Review
+                </Button>
+                <Button
+                  variant="outline"
+                  className="cursor-pointer w-full sm:w-auto"
+                  size="sm"
+                  onClick={() => onRedo(contract)}
+                >
+                  <FilePen className="w-4 h-4 mr-1.5" />
+                  Request Redo
                 </Button>
                 <Button
                   className="cursor-pointer w-full sm:w-auto"

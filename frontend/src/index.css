@@ -1,12 +1,28 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Kantumruy+Pro:wght@100..700&display=swap');
+
 /* Tailwind directives (processed by PostCSS) */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+:root {
+	--font-app-sans: 'Inter', 'Kantumruy Pro', 'Segoe UI', Arial, sans-serif;
+	--font-khmer: 'Kantumruy Pro', sans-serif;
+}
+
 body { 
   @apply bg-gray-50 text-gray-800 min-h-screen font-sans; 
+	font-family: var(--font-app-sans);
   /* Smooth scrolling for better UX */
   scroll-behavior: smooth;
+}
+
+.kantumruy-pro,
+.font-khmer,
+[lang="km"] {
+	font-family: var(--font-khmer);
+	font-optical-sizing: auto;
+	font-style: normal;
 }
 
 /* Custom scrollbar styling for webkit browsers */
@@ -36,6 +52,7 @@ body {
 /* Smooth transitions for interactive elements */
 button, a, input, textarea, select {
   transition: all 0.2s ease-in-out;
+	font-family: inherit;
 }
 
 

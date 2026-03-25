@@ -246,7 +246,7 @@ export default function AvailabilityPopover({
                 )}
 
                 <div className="mt-2 text-[11px] text-gray-500">
-                  Rule: Theory 15h = 1 session (can be combined across groups). Theory 30h = 1–2 sessions per group. Lab = 2 sessions per group. A slot can’t be reused with Lab, and can’t be reused across groups unless combining Theory 15h.
+                  Rule: Theory 15h = 1 session (can be combined across groups). Theory 30h = exactly 2 sessions per group. Lab = 2 sessions per group. A slot can’t be reused with Lab, and can’t be reused across groups unless combining Theory 15h.
                 </div>
               </div>
             </div>

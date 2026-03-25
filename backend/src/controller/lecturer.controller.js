@@ -1,7 +1,8 @@
 import { Op, Sequelize } from 'sequelize';
 import fs from 'fs';
 import path from 'path';
-import { LecturerProfile, User, Department, Role } from '../model/index.js';
+import sequelize from '../config/db.js';
+import { LecturerProfile, User, Department, Role, UserRole, DepartmentProfile } from '../model/index.js';
 import Candidate from '../model/candidate.model.js';
 import LecturerCourse from '../model/lecturerCourse.model.js';
 import Course from '../model/course.model.js';
@@ -10,6 +11,81 @@ import { findOrCreateUniversities } from './university.controller.js';
 import { findOrCreateMajors } from './major.controller.js';
 import xlsx from 'xlsx';
 import bcrypt from 'bcrypt';
+
+const TEMP_PASSWORD_LENGTH = 10;
+
+const generateTempPassword = () => {
+  let tempPassword = '';
+  while (tempPassword.length < TEMP_PASSWORD_LENGTH) {
+    tempPassword += Math.random().toString(36).slice(2);
+  }
+  return tempPassword.slice(0, TEMP_PASSWORD_LENGTH);
+};
+
+const normalizeImportedRoleAndPosition = (value) => {
+  const raw = String(value || '').trim();
+  if (!raw) {
+    return { roleType: 'lecturer', position: 'Lecturer', occupation: 'Lecturer' };
+  }
+
+  if (/\b(advisor|adviser)\b/i.test(raw) || /អ្នក\s*ប្រឹក្សា/.test(raw)) {
+    return { roleType: 'advisor', position: 'Advisor', occupation: 'Advisor' };
+  }
+
+  if (/\b(assistant\s+lecturer|teaching\s+assistant|assistant|ta)\b/i.test(raw)) {
+    return {
+      roleType: 'lecturer',
+      position: 'Assistant Lecturer',
+      occupation: 'Assistant Lecturer',
+    };
+  }
+
+  return { roleType: 'lecturer', position: 'Lecturer', occupation: 'Lecturer' };
+};
+
+const buildImportedCredentialsWorkbook = (rows) => {
+  const worksheet = xlsx.utils.json_to_sheet(rows, {
+    header: ['email', 'tempPassword'],
+  });
+  const workbook = xlsx.utils.book_new();
+  xlsx.utils.book_append_sheet(workbook, worksheet, 'Credentials');
+  return xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+};
+
+const normalizeImportedTitle = (value) => {
+  const raw = String(value || '').trim().replace(/\.$/, '');
+  if (!raw) return null;
+  const normalized = raw.toLowerCase();
+  if (normalized === 'mr') return 'Mr';
+  if (normalized === 'ms') return 'Ms';
+  if (normalized === 'mrs') return 'Mrs';
+  if (normalized === 'dr') return 'Dr';
+  if (normalized === 'prof') return 'Prof';
+  return null;
+};
+
+const normalizeImportedGender = (value) => {
+  const raw = String(value || '').trim().toLowerCase();
+  if (!raw) return null;
+  if (['male', 'female', 'other'].includes(raw)) return raw;
+  return null;
+};
+
+const normalizeImportedHourlyRate = (value) => {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number.parseFloat(String(value).replace(/[^0-9.-]/g, ''));
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return parsed;
+};
+
+const isImportedWorksheetRowEmpty = (row) => {
+  if (!row || typeof row !== 'object') return true;
+  return Object.values(row).every((value) => {
+    if (value === null || value === undefined) return true;
+    if (typeof value === 'string') return value.trim() === '';
+    return false;
+  });
+};
 
 const sanitizeDisplayName = (name) => {
   const base = path.basename(String(name || '')).trim();
@@ -887,50 +963,71 @@ export const importLecturersFromExcel = async (req, res) => {
   try {
     const file = req.file;
     if (!file) return res.status(400).json({ message: 'Excel file required' });
+    const departmentName = String(req.user?.department_name || '').trim();
+    if (!departmentName) {
+      return res.status(400).json({ message: 'Admin department is not set' });
+    }
 
     const workbook = xlsx.read(file.buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
-    const rows = xlsx.utils.sheet_to_json(worksheet);
+    const rawRows = xlsx.utils.sheet_to_json(worksheet, { defval: '' });
+    const rows = rawRows
+      .map((row, index) => ({ row, rowNumber: index + 2 }))
+      .filter(({ row }) => !isImportedWorksheetRowEmpty(row));
 
     if (!rows.length) {
       return res.status(400).json({ message: 'Excel file is empty' });
     }
 
     const results = { success: [], errors: [], total: rows.length };
+    const credentialsRows = [];
 
     for (let i = 0; i < rows.length; i += 1) {
-      const row = rows[i];
-      const rowNumber = i + 2;
+      const { row, rowNumber } = rows[i];
 
       try {
-        // ── Required fields ───────────────────────────────────────────────
-        const email = String(row.email || '').trim();
-        const displayName = String(row.display_name || '').trim();
-        const departmentName = String(row.department_name || '').trim();
-        const status = String(row.status || 'active').trim().toLowerCase();
-        const roleStr = String(row.role || 'lecturer').trim().toLowerCase();
+        const fullName = String(row.fullName || row.full_name || '').trim();
+        const email = String(row.email || '').trim().toLowerCase();
+        const rawHourlyRate =
+          row.hourlyRate ?? row.hourly_rate ?? row['Hourly Rate'] ?? row['hourly rate'] ?? '';
+        const phone = String(row.phone || row.phone_number || '').trim();
+        const titleInput = row.title ?? row.Title ?? '';
+        const genderInput = row.gender ?? row.Gender ?? '';
+        const positionAppliedFor = String(
+          row.positionAppliedFor || row.position_applied_for || row.position || ''
+        ).trim();
+        const interviewDateValue = row.interviewDate || row.interview_date || '';
 
-        if (!email || !displayName || !departmentName) {
+        const missingFields = [];
+        if (!fullName) missingFields.push('fullName');
+        if (!email) missingFields.push('email');
+        if (rawHourlyRate === null || rawHourlyRate === undefined || String(rawHourlyRate).trim() === '') {
+          missingFields.push('hourlyRate');
+        }
+
+        if (missingFields.length > 0) {
           results.errors.push({
             row: rowNumber,
-            error: 'Missing required fields: email, display_name, department_name',
+            error: `Missing required fields: ${missingFields.join(', ')}`,
           });
           continue;
         }
 
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-          results.errors.push({ row: rowNumber, error: `Invalid email format: ${email}` });
+        const hourlyRate = normalizeImportedHourlyRate(rawHourlyRate);
+        if (hourlyRate === null) {
+          results.errors.push({
+            row: rowNumber,
+            error: `Invalid hourlyRate value: ${rawHourlyRate}. Hourly Rate must be a valid positive number`,
+          });
           continue;
         }
 
-        if (!['active', 'inactive'].includes(status)) {
-          results.errors.push({ row: rowNumber, error: `Invalid status: ${status}` });
-          continue;
-        }
-
-        if (!['lecturer', 'advisor', 'admin'].includes(roleStr)) {
-          results.errors.push({ row: rowNumber, error: `Invalid role: ${roleStr}` });
+        if (!/^[A-Z0-9._%+-]+@cadt\.edu\.kh$/i.test(email)) {
+          results.errors.push({
+            row: rowNumber,
+            error: `Email must use the CADT domain (@cadt.edu.kh): ${email}`,
+          });
           continue;
         }
 
@@ -940,82 +1037,145 @@ export const importLecturersFromExcel = async (req, res) => {
           continue;
         }
 
-        // ── Generate temp password (use Excel value if provided, else auto-gen) ──
-        const TEMP_LEN = 10;
-        let tempPassword = row.password ? String(row.password).trim() : '';
-        if (!tempPassword) {
-          while (tempPassword.length < TEMP_LEN) tempPassword += Math.random().toString(36).slice(2);
-          tempPassword = tempPassword.slice(0, TEMP_LEN);
+        const title = normalizeImportedTitle(titleInput);
+        if (titleInput && !title) {
+          results.errors.push({
+            row: rowNumber,
+            error: `Invalid title value: ${titleInput}. Allowed values: Mr, Ms, Mrs, Dr, Prof`,
+          });
+          continue;
         }
-        const passwordHash = await bcrypt.hash(tempPassword, 10);
 
-        // ── Create user ───────────────────────────────────────────────────
-        const newUser = await User.create({
-          email,
-          password_hash: passwordHash,
-          display_name: displayName,
-          department_name: departmentName,
-          status,
-        });
+        const gender = normalizeImportedGender(genderInput);
+        if (genderInput && !gender) {
+          results.errors.push({
+            row: rowNumber,
+            error: `Invalid gender value: ${genderInput}. Allowed values: male, female, other`,
+          });
+          continue;
+        }
 
-        const role = await Role.findOne({ where: { name: roleStr } });
-        if (role) await newUser.addRole(role);
+        const { roleType, position, occupation } = normalizeImportedRoleAndPosition(positionAppliedFor);
 
-        // ── Create lecturer / advisor profile ─────────────────────────────
-        if (['lecturer', 'advisor'].includes(roleStr)) {
-          const profileData = {
-            user_id: newUser.id,
-            full_name_english: row.full_name_english ? String(row.full_name_english).trim() : null,
-            full_name_khmer:   row.full_name_khmer   ? String(row.full_name_khmer).trim()   : null,
-            employee_id:       row.employee_id       ? String(row.employee_id).trim()       : null,
-            position:          row.position          ? String(row.position).trim()          : null,
-            phone_number:      row.phone_number      ? String(row.phone_number).trim()      : null,
-            personal_email:    row.personal_email    ? String(row.personal_email).trim()    : null,
-            country:           row.country           ? String(row.country).trim()           : null,
-            occupation:        row.occupation        ? String(row.occupation).trim()        : null,
-            place:             row.place             ? String(row.place).trim()             : null,
-            short_bio:         row.short_bio         ? String(row.short_bio).trim()         : null,
-            university:        row.university        ? String(row.university).trim()        : null,
-            major:             row.major             ? String(row.major).trim()             : null,
-            latest_degree:     row.latest_degree     ? String(row.latest_degree).trim()     : null,
-            degree_year:       row.degree_year       ? parseInt(row.degree_year, 10)        : null,
-            qualifications:    row.qualifications    ? String(row.qualifications).trim()    : null,
-            research_fields:   row.research_fields   ? String(row.research_fields).trim()   : null,
-            join_date:         row.join_date         ? new Date(row.join_date)              : null,
-            bank_name:         row.bank_name         ? String(row.bank_name).trim()         : null,
-            account_name:      row.account_name      ? String(row.account_name).trim()      : null,
-            account_number:    row.account_number    ? String(row.account_number).trim()    : null,
-            status,
-          };
-
-          const profile = await LecturerProfile.create(profileData);
-
-          if (row.course_ids) {
-            const courseIds = String(row.course_ids)
-              .split(',')
-              .map((id) => parseInt(id.trim(), 10))
-              .filter((id) => Number.isInteger(id) && id > 0);
-
-            if (courseIds.length > 0) {
-              const courses = await Course.findAll({ where: { id: { [Op.in]: courseIds } } });
-              if (courses.length > 0) {
-                await LecturerCourse.bulkCreate(
-                  courses.map((c) => ({ lecturer_profile_id: profile.id, course_id: c.id }))
-                );
-              }
-            }
+        let joinDate = new Date();
+        if (interviewDateValue) {
+          const parsedJoinDate = new Date(interviewDateValue);
+          if (Number.isNaN(parsedJoinDate.getTime())) {
+            results.errors.push({
+              row: rowNumber,
+              error: `Invalid interviewDate value: ${interviewDateValue}`,
+            });
+            continue;
           }
+          joinDate = parsedJoinDate;
         }
 
-        // tempPassword returned once so admin can share it — never stored plain text
-        results.success.push({ row: rowNumber, email, userId: newUser.id, tempPassword });
+        await sequelize.transaction(async (transaction) => {
+          const [roleRow] = await Role.findOrCreate({
+            where: { role_type: roleType },
+            defaults: { role_type: roleType },
+            transaction,
+          });
+          const [departmentRow] = await Department.findOrCreate({
+            where: { dept_name: departmentName },
+            defaults: { dept_name: departmentName },
+            transaction,
+          });
+
+          const tempPassword = generateTempPassword();
+          const passwordHash = await bcrypt.hash(tempPassword, 10);
+
+          const newUser = await User.create(
+            {
+              email,
+              password_hash: passwordHash,
+              display_name: fullName,
+              department_name: departmentRow.dept_name,
+              status: 'active',
+            },
+            { transaction }
+          );
+
+          await UserRole.create(
+            { user_id: newUser.id, role_id: roleRow.id },
+            { transaction }
+          );
+
+          const candidate = await Candidate.create(
+            {
+              fullName,
+              email,
+              phone: phone || null,
+              positionAppliedFor: position || positionAppliedFor || null,
+              interviewDate: joinDate,
+              status: 'done',
+              hourlyRate,
+              dept_id: departmentRow.id,
+            },
+            { transaction }
+          );
+
+          const profile = await LecturerProfile.create(
+            {
+              user_id: newUser.id,
+              candidate_id: candidate.id,
+              employee_id: `EMP${String(Date.now()).slice(-6)}${String(i).padStart(2, '0')}`,
+              full_name_english: fullName,
+              position,
+              occupation,
+              join_date: joinDate,
+              status: 'active',
+              cv_uploaded: false,
+              cv_file_path: '',
+              qualifications: '',
+              phone_number: phone || null,
+              personal_email: email,
+              title,
+              gender,
+            },
+            { transaction }
+          );
+
+          await DepartmentProfile.create(
+            { dept_id: departmentRow.id, profile_id: profile.id },
+            { transaction }
+          );
+
+          results.success.push({
+            row: rowNumber,
+            id: newUser.id,
+            userId: newUser.id,
+            email,
+            role: roleRow.role_type,
+            tempPassword,
+            profile: {
+              position: profile.position,
+              fullName: profile.full_name_english,
+              hourlyRate,
+            },
+          });
+          credentialsRows.push({ email, tempPassword });
+        });
       } catch (rowError) {
         console.error(`[importLecturersFromExcel] row ${rowNumber} error:`, rowError.message);
         results.errors.push({ row: rowNumber, error: rowError.message });
       }
     }
 
-    return res.status(200).json({ message: 'Import completed', ...results });
+    let credentialsFileBase64 = null;
+    let credentialsFileName = null;
+    if (credentialsRows.length > 0) {
+      const credentialsWorkbook = buildImportedCredentialsWorkbook(credentialsRows);
+      credentialsFileBase64 = Buffer.from(credentialsWorkbook).toString('base64');
+      credentialsFileName = `recruitment_import_credentials_${Date.now()}.xlsx`;
+    }
+
+    return res.status(200).json({
+      message: 'Import completed',
+      ...results,
+      credentialsFileBase64,
+      credentialsFileName,
+    });
   } catch (error) {
     console.error('[importLecturersFromExcel] error', error);
     return res.status(500).json({ message: 'Failed to import lecturers', error: error.message });

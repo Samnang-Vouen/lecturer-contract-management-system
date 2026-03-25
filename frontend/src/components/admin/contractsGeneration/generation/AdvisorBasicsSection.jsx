@@ -3,13 +3,21 @@ import Input from '../../../ui/Input';
 import Select, { SelectItem } from '../../../ui/Select';
 
 export default function AdvisorBasicsSection({ lecturers, advisorUsers, advisorUsersLoading, advisorUsersLoadError, advLecturerKey, handleAdvisorLecturerChange, advErrors, setAdvErrors, advHourlyRate, setAdvHourlyRate, advHoursPerStudent, setAdvHoursPerStudent }) {
+  const getAdvisorDisplayName = (user) => user.name || user.full_name_english || user.full_name_khmer || user.display_name || user.email || '';
+
+  const sortedAdvisorOptions = [...(advisorUsers.length ? advisorUsers : lecturers)].sort((left, right) => (
+    getAdvisorDisplayName(left).localeCompare(getAdvisorDisplayName(right), undefined, {
+      sensitivity: 'base',
+    })
+  ));
+
   return (
     <>
       <div className="space-y-1 mb-4">
         <label className="block text-sm font-medium">Advisor Name <span className="text-red-600">*</span></label>
-        <Select className="w-full cursor-pointer" value={advLecturerKey} onValueChange={handleAdvisorLecturerChange} placeholder="Enter advisor name">
-          {(advisorUsers.length ? advisorUsers : lecturers).map((user) => (
-            <SelectItem key={user.id} value={String(user.id)}>{user.name || user.full_name_english || user.full_name_khmer || user.display_name || user.email}</SelectItem>
+        <Select className="w-full cursor-pointer" value={advLecturerKey} onValueChange={handleAdvisorLecturerChange} placeholder="Select advisor name">
+          {sortedAdvisorOptions.map((user) => (
+            <SelectItem key={user.id} value={String(user.id)}>{getAdvisorDisplayName(user)}</SelectItem>
           ))}
         </Select>
         {advisorUsersLoading ? <p className="text-xs text-gray-500">Loading advisors...</p> : null}

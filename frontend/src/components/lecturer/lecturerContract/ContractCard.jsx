@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   FileText, User2, Building2, Calendar, DollarSign, 
-  Eye, PenTool, Download, Ellipsis, 
+  Eye, PenTool, Download, Ellipsis, MessageSquare,
   FilePen
 } from 'lucide-react';
 import { 
@@ -32,6 +32,7 @@ export default function ContractCard({
   onViewDetail,
   onSign,
   onRedo,
+  onViewRedoMessage,
 }) {
   const isAdvisor = String(contract?.contract_type || '').toUpperCase() === 'ADVISOR';
   const formattedId = formatContractId(contract);
@@ -51,9 +52,16 @@ export default function ContractCard({
   const displayStatus = getDisplayStatus(contract);
   const statusConfig = getStatusLabel(displayStatus);
   const isEnded = String(displayStatus || '').trim().toUpperCase() === 'CONTRACT_ENDED';
-  const canRedo = String(contract?.status || '').toUpperCase() === 'WAITING_LECTURER';
+  const rawStatus = String(contract?.status || '').trim().toUpperCase().replace(/\s+/g, '_');
+  const redoRequesterRole = String(contract?.latest_redo_requester_role || '').trim().toUpperCase();
+  const canRedo = isAdvisor
+    ? !isEnded && ['DRAFT', 'WAITING_MANAGEMENT'].includes(rawStatus)
+    : rawStatus === 'WAITING_LECTURER';
+  const hasRedoRequest = isAdvisor
+    ? rawStatus === 'REQUEST_REDO' && (redoRequesterRole === 'MANAGEMENT' || (!redoRequesterRole && Boolean(contract?.management_remarks)))
+    : rawStatus === 'REQUEST_REDO';
   const canSign = isAdvisor
-    ? (!isEnded && String(contract?.status || '').toUpperCase() === 'DRAFT' && !contract?.advisor_signed_at)
+    ? (!isEnded && rawStatus === 'DRAFT' && !contract?.advisor_signed_at)
     : (
         !isEnded && (
           contract.status === 'MANAGEMENT_SIGNED' ||
@@ -234,6 +242,16 @@ export default function ContractCard({
                 aria-label="Redo"
               >
                 <FilePen className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {hasRedoRequest && (
+              <button
+                onClick={() => onViewRedoMessage(contract)}
+                className="p-2 rounded-lg bg-white border border-slate-200 hover:border-orange-300 hover:bg-orange-50 text-slate-600 hover:text-orange-600 transition-all duration-200 shadow-sm"
+                title="View redo message"
+                aria-label="View redo message"
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
               </button>
             )}
             {canSign && (

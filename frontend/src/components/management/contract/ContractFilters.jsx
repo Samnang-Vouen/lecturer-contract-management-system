@@ -4,6 +4,17 @@ import Input from '../../ui/Input.jsx';
 import Select, { SelectItem } from '../../ui/Select.jsx';
 import { Filter as FilterIcon } from 'lucide-react';
 
+const STATUS_OPTIONS = [
+  { value: '', label: 'All Status' },
+  { value: 'WAITING_MANAGEMENT', label: 'Waiting Management' },
+  { value: 'WAITING_ADVISOR', label: 'Waiting Advisor' },
+  { value: 'WAITING_LECTURER', label: 'Waiting Lecturer' },
+  { value: 'WAITING_RESPONSE', label: 'Waiting Response' },
+  { value: 'REQUEST_REDO', label: 'Request Redo' },
+  { value: 'COMPLETED', label: 'Completed' },
+  { value: 'CONTRACT_ENDED', label: 'Contract Ended' },
+];
+
 /**
  * Search and filter controls for contracts
  */
@@ -13,7 +24,7 @@ export default function ContractFilters({ q, setQ, status, setStatus, setPage })
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: 0.05 }}
-      className="rounded-2xl border bg-white/80 backdrop-blur-sm shadow-sm p-4 flex flex-col md:flex-row gap-3 md:items-center"
+      className="relative z-30 rounded-2xl border bg-white/80 backdrop-blur-sm shadow-sm p-4 flex flex-col md:flex-row gap-3 md:items-center"
     >
       <div className="relative flex-1 min-w-[220px]">
         <Input 
@@ -40,12 +51,13 @@ export default function ContractFilters({ q, setQ, status, setStatus, setPage })
               className="w-full"
               unstyled
               buttonClassName="h-11 text-sm bg-transparent px-1 pr-6"
+              dropdownClassName="z-50"
             >
-              <SelectItem value="">All Status</SelectItem>
-              <SelectItem value="WAITING_MANAGEMENT">Waiting Management</SelectItem>
-              <SelectItem value="WAITING_ADVISOR">Waiting Advisor</SelectItem>
-              <SelectItem value="WAITING_LECTURER">Waiting Lecturer</SelectItem>
-              <SelectItem value="COMPLETED">Completed</SelectItem>
+              {STATUS_OPTIONS.map((option) => (
+                <SelectItem key={option.value || 'ALL'} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
             </Select>
           </div>
         </div>

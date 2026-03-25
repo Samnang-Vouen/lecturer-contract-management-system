@@ -1,23 +1,52 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 
 export default function SessionGroupsCard({
   title,
   groups,
   selectedIds,
   onToggleGroup,
+  onToggleAllGroups,
   roomByGroup,
   onRoomChange,
   roomPlaceholder,
 }) {
   const selectedSet = useMemo(() => new Set((Array.isArray(selectedIds) ? selectedIds : []).map(String)), [selectedIds]);
+  const allGroups = Array.isArray(groups) ? groups : [];
+  const totalGroups = allGroups.length;
+  const selectedCount = allGroups.reduce((count, group) => {
+    return selectedSet.has(String(group.id)) ? count + 1 : count;
+  }, 0);
+  const allSelected = totalGroups > 0 && selectedCount === totalGroups;
+  const partiallySelected = selectedCount > 0 && selectedCount < totalGroups;
   const showRoom = typeof onRoomChange === 'function';
   const roomMap = showRoom && roomByGroup && typeof roomByGroup === 'object' ? roomByGroup : {};
+  const selectAllRef = useRef(null);
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = partiallySelected;
+    }
+  }, [partiallySelected]);
 
   return (
     <div className="w-full rounded-lg border border-gray-200 bg-white">
-      <div className="px-3 py-2 text-sm font-medium text-gray-800 bg-gray-50 rounded-t-lg">{title}</div>
+      <div className="flex items-center justify-between gap-3 rounded-t-lg bg-gray-50 px-3 py-2">
+        <div className="text-sm font-medium text-gray-800">{title}</div>
+        {totalGroups > 0 && typeof onToggleAllGroups === 'function' && (
+          <label className="flex items-center gap-2 text-xs font-medium text-gray-700 cursor-pointer">
+            <input
+              ref={selectAllRef}
+              type="checkbox"
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              checked={allSelected}
+              onChange={(e) => onToggleAllGroups(e.target.checked)}
+            />
+            Select All
+          </label>
+        )}
+      </div>
       <div className="max-h-44 overflow-y-auto divide-y divide-gray-100">
-        {(Array.isArray(groups) ? groups : []).map((g) => {
+        {allGroups.map((g) => {
           const gid = String(g.id);
           const checked = selectedSet.has(gid);
           return (

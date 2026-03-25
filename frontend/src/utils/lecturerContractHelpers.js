@@ -221,6 +221,12 @@ export const getLecturerDepartment = (contract) => {
  */
 export const getStatusLabel = (status) => {
   switch (status) {
+    case 'WAITING_RESPONSE':
+      return {
+        label: 'waiting response',
+        class: 'bg-orange-50 text-orange-700 border-orange-200',
+        icon: Clock,
+      };
     case 'WAITING_ADVISOR':
       return {
         label: 'waiting advisor',
@@ -292,6 +298,7 @@ export const isContractExpired = (contract) => {
 export const getDisplayStatus = (contract) => {
   const rawStatus = String(contract?.status || '').trim().toUpperCase().replace(/\s+/g, '_');
   if (rawStatus === 'CONTRACT_ENDED') return 'CONTRACT_ENDED';
+  if (rawStatus === 'REQUEST_REDO') return 'WAITING_RESPONSE';
   if (isContractExpired(contract)) return 'CONTRACT_ENDED';
 
   const t = String(contract?.contract_type || '').toUpperCase();

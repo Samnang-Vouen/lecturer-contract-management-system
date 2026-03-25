@@ -67,6 +67,7 @@ export default function ContractRedoEditDialog({
     ...state,
     ...mappingsState,
     ...submitState,
+    mappingUserId,
     onOpenChange,
   };
 

@@ -1,8 +1,8 @@
 import { axiosInstance } from '../lib/axios';
 
-export async function getAcceptedMappings({ academic_year, limit = 100, page } = {}) {
+export async function getAcceptedMappings({ academic_year, lecturer_profile_id, limit = 100, page } = {}) {
   const res = await axiosInstance.get('/course-mappings', {
-    params: { academic_year, status: 'Accepted', limit, page },
+    params: { academic_year, lecturer_profile_id, status: 'Accepted', limit, page },
   });
   return res.data;
 }

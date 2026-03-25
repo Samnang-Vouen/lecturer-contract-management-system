@@ -33,6 +33,7 @@ const ScheduleCreation = lazy(
 const UploadEvaluation = lazy(
   () => import("./pages/admin/UploadEvaluation.jsx"),
 );
+const RateHour = lazy(() => import("./pages/admin/RateHour.jsx"));
 
 const LecturerDashboardLayout = lazy(
   () => import("./pages/LecturerDashboardLayout.jsx"),
@@ -153,6 +154,7 @@ function App() {
             <Route path="schedule-creation" element={<ScheduleCreation />} />
             <Route path="upload-evaluation" element={<UploadEvaluation />} />
             <Route path="contracts" element={<ContractGeneration />} />
+            <Route path="rate-hour" element={<RateHour />} />
           </Route>
 
           {/* Lecturer + Nested routes */}

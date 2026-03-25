@@ -14,6 +14,7 @@ import ContractSummaryDialog from '../../components/admin/contractsGeneration/Co
 import ContractGridSection from '../../components/admin/contractsGeneration/ContractGridSection';
 import ContractDeleteDialog from '../../components/admin/contractsGeneration/ContractDeleteDialog';
 import ContractRedoEditDialog from '../../components/admin/contractsGeneration/ContractRedoEditDialog';
+import ContractRedoMessageDialog from '../../components/admin/contractsGeneration/ContractRedoMessageDialog';
 import { formatContractId } from '../../utils/contractHelpers';
 
 export default function ContractGeneration() {
@@ -35,9 +36,10 @@ export default function ContractGeneration() {
   const [showSummaryDialog, setShowSummaryDialog] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState({ open: false, id: null, label: '' });
   const [advisorContracts, setAdvisorContracts] = useState([]);
-  const [advisorTotal, setAdvisorTotal] = useState(0);
+  const [_advisorTotal, setAdvisorTotal] = useState(0);
   const [_advisorLoading, setAdvisorLoading] = useState(false);
   const [editRedo, setEditRedo] = useState({ open: false, contract: null });
+  const [redoMessage, setRedoMessage] = useState({ open: false, contract: null });
 
   useEffect(() => {
     try {
@@ -65,7 +67,7 @@ export default function ContractGeneration() {
     setAdvisorTotal,
     setAdvisorLoading,
   });
-  const { totalBase, filteredContracts } = useContractGenerationDerived({
+  const { filteredContracts } = useContractGenerationDerived({
     contractData,
     contractMappings,
     advisorContracts,
@@ -74,6 +76,7 @@ export default function ContractGeneration() {
     handleCreateContract,
     handleCreateAdvisorContract,
     handleOpenRedoEdit,
+    handleOpenRedoMessage,
     handleSaveRedoEdit,
   } = useContractGenerationHandlers({
     academicYear,
@@ -132,6 +135,12 @@ export default function ContractGeneration() {
         mappingUserId={contractMappings.mappingUserId}
       />
 
+      <ContractRedoMessageDialog
+        open={redoMessage.open}
+        onOpenChange={(open) => setRedoMessage((prev) => ({ ...prev, open }))}
+        contract={redoMessage.contract}
+      />
+
       {/* Search & filter bar */}
       <ContractFilters
         search={contractData.search}
@@ -140,7 +149,13 @@ export default function ContractGeneration() {
         onStatusFilterChange={contractData.setStatusFilter}
       />
 
-      <ContractGridSection filteredContracts={filteredContracts} totalBase={totalBase} contractData={contractData} contractActions={contractActions} handleOpenRedoEdit={handleOpenRedoEdit} />
+      <ContractGridSection
+        filteredContracts={filteredContracts}
+        contractData={contractData}
+        contractActions={contractActions}
+        handleOpenRedoEdit={handleOpenRedoEdit}
+        handleOpenRedoMessage={(contract) => handleOpenRedoMessage(contract, setRedoMessage)}
+      />
 
       <ContractActionsMenu contractMenu={contractMenu} contractActions={contractActions} openDeleteConfirm={openDeleteConfirm} />
 

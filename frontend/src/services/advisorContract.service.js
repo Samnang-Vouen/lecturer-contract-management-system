@@ -20,8 +20,9 @@ export async function editAdvisorContract(id, payload) {
   return res.data;
 }
 
-export async function updateAdvisorContractStatus(id, status) {
-  const res = await axiosInstance.patch(`/advisor-contracts/${id}/status`, { status });
+export async function updateAdvisorContractStatus(id, status, remarks) {
+  const payload = remarks ? { status, remarks } : { status };
+  const res = await axiosInstance.patch(`/advisor-contracts/${id}/status`, payload);
   return res.data;
 }
 
