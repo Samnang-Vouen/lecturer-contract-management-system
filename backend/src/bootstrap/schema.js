@@ -448,4 +448,52 @@ export async function runSchemaBootstrapping(sequelize) {
   } catch (e) {
     console.warn('[schema] check Candidates.status failed:', e.message);
   }
+
+  try {
+    const [rows] = await sequelize.query("SHOW COLUMNS FROM `Candidates` LIKE 'imported_from_file'");
+    if (!rows.length) {
+      console.log('[schema] Adding missing Candidates.imported_from_file column');
+      await sequelize.query(
+        'ALTER TABLE `Candidates` ADD COLUMN `imported_from_file` TINYINT(1) NOT NULL DEFAULT 0'
+      );
+    }
+  } catch (e) {
+    console.warn('[schema] ensure Candidates.imported_from_file failed:', e.message);
+  }
+
+  try {
+    const [result] = await sequelize.query(`
+      UPDATE \
+        \`Candidates\` c
+      INNER JOIN \
+        \`lecturer_profiles\` lp ON lp.\`candidate_id\` = c.\`id\`
+      INNER JOIN \
+        \`users\` u ON u.\`id\` = lp.\`user_id\`
+      LEFT JOIN \
+        \`candidate_questions\` cq ON cq.\`candidate_id\` = c.\`id\`
+      SET \
+        c.\`imported_from_file\` = 1
+      WHERE \
+        c.\`imported_from_file\` = 0
+        AND c.\`status\` = 'done'
+        AND cq.\`id\` IS NULL
+        AND c.\`interviewScore\` IS NULL
+        AND c.\`rejectionReason\` IS NULL
+        AND c.\`rateReason\` IS NULL
+        AND c.\`evaluator\` IS NULL
+        AND c.\`email\` IS NOT NULL
+        AND TRIM(c.\`email\`) <> ''
+        AND LOWER(TRIM(c.\`email\`)) LIKE '%@cadt.edu.kh'
+        AND LOWER(TRIM(c.\`email\`)) = LOWER(TRIM(u.\`email\`))
+        AND LOWER(TRIM(c.\`email\`)) = LOWER(TRIM(lp.\`personal_email\`))
+        AND ABS(TIMESTAMPDIFF(MINUTE, c.\`created_at\`, u.\`created_at\`)) <= 10
+        AND ABS(TIMESTAMPDIFF(MINUTE, c.\`created_at\`, lp.\`created_at\`)) <= 10
+    `);
+    const affectedRows = result?.affectedRows ?? result?.rowCount ?? 0;
+    if (affectedRows > 0) {
+      console.log(`[schema] Backfilled Candidates.imported_from_file for ${affectedRows} legacy imported row(s)`);
+    }
+  } catch (e) {
+    console.warn('[schema] backfill Candidates.imported_from_file failed:', e.message);
+  }
 }

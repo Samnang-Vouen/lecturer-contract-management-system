@@ -137,6 +137,7 @@ export function useLecturers() {
         const normalized = list.map(l => ({
           id: l.id || l.userId || l.lecturerProfileId,
           name: l.name || `${l.firstName || ''} ${l.lastName || ''}`.trim() || (l.email ? l.email.split('@')[0] : '').replace(/\./g, ' '),
+          title: l.title || null,
           email: l.email,
           role: l.role,
           roles: Array.isArray(l.roles)

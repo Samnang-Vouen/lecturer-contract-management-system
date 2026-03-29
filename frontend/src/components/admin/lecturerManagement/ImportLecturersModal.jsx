@@ -268,7 +268,7 @@ export function ImportLecturersPanel({ onClose, onImported, showIntro = true, sh
             <div className="bg-amber-50 border border-amber-100 rounded-lg px-4 py-3">
               <p className="text-xs font-semibold text-amber-800 mb-1">Expected recruitment columns</p>
               <p className="text-xs text-amber-700 font-mono leading-relaxed">
-                fullName · email@cadt.edu.kh · Hourly Rate · phone · positionAppliedFor · title · gender
+                fullName · email@cadt.edu.kh · Hourly Rate · phone · positionAppliedFor · title(optional) · gender(optional)
               </p>
               <p className="text-xs text-amber-600 mt-2">
                 Advisor positions create advisor accounts. All other positions create lecturer accounts.
@@ -279,6 +279,7 @@ export function ImportLecturersPanel({ onClose, onImported, showIntro = true, sh
               </p>
               <p className="text-xs text-amber-600 mt-2">
                 Title values: <span className="font-mono">Mr</span>, <span className="font-mono">Ms</span>, <span className="font-mono">Mrs</span>, <span className="font-mono">Dr</span>, <span className="font-mono">Prof</span>. Gender values: <span className="font-mono">male</span>, <span className="font-mono">female</span>, <span className="font-mono">other</span>.
+                If title is omitted, the import will infer it from the name prefix or gender when possible.
               </p>
             </div>
           </div>

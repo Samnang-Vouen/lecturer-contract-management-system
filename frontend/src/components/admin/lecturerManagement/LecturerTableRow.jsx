@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { MoreVertical, MoreHorizontal } from 'lucide-react';
+import { composeEnglishWithTitle } from '../../../utils/nameFormatting';
 
 export default function LecturerTableRow({ lecturer, onOpenMenu, onOpenCoursesPopover }) {
   const [courseTooltip, setCourseTooltip] = useState(null);
@@ -27,6 +28,7 @@ export default function LecturerTableRow({ lecturer, onOpenMenu, onOpenCoursesPo
   const courses = Array.isArray(lecturer.courses) ? lecturer.courses : [];
   const visibleCourses = courses.slice(0, 3);
   const remainingCourses = Math.max(courses.length - visibleCourses.length, 0);
+  const displayName = composeEnglishWithTitle(lecturer.title, lecturer.name || 'Unknown');
 
   const getCourseLabel = (course) => {
     if (!course) return '';
@@ -106,7 +108,7 @@ export default function LecturerTableRow({ lecturer, onOpenMenu, onOpenCoursesPo
           </div>
           <div>
             <div className='font-medium text-gray-900 inline-flex items-center gap-2'>
-              <span>{lecturer.name || 'Unknown'}</span>
+              <span>{displayName}</span>
               {hasAdvisorRole && (
                 <span className='inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-[11px] font-medium text-purple-800'>
                   Advisor
