@@ -37,7 +37,7 @@ export default function ContractGeneration() {
   const [confirmDelete, setConfirmDelete] = useState({ open: false, id: null, label: '' });
   const [advisorContracts, setAdvisorContracts] = useState([]);
   const [_advisorTotal, setAdvisorTotal] = useState(0);
-  const [_advisorLoading, setAdvisorLoading] = useState(false);
+  const [advisorLoading, setAdvisorLoading] = useState(false);
   const [editRedo, setEditRedo] = useState({ open: false, contract: null });
   const [redoMessage, setRedoMessage] = useState({ open: false, contract: null });
 
@@ -120,6 +120,8 @@ export default function ContractGeneration() {
         open={showSummaryDialog}
         onOpenChange={setShowSummaryDialog}
         currentAcademicYear={academicYear}
+        advisorContracts={advisorContracts}
+        advisorContractsLoading={advisorLoading}
       />
 
       {/* Redo edit dialog (REQUEST_REDO) */}

@@ -471,7 +471,7 @@ export function Sidebar({
                     style={sidebarFont}
                   >
                     <FolderUp className="h-4 w-4" />
-                    <span>Upload Evaluation</span>
+                    <span>Lecturer Evaluation</span>
                   </div>
                 </Link>
 

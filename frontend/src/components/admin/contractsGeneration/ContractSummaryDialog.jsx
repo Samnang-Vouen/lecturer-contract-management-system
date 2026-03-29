@@ -16,9 +16,62 @@ const SUMMARY_TYPE_OPTIONS = [
   { value: 'INTERNSHIP_2', label: 'Internship II' },
 ];
 
+const SUMMARY_TYPE_FIELD_BY_VALUE = {
+  CAPSTONE_1: 'capstone_1',
+  CAPSTONE_2: 'capstone_2',
+  INTERNSHIP_1: 'internship_1',
+  INTERNSHIP_2: 'internship_2',
+};
+
 function buildDefaultAcademicYear() {
   const year = new Date().getFullYear();
   return `${year}-${year + 1}`;
+}
+
+function normalizeGenerationNumber(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+
+  const match = raw.match(/\d+/);
+  if (!match) return raw.toUpperCase().replace(/\s+/g, '_');
+
+  return String(Number.parseInt(match[0], 10));
+}
+
+function extractAdvisorContractGenerationKeys(contract) {
+  const keys = new Set();
+  const addKey = (value) => {
+    const normalized = normalizeGenerationNumber(value);
+    if (normalized) {
+      keys.add(normalized);
+    }
+  };
+
+  addKey(contract?.generation);
+  addKey(contract?.gen);
+  addKey(contract?.class_generation);
+  addKey(contract?.class_name);
+  addKey(contract?.className);
+
+  const students = Array.isArray(contract?.students) ? contract.students : [];
+  students.forEach((student) => {
+    addKey(student?.generation);
+    addKey(student?.gen);
+    addKey(student?.class_generation);
+    addKey(student?.class_name);
+    addKey(student?.className);
+  });
+
+  return keys;
+}
+
+function advisorContractMatchesClass(contract, selectedClassName) {
+  if (!selectedClassName) return true;
+
+  const generationKeys = extractAdvisorContractGenerationKeys(contract);
+  if (!generationKeys.size) return true;
+
+  return generationKeys.has(normalizeGenerationNumber(selectedClassName));
 }
 
 async function extractErrorMessage(error) {
@@ -47,7 +100,13 @@ function downloadBlob(blob, fileName) {
   window.URL.revokeObjectURL(url);
 }
 
-export default function ContractSummaryDialog({ open, onOpenChange, currentAcademicYear }) {
+export default function ContractSummaryDialog({
+  open,
+  onOpenChange,
+  currentAcademicYear,
+  advisorContracts = [],
+  advisorContractsLoading = false,
+}) {
   const [academicYear, setAcademicYear] = useState(currentAcademicYear || buildDefaultAcademicYear());
   const [summaryFor, setSummaryFor] = useState('advisor');
   const [selectedType, setSelectedType] = useState('');
@@ -124,6 +183,33 @@ export default function ContractSummaryDialog({ open, onOpenChange, currentAcade
     return Array.from(new Set(names)).sort((left, right) => left.localeCompare(right));
   }, [classes, academicYear]);
 
+  const advisorTypeOptions = useMemo(() => {
+    if (advisorContractsLoading) {
+      return SUMMARY_TYPE_OPTIONS;
+    }
+
+    const matchingContracts = advisorContracts.filter(
+      (contract) =>
+        contract?.academic_year === academicYear && advisorContractMatchesClass(contract, className)
+    );
+
+    if (!matchingContracts.length) {
+      return [];
+    }
+
+    const availableTypes = new Set();
+    matchingContracts.forEach((contract) => {
+      SUMMARY_TYPE_OPTIONS.forEach((option) => {
+        const field = SUMMARY_TYPE_FIELD_BY_VALUE[option.value];
+        if (field && contract?.[field]) {
+          availableTypes.add(option.value);
+        }
+      });
+    });
+
+    return SUMMARY_TYPE_OPTIONS.filter((option) => availableTypes.has(option.value));
+  }, [academicYear, advisorContracts, advisorContractsLoading, className]);
+
   useEffect(() => {
     if (className && !classOptions.includes(className)) {
       setClassName('');
@@ -139,6 +225,17 @@ export default function ContractSummaryDialog({ open, onOpenChange, currentAcade
       setSelectedType('');
     }
   }, [summaryFor, selectedType]);
+
+  useEffect(() => {
+    if (summaryFor !== 'advisor' || !selectedType) {
+      return;
+    }
+
+    const stillAvailable = advisorTypeOptions.some((option) => option.value === selectedType);
+    if (!stillAvailable) {
+      setSelectedType('');
+    }
+  }, [advisorTypeOptions, selectedType, summaryFor]);
 
   useEffect(() => {
     if (summaryFor === 'advisor' && selectedClassNames.length) {
@@ -247,7 +344,7 @@ export default function ContractSummaryDialog({ open, onOpenChange, currentAcade
                   <p className="text-xs text-gray-500">Choose one contract type.</p>
                 </div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {SUMMARY_TYPE_OPTIONS.map((option) => {
+                  {advisorTypeOptions.map((option) => {
                     const active = selectedType === option.value;
 
                     return (
@@ -268,6 +365,11 @@ export default function ContractSummaryDialog({ open, onOpenChange, currentAcade
                     );
                   })}
                 </div>
+                {!advisorContractsLoading && !advisorTypeOptions.length ? (
+                  <p className="text-sm text-amber-700">
+                    No advisor contract types are available for the selected academic year and class.
+                  </p>
+                ) : null}
               </div>
             ) : null}
 
