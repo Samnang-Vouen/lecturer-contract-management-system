@@ -1,12 +1,6 @@
-import {
-  ArrowLeft,
-  CalendarDays,
-  Clock3,
-  Users,
-} from "lucide-react";
+import { ArrowLeft, Users } from "lucide-react";
 
 const DETAIL_FIELDS = [
-  { key: "group", label: "Group" },
   { key: "course", label: "Course" },
   { key: "room", label: "Room" },
 ];
@@ -155,12 +149,14 @@ export default function ScheduleTable({
                                   {getSessionDetails(entry).map(({ key, label, fallback }) => (
                                     <div
                                       key={key}
-                                      className="grid grid-cols-[72px_minmax(0,1fr)] gap-3 text-sm text-slate-600"
+                                      className={getDetailRowClassName(key)}
                                     >
-                                      <span className="font-semibold text-slate-700">
-                                        {label}:
-                                      </span>
-                                      <span className="break-words text-slate-900">
+                                      {showDetailLabel(key) ? (
+                                        <span className="font-semibold text-slate-700">
+                                          {label}:
+                                        </span>
+                                      ) : null}
+                                      <span className={getDetailValueClassName(key)}>
                                         {getDisplayValue(entry?.[key], fallback)}
                                       </span>
                                     </div>
@@ -210,4 +206,32 @@ function getDisplayValue(value, fallback = "") {
   }
 
   return normalized;
+}
+
+function showDetailLabel(key) {
+  return key !== "course" && key !== "room";
+}
+
+function getDetailRowClassName(key) {
+  if (key === "course") {
+    return "flex justify-center text-center text-sm text-slate-600";
+  }
+
+  if (key === "room") {
+    return "flex justify-center text-center text-sm text-slate-600";
+  }
+
+  return "grid grid-cols-[72px_minmax(0,1fr)] gap-3 text-sm text-slate-600";
+}
+
+function getDetailValueClassName(key) {
+  if (key === "course") {
+    return "break-words text-center text-base font-semibold text-slate-900";
+  }
+
+  if (key === "room") {
+    return "inline-flex w-fit items-center justify-center rounded-full bg-amber-100 px-3 py-1 text-center text-sm font-semibold text-amber-800";
+  }
+
+  return "break-words text-slate-900";
 }
