@@ -75,8 +75,8 @@ export function useRateHourPageData(authUser) {
   }, [report.rateAcademicYears, report.latestAcademicYear, academicYear]);
 
   const latestAcademicYear = report.latestAcademicYear || normalizeAcademicYear(academicYear);
-  const totalColumns = 5 + rateAcademicYears.length + 6 + 4 + 6;
-  const tableMinWidth = `${1620 + Math.max(rateAcademicYears.length, 3) * 140 + 110}px`;
+  const totalColumns = 3 + rateAcademicYears.length + 6 + 4 + 6;
+  const tableMinWidth = `${1360 + Math.max(rateAcademicYears.length, 3) * 140 + 110}px`;
 
   const departmentOptions = useMemo(() => Array.from(
     new Set(report.lecturers.map((row) => row.department?.englishName).filter(Boolean))

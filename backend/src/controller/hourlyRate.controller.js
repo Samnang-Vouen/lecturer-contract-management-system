@@ -270,6 +270,7 @@ function buildContractRateMap(contracts, currentAcademicYear) {
 }
 
 async function getLatestAvailableAcademicYear() {
+  const defaultAcademicYear = getDefaultAcademicYear();
   const [teachingCourseYear, advisorYear, courseMappingYear, historyYear] = await Promise.all([
     TeachingContractCourse.max('academic_year'),
     AdvisorContract.max('academic_year'),
@@ -277,11 +278,22 @@ async function getLatestAvailableAcademicYear() {
     HourlyRateHistory.max('academic_year'),
   ]);
 
-  const academicYears = [teachingCourseYear, advisorYear, courseMappingYear, historyYear]
+  const workloadAcademicYears = [teachingCourseYear, advisorYear, courseMappingYear]
     .filter((value) => isAcademicYear(value));
 
-  if (!academicYears.length) return getDefaultAcademicYear();
-  return academicYears.sort(compareAcademicYears).at(-1);
+  if (workloadAcademicYears.length) {
+    const latestWorkloadAcademicYear = workloadAcademicYears.sort(compareAcademicYears).at(-1);
+    return latestWorkloadAcademicYear;
+  }
+
+  const academicYears = [historyYear].filter((value) => isAcademicYear(value));
+
+  if (!academicYears.length) return defaultAcademicYear;
+
+  const latestAvailableAcademicYear = academicYears.sort(compareAcademicYears).at(-1);
+  return compareAcademicYears(latestAvailableAcademicYear, defaultAcademicYear) > 0
+    ? defaultAcademicYear
+    : latestAvailableAcademicYear;
 }
 
 async function resolveReportAcademicYear(value) {
