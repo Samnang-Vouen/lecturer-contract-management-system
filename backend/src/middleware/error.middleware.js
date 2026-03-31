@@ -10,9 +10,6 @@ export const errorHandler = (err, req, res, _next) => {
   const status = err.status || err.statusCode || 500;
   const message = err.message || 'Server error';
   const payload = { success: false, message };
-  if (process.env.NODE_ENV !== 'production') {
-    payload.stack = err.stack;
-  }
   // Minimal structured log
   console.error('[ERROR]', status, message);
   return res.status(status).json(payload);

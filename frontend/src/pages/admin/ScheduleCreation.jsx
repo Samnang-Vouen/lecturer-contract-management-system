@@ -7,6 +7,7 @@ import SchedulePreviewPanel from "../../components/admin/scheduleCreation/Schedu
 import EmptySessionDialog from "../../components/admin/scheduleCreation/EmptySessionDialog";
 import Select, { SelectItem } from "../../components/ui/Select.jsx";
 import { fallbackTimeSlots } from "../../utils/scheduleCreation";
+import { subscribeCourseMappingUpdates } from "../../utils/courseMappingUpdates";
 import { useScheduleCreationData } from "../../hooks/admin/scheduleCreation/useScheduleCreationData";
 import { useSchedulePreview } from "../../hooks/admin/scheduleCreation/useSchedulePreview";
 import { useEmptyCellDialog } from "../../hooks/admin/scheduleCreation/useEmptyCellDialog";
@@ -51,6 +52,7 @@ export default function ScheduleCreation() {
   const {
     academicYearOptions,
     visibleGroups,
+    loadPageData,
   } = useScheduleCreationData({
     specializations,
     setSpecializations,
@@ -127,7 +129,7 @@ export default function ScheduleCreation() {
     return specializations.find((spec) => String(spec.id) === String(selectedSpecialization))?.name || "the selected specialization";
   }, [selectedSpecialization, selectableSpecializations, specializations]);
 
-  const updateSearchParams = (nextValues) => {
+  const updateSearchParams = React.useCallback((nextValues) => {
     const nextParams = new URLSearchParams();
 
     const academicYear = nextValues.academicYear ?? selectedAcademicYear;
@@ -149,7 +151,24 @@ export default function ScheduleCreation() {
     }
 
     setSearchParams(nextParams, { replace: true });
-  };
+  }, [selectedAcademicYear, selectedPreviewGroupId, selectedSpecialization, setSearchParams]);
+
+  const refreshScheduleData = React.useCallback(async () => {
+    const refreshedData = await loadPageData();
+    if (!selectedPreviewGroupId) return;
+
+    const refreshedGroups = Array.isArray(refreshedData?.groups) ? refreshedData.groups : [];
+    const nextPreviewGroup = refreshedGroups.find(
+      (group) => String(group.id) === String(selectedPreviewGroupId),
+    );
+
+    if (!nextPreviewGroup) {
+      updateSearchParams({ groupId: null });
+      return;
+    }
+
+    await handlePreviewGroup(nextPreviewGroup);
+  }, [handlePreviewGroup, loadPageData, selectedPreviewGroupId, updateSearchParams]);
 
   useEffect(() => {
     if (selectedPreviewGroupId) return;
@@ -161,6 +180,12 @@ export default function ScheduleCreation() {
     setPreviewStartTerm("");
     setPreviewEndTerm("");
   }, [selectedPreviewGroupId]);
+
+  useEffect(() => {
+    return subscribeCourseMappingUpdates(() => {
+      refreshScheduleData();
+    });
+  }, [refreshScheduleData]);
 
   useEffect(() => {
     if (!selectedPreviewGroupId || isLoading) return;

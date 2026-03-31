@@ -1,5 +1,4 @@
 import { User, Role, UserRole, LecturerProfile } from '../model/index.js';
-import sequelize from '../config/db.js';
 import { generateToken, getJwtSecret } from '../config/utils.js';
 import {
   EMAIL_DOMAIN,
@@ -65,16 +64,6 @@ export const login = async (req, res) => {
 
     // Password verification (supports legacy plaintext -> auto-migrate to bcrypt)
     const stored = (user.password_hash || '').trim(); // mapped column 'password'
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(
-        '[AUTH] Verifying password for user',
-        user.email,
-        'storedLen',
-        stored.length,
-        'isBcrypt',
-        stored.startsWith('$2')
-      );
-    }
     let valid = false;
     if (stored?.startsWith('$2')) {
       // bcrypt hash
@@ -268,11 +257,6 @@ export const forgotPassword = async (req, res) => {
 
     const user = await User.findOne({ where: { email } });
     
-
-/*     if (!user) {
-      const [rawRows] = await sequelize.query('SELECT id, email FROM users WHERE email = ?', { replacements: [email] });
-      console.log('[DEBUG forgotPassword] raw SQL rows:', JSON.stringify(rawRows));
-    } */
 
     // Always return the same message to avoid leaking whether an email exists
     const genericMsg = 'If that email is registered, a password reset link has been sent.';

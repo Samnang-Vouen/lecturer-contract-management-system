@@ -30,8 +30,7 @@ export function useCourseAssignment(classes, setClasses, editingClass, setEditin
       const list = Array.isArray(payload) ? payload : (Array.isArray(payload.data) ? payload.data : []);
       setAvailableCourses(list);
       setIsCourseAssignDialogOpen(true);
-    } catch (err) {
-      console.debug('Failed to load courses list', err);
+    } catch (_err) {
       throw new Error("Failed to load courses list");
     }
   };

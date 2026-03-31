@@ -157,7 +157,6 @@ export const getAllUsers = async (req, res) => {
     res.status(500).json({
       message: 'Error fetching users',
       error: error.message,
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
     });
   }
 };

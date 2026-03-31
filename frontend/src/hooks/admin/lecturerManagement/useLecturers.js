@@ -116,7 +116,7 @@ export function useLecturers() {
         if (departmentFilter) params.department = departmentFilter;
 
         // De-dupe identical requests to avoid rapid repeated calls caused by
-        // re-renders / URL sync / StrictMode double-invocation in dev.
+        // re-renders and URL synchronization.
         requestKey = JSON.stringify(params);
         if (!force) {
           if (inFlightKeyRef.current === requestKey) return;

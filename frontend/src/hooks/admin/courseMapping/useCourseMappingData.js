@@ -3,6 +3,7 @@ import { getClasses } from '../../../services/class.service.js';
 import { getCourses } from '../../../services/course.service.js';
 import { listLecturers } from '../../../services/lecturer.service.js';
 import { listCourseMappings, createCourseMapping, updateCourseMapping, deleteCourseMapping } from '../../../services/courseMapping.service.js';
+import { notifyCourseMappingUpdated } from '../../../utils/courseMappingUpdates.js';
 
 /**
  * Hook to manage course mapping data (CRUD operations, filtering, pagination)
@@ -225,17 +226,14 @@ export function useCourseMappingData() {
 
       const clsPayload = clsRes.data;
       const classList = Array.isArray(clsPayload) ? clsPayload : Array.isArray(clsPayload?.data) ? clsPayload.data : [];
-      console.log('[useCourseMappingData] Classes loaded:', classList.length);
       setClasses(classList);
 
       setLecturers(
         (lectBody?.data || []).map((l) => ({ id: l.lecturerProfileId, name: l.name, courses: l.courses || [] }))
       );
-      console.log('[useCourseMappingData] Lecturers loaded:', lectBody?.data?.length || 0);
 
       const coursePayload = courseRes.data;
       const courseList = Array.isArray(coursePayload) ? coursePayload : Array.isArray(coursePayload?.data) ? coursePayload.data : [];
-      console.log('[useCourseMappingData] Courses loaded:', courseList.length);
       setCourses(courseList);
 
       if (reset) {
@@ -250,11 +248,9 @@ export function useCourseMappingData() {
       });
 
       const mData = Array.isArray(mapBody) ? mapBody : Array.isArray(mapBody?.data) ? mapBody.data : [];
-      console.log('[useCourseMappingData] Mappings loaded:', mData.length, 'Total:', mapBody?.total);
       setMappings(reset ? mData : [...mappings, ...mData]);
       setHasMore(!!mapBody?.hasMore);
     } catch (e) {
-      console.error('[useCourseMappingData] Error loading data:', e);
       setError(e.response?.data?.message || e.message);
     } finally {
       setLoading(false);
@@ -284,7 +280,7 @@ export function useCourseMappingData() {
       const courseList = Array.isArray(coursePayload) ? coursePayload : Array.isArray(coursePayload?.data) ? coursePayload.data : [];
       setCourses(courseList);
     } catch (e) {
-      console.error('reloadForAcademicYear failed', e);
+      setError(e.response?.data?.message || e.message);
     } finally {
       setLoading(false);
     }
@@ -336,6 +332,10 @@ export function useCourseMappingData() {
 
   const createMapping = async (payload) => {
     await createCourseMapping(payload);
+    notifyCourseMappingUpdated({
+      academicYear: payload?.academic_year || null,
+      classId: payload?.class_id || null,
+    });
     await loadData(true);
   };
 
@@ -344,10 +344,15 @@ export function useCourseMappingData() {
       const ids = idOrIds.map((x) => parseInt(String(x), 10)).filter((n) => Number.isInteger(n) && n > 0);
       if (!ids.length) return;
       await updateCourseMapping(ids[0], { ...payload, ids });
+      notifyCourseMappingUpdated({ ids, academicYear: payload?.academic_year || null });
       await loadData(true);
       return;
     }
     await updateCourseMapping(idOrIds, payload);
+    notifyCourseMappingUpdated({
+      ids: [idOrIds],
+      academicYear: payload?.academic_year || null,
+    });
     await loadData(true);
   };
 
@@ -356,10 +361,12 @@ export function useCourseMappingData() {
       const ids = idOrIds.map((x) => parseInt(String(x), 10)).filter((n) => Number.isInteger(n) && n > 0);
       if (!ids.length) return;
       await deleteCourseMapping(ids[0], { ids });
+      notifyCourseMappingUpdated({ ids });
       await loadData(true);
       return;
     }
     await deleteCourseMapping(idOrIds);
+    notifyCourseMappingUpdated({ ids: [idOrIds] });
     await loadData(true);
   };
 
