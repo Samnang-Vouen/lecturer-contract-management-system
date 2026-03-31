@@ -1,6 +1,7 @@
 import React from 'react';
 import { DollarSign } from 'lucide-react';
 import { getHourlyRate, calculateTotalHours, calculateSalary } from '../../../utils/contractUtils';
+import { formatKhrFromUsd } from '../../../utils/currency';
 
 /**
  * Contract financial details section
@@ -9,6 +10,7 @@ export default function ContractFinancials({ contract }) {
   const hours = calculateTotalHours(contract);
   const rate = getHourlyRate(contract);
   const salary = calculateSalary(contract);
+  const salaryDisplay = formatKhrFromUsd(salary);
 
   return (
     <div className="px-5 mt-4">
@@ -31,7 +33,7 @@ export default function ContractFinancials({ contract }) {
         <div className="flex items-center justify-between py-1">
           <span className="text-gray-800 font-medium">Total:</span>
           <span className="font-semibold text-green-600">
-            {salary != null ? `$${salary.toLocaleString('en-US')}` : '-'}
+            {salaryDisplay || '-'}
           </span>
         </div>
       </div>
