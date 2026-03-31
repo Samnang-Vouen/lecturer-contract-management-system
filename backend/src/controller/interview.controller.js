@@ -139,6 +139,21 @@ export const addCandidateQuestion = async (req, res) => {
     // Validate question exists
     const quest = await InterviewQuestion.findByPk(question_id);
     if (!quest) return res.status(404).json({ message: 'Question not found' });
+
+    const existing = await CandidateQuestion.findOne({
+      where: { candidate_id, question_id },
+      order: [['updated_at', 'DESC'], ['created_at', 'DESC'], ['id', 'DESC']],
+    });
+
+    if (existing) {
+      await existing.update({
+        answer: answer !== undefined ? answer : existing.answer,
+        rating: rating !== undefined ? rating : existing.rating,
+        noted: noted !== undefined ? noted : existing.noted,
+      });
+      return res.json(existing);
+    }
+
     const created = await CandidateQuestion.create({
       candidate_id,
       question_id,
@@ -187,16 +202,41 @@ export const getCandidateInterviewDetails = async (req, res) => {
       return res.json({ candidate_id: id, responses: [] });
     }
 
-    // Transform the response data
-    const responses = candidateWithResponses.interviewResponses.map((response) => ({
-      id: response.id,
-      question_id: response.question_id,
-      question_text: response.question?.question_text || '',
-      category: response.question?.category || '',
-      rating: response.rating ? Number(response.rating) : null,
-      noted: response.noted,
-      created_at: response.created_at,
-    }));
+    // Merge historical duplicate rows by question so newer note-only saves do not wipe out ratings.
+    const mergedByQuestion = new Map();
+
+    for (const response of candidateWithResponses.interviewResponses) {
+      const questionId = response.question_id;
+      const existing = mergedByQuestion.get(questionId);
+      const nextRating = response.rating !== null && response.rating !== undefined
+        ? Number(response.rating)
+        : null;
+
+      if (!existing) {
+        mergedByQuestion.set(questionId, {
+          id: response.id,
+          question_id: questionId,
+          question_text: response.question?.question_text || '',
+          category: response.question?.category || '',
+          rating: nextRating,
+          noted: response.noted || '',
+          created_at: response.created_at,
+        });
+        continue;
+      }
+
+      mergedByQuestion.set(questionId, {
+        ...existing,
+        id: response.id,
+        question_text: existing.question_text || response.question?.question_text || '',
+        category: existing.category || response.question?.category || '',
+        rating: nextRating ?? existing.rating,
+        noted: response.noted || existing.noted || '',
+        created_at: response.created_at,
+      });
+    }
+
+    const responses = Array.from(mergedByQuestion.values());
     res.json({ candidate_id: id, responses });
   } catch (e) {
     console.error('getCandidateInterviewDetails error', e);

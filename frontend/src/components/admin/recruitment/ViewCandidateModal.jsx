@@ -23,6 +23,16 @@ export default function ViewCandidateModal({
 
   if (!isOpen || !candidate) return null;
 
+  const responses = candidateResponses(candidate.id);
+  const getResponseForQuestion = (questionId) => (
+    responses[questionId]
+    || responses[String(questionId)]
+    || responses[Number(questionId)]
+    || null
+  );
+  const hasInterviewScore = Number(candidate.interviewScore) > 0;
+  const hasInterviewResponses = Object.keys(responses).length > 0;
+
   return createPortal(
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
@@ -87,32 +97,33 @@ export default function ViewCandidateModal({
             </div>
           </div>
           
-          {candidate.interviewScore ? (
+          {hasInterviewScore || hasInterviewResponses ? (
             <div>
               {/* Interview Score Summary */}
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-200/50 p-6 mb-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-lg font-bold text-slate-900 mb-2">Interview Score</h4>
-                    <div className="flex items-center gap-4">
-                      <span className={`text-2xl font-bold px-4 py-2 rounded-xl border ${ratingColorClass(candidate.interviewScore)}`}>
-                        {Number(candidate.interviewScore).toFixed(1)} / 5.0
-                      </span>
-                      <span className={`px-3 py-1 rounded-lg border font-semibold text-sm ${getStatusColor(candidate.status)}`}>
-                        {candidate.status}
-                      </span>
+              {hasInterviewScore && (
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-200/50 p-6 mb-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-lg font-bold text-slate-900 mb-2">Interview Score</h4>
+                      <div className="flex items-center gap-4">
+                        <span className={`text-2xl font-bold px-4 py-2 rounded-xl border ${ratingColorClass(candidate.interviewScore)}`}>
+                          {Number(candidate.interviewScore).toFixed(1)} / 5.0
+                        </span>
+                        <span className={`px-3 py-1 rounded-lg border font-semibold text-sm ${getStatusColor(candidate.status)}`}>
+                          {candidate.status}
+                        </span>
+                      </div>
                     </div>
+                    <Star className="w-12 h-12 text-amber-500" />
                   </div>
-                  <Star className="w-12 h-12 text-amber-500" />
                 </div>
-              </div>
+              )}
 
               {/* Interview Responses */}
               <div className="space-y-6">
                 <h4 className="text-lg font-bold text-slate-900">Interview Responses</h4>
                 {Object.entries(categories).map(([catName, questions]) => {
-                  const responses = candidateResponses(candidate.id);
-                  const categoryQuestions = questions.filter(q => responses[q.id]);
+                  const categoryQuestions = questions.filter((question) => getResponseForQuestion(question.id));
                   
                   if (categoryQuestions.length === 0) return null;
                   
@@ -123,7 +134,10 @@ export default function ViewCandidateModal({
                       </div>
                       <div className="p-6 space-y-4">
                         {categoryQuestions.map((question) => {
-                          const response = responses[question.id];
+                          const response = getResponseForQuestion(question.id);
+                          const rating = Number(response?.rating) || 0;
+                          const note = response?.noted || response?.notes || '';
+
                           return (
                             <div key={question.id} className="pb-4 border-b border-slate-200 last:border-0 last:pb-0">
                               <p className="text-slate-700 font-medium mb-3">{question.question_text}</p>
@@ -134,7 +148,7 @@ export default function ViewCandidateModal({
                                     <Star 
                                       key={star} 
                                       className={`w-4 h-4 ${
-                                        star <= (response?.rating || 0) 
+                                        star <= rating 
                                           ? 'text-amber-400 fill-current' 
                                           : 'text-gray-300'
                                       }`}
@@ -142,13 +156,13 @@ export default function ViewCandidateModal({
                                   ))}
                                 </div>
                                 <span className="text-sm font-semibold text-slate-700">
-                                  {response?.rating || 0} / 5
+                                  {rating} / 5
                                 </span>
                               </div>
-                              {response?.notes && (
+                              {note && (
                                 <div className="mt-3 bg-slate-50 rounded-lg p-3 border border-slate-200">
                                   <p className="text-sm text-slate-600">
-                                    <span className="font-semibold">Notes:</span> {response.notes}
+                                    <span className="font-semibold">Notes:</span> {note}
                                   </p>
                                 </div>
                               )}
