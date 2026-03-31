@@ -1,0 +1,79 @@
+version: '3.9'
+
+services:
+  # ─── MySQL Database ───────────────────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: lcms_mysql_dev
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: lecturer-contract-management-system
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_dev_data:/var/lib/mysql
+    networks:
+      - lcms_dev_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ─── Backend (Node.js / Express) ─────────────────────────────────────────────
+  # Built from the existing Dockerfile to get Chromium (needed for Puppeteer PDF).
+  # Only ./backend/src is mounted so source changes are picked up without rebuild.
+  # Uses Node's built-in --watch flag (Node 20+) — no nodemon needed.
+  backend:
+    build: ./backend
+    container_name: lcms_backend_dev
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_HOST: mysql
+      DATABASE_USER: root
+      DATABASE_PASSWORD: ${DB_ROOT_PASSWORD}
+      DATABASE_PORT: 3306
+      CLIENT_ORIGIN: http://localhost:5173
+    ports:
+      - "4000:4000"              # exposed directly — no nginx in dev
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - ./backend/src:/app/src   # mount source only — node_modules stays from image
+      - ./backend/uploads:/app/uploads
+    command: node --watch src/server.js
+    networks:
+      - lcms_dev_network
+    restart: unless-stopped
+
+  # ─── Frontend (React / Vite) ──────────────────────────────────────────────────
+  # Uses node:20-slim directly (no build needed in dev).
+  # Entire frontend folder is mounted so Vite hot-reloads on every file save.
+  # node_modules lives in a named volume to avoid conflicts with host node_modules.
+  frontend:
+    image: node:20-slim
+    container_name: lcms_frontend_dev
+    working_dir: /app
+    environment:
+      VITE_API_URL: http://localhost:4000
+    ports:
+      - "5173:5173"              # access app at http://localhost:5173
+    volumes:
+      - ./frontend:/app
+      - frontend_dev_modules:/app/node_modules   # keep container node_modules separate
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    networks:
+      - lcms_dev_network
+    restart: unless-stopped
+
+# ─── Volumes & Networks ────────────────────────────────────────────────────────
+volumes:
+  mysql_dev_data:
+  frontend_dev_modules:
+
+networks:
+  lcms_dev_network:
+    driver: bridge

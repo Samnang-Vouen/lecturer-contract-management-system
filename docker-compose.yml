@@ -1,0 +1,90 @@
+version: '3.9'
+
+services:
+  # ─── MySQL Database ───────────────────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: lcms_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: lecturer-contract-management-system
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - lcms_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ─── Backend (Node.js / Express) ─────────────────────────────────────────────
+  backend:
+    build: ./backend
+    container_name: lcms_backend
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_HOST: mysql
+      DATABASE_USER: root
+      DATABASE_PASSWORD: ${DB_ROOT_PASSWORD}
+      DATABASE_PORT: 3306
+      CLIENT_ORIGIN: http://localhost
+    # Port 4000 is NOT exposed to the host — nginx reverse-proxies to it internally
+    expose:
+      - "4000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - ./backend/uploads:/app/uploads
+    networks:
+      - lcms_network
+    restart: unless-stopped
+
+  # ─── Frontend Builder (React / Vite) ─────────────────────────────────────────
+  # This is an init container: it builds the React app, copies dist files into
+  # the shared volume, then exits. It does NOT serve anything.
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: /api
+    container_name: lcms_frontend_builder
+    volumes:
+      - frontend_dist:/var/www/html   # write built assets here
+    networks:
+      - lcms_network
+    restart: "no"                     # run once and exit
+
+  # ─── Nginx (Reverse Proxy + Static File Server) ───────────────────────────────
+  # Single public entry point on port 80.
+  # Serves React assets from the shared volume and proxies /api/* to backend.
+  nginx:
+    image: nginx:alpine
+    container_name: lcms_nginx
+    ports:
+      - "80:80"
+    volumes:
+      - frontend_dist:/usr/share/nginx/html:ro          # read built assets (read-only)
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      frontend:
+        condition: service_completed_successfully        # wait for assets to be copied
+      backend:
+        condition: service_started
+    networks:
+      - lcms_network
+    restart: unless-stopped
+
+# ─── Volumes & Networks ────────────────────────────────────────────────────────
+volumes:
+  mysql_data:
+  frontend_dist:      # shared between frontend builder and nginx
+
+networks:
+  lcms_network:
+    driver: bridge

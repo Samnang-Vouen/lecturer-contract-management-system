@@ -1255,7 +1255,7 @@ export const generateFilteredSchedulePDF = async (req, res) => {
         <body>${combinedBodyContent}</body>
       </html>`;
 
-    browser = await puppeteer.launch();
+    browser = await puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
     const page = await browser.newPage();
     await page.setContent(finalHTML, { waitUntil: 'networkidle0' });
     const pdfBuffer = await page.pdf({
@@ -1336,7 +1336,7 @@ export const generateSchedulePDFFromSavedHTML = async (req, res) => {
     const html = fs.readFileSync(filePath, 'utf8');
     const finalHTML = embedIdtLogo(html);
 
-    browser = await puppeteer.launch();
+    browser = await puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
     const page = await browser.newPage();
     await page.setContent(finalHTML, { waitUntil: 'networkidle0' });
     const pdfBuffer = await page.pdf({
