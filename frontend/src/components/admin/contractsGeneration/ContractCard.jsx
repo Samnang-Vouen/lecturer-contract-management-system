@@ -2,6 +2,7 @@ import React from 'react';
 import { Eye, Download, SquarePen, User, Building2, Calendar, DollarSign, Clock, CheckCircle, AlertCircle, FileText, MessageSquare } from 'lucide-react';
 import Badge from '../../ui/Badge.jsx';
 import Button from '../../ui/Button.jsx';
+import { formatKhrFromUsd } from '../../../utils/currency';
 
 /**
  * ContractCard - Card component for displaying a contract
@@ -157,6 +158,7 @@ export default function ContractCard({
 
   const totalHours = courseHours > 0 ? courseHours : advisorHours;
   const totalAmount = (toNum(hourlyRate) || 0) * (toNum(totalHours) || 0);
+  const totalAmountDisplay = formatKhrFromUsd(totalAmount) || '—';
 
   // Format dates
   const formatDate = (dateStr) => {
@@ -247,7 +249,7 @@ export default function ContractCard({
               <div className="flex justify-between items-center pt-2 border-t border-gray-200">
                 <span className="text-sm text-gray-500">Total:</span>
                 <span className="text-green-600 font-semibold text-base">
-                  ${totalAmount.toLocaleString()}
+                  {totalAmountDisplay}
                 </span>
               </div>
             </div>

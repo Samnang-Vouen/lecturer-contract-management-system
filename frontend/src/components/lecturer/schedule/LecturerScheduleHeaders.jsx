@@ -11,9 +11,9 @@ export default function LecturerScheduleHeader() {
           </div>
           <div className="min-w-0">
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900">
-              Schedule Generation
+              Schedules
             </h1>
-            <p className="text-gray-600">Generate PDF Schedules</p>
+            <p className="text-gray-600">Schedules for all groups that you handle</p>
           </div>
         </div>
         <div>

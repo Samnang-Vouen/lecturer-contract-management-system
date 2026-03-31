@@ -15,6 +15,7 @@ import {
   getDisplayStatus,
   getStatusLabel
 } from '../../../utils/lecturerContractHelpers';
+import { formatKhrFromUsd } from '../../../utils/currency';
 
 /**
  * ContractCard Component
@@ -49,6 +50,7 @@ export default function ContractCard({
     ? contractRate
     : (contractRate ?? toPositiveNumber(hourlyRate));
   const totalValue = rateForContract != null ? rateForContract * hours : null;
+  const totalValueDisplay = formatKhrFromUsd(totalValue);
   const displayStatus = getDisplayStatus(contract);
   const statusConfig = getStatusLabel(displayStatus);
   const isEnded = String(displayStatus || '').trim().toUpperCase() === 'CONTRACT_ENDED';
@@ -208,9 +210,7 @@ export default function ContractCard({
               <div className="flex items-center justify-between">
                 <span className="text-gray-700">Total:</span>
                 <span className="font-semibold text-green-600">
-                  {totalValue != null
-                    ? `$${Math.round(totalValue).toLocaleString()}`
-                    : "-"}
+                  {totalValueDisplay || '-'}
                 </span>
               </div>
             </div>
