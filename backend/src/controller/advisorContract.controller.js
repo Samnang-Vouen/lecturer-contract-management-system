@@ -1482,7 +1482,7 @@ export async function generateAdvisorPdf(req, res) {
       .replaceAll('{total_payment_khr_en}', totalKhr.toLocaleString('en-US'))
       .replaceAll('{total_payment_khr_kh}', toKhmerDigits(totalKhr.toLocaleString('en-US')));
 
-    const browser = await puppeteer.launch();
+    const browser = await puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
     const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });
