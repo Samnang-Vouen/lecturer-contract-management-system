@@ -18,9 +18,10 @@ export const getCandidates = async (req, res) => {
       else where.dept_id = -1; // no results fallback
     }
 
-    // Optional filter by status (e.g., accepted) and search by name/email
+    // Default recruitment listing should hide imported rows unless explicitly requested.
     const status = (req.query.status || '').trim();
     if (status) where.status = status;
+    where.imported_from_file = false;
     const search = (req.query.search || '').trim();
 
     const { rows, count } = await Candidate.findAndCountAll({

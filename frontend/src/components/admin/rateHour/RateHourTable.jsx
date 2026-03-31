@@ -21,7 +21,7 @@ export default function RateHourTable({ report, filteredRows, isLoading, totalCo
           <Table className="min-w-[1900px]" style={{ minWidth: tableMinWidth }}>
             <TableHeader>
               <TableRow className="bg-slate-100/80 hover:bg-slate-100/80">
-                <TableHead className="border-r border-slate-200 text-slate-700" colSpan={5}>Lecturer</TableHead>
+                <TableHead className="border-r border-slate-200 text-slate-700" colSpan={3}>Lecturer</TableHead>
                 <TableHead className="border-r border-slate-200 text-slate-700" colSpan={rateAcademicYears.length}>Last 3 Academic Years Rate</TableHead>
                 <TableHead className="border-r border-slate-200 text-slate-700" colSpan={6}>Latest Academic Year {latestAcademicYear}</TableHead>
                 <TableHead className="border-r border-slate-200 text-slate-700" colSpan={4}>Additional Contribution</TableHead>
@@ -30,9 +30,7 @@ export default function RateHourTable({ report, filteredRows, isLoading, totalCo
               <TableRow className="bg-white hover:bg-white">
                 <TableHead className="min-w-[180px]">English Name</TableHead>
                 <TableHead className="min-w-[180px]">Khmer Name</TableHead>
-                <TableHead className="min-w-[110px]">Gender</TableHead>
-                <TableHead className="min-w-[130px]">English Title</TableHead>
-                <TableHead className="min-w-[130px] border-r border-slate-200">Khmer Title</TableHead>
+                <TableHead className="min-w-[110px] border-r border-slate-200">Gender</TableHead>
                 {rateAcademicYears.map((year, index) => <TableHead key={year} className={`min-w-[140px] ${index === rateAcademicYears.length - 1 ? 'border-r border-slate-200' : ''}`}>Rate {year}</TableHead>)}
                 <TableHead className="min-w-[120px]">Term 1 Hours</TableHead>
                 <TableHead className="min-w-[120px]">Feedback</TableHead>

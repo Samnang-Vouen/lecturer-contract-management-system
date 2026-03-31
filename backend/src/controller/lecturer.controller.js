@@ -53,14 +53,36 @@ const buildImportedCredentialsWorkbook = (rows) => {
 };
 
 const normalizeImportedTitle = (value) => {
-  const raw = String(value || '').trim().replace(/\.$/, '');
+  const raw = String(value || '').trim().replace(/\./g, '');
   if (!raw) return null;
   const normalized = raw.toLowerCase();
   if (normalized === 'mr') return 'Mr';
-  if (normalized === 'ms') return 'Ms';
+  if (normalized === 'ms' || normalized === 'miss') return 'Ms';
   if (normalized === 'mrs') return 'Mrs';
   if (normalized === 'dr') return 'Dr';
-  if (normalized === 'prof') return 'Prof';
+  if (normalized === 'prof' || normalized === 'professor') return 'Prof';
+  return null;
+};
+
+const importedTitlePrefixRegex = /^(mr\.?|ms\.?|mrs\.?|dr\.?|prof\.?|professor|miss)\s+/i;
+
+const stripImportedTitleFromName = (value) =>
+  String(value || '')
+    .trim()
+    .replace(importedTitlePrefixRegex, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const inferImportedTitle = ({ titleInput, fullName, genderInput }) => {
+  const explicitTitle = normalizeImportedTitle(titleInput);
+  if (String(titleInput || '').trim()) return explicitTitle;
+
+  const inferredFromName = normalizeImportedTitle(String(fullName || '').trim().split(/\s+/)[0]);
+  if (inferredFromName) return inferredFromName;
+
+  const gender = normalizeImportedGender(genderInput);
+  if (gender === 'male') return 'Mr';
+  if (gender === 'female') return 'Ms';
   return null;
 };
 
@@ -274,6 +296,7 @@ export const getLecturers = async (req, res) => {
       attributes: [
         'id',
         'employee_id',
+        'title',
         'position',
         'status',
         'join_date',
@@ -442,6 +465,7 @@ export const getLecturers = async (req, res) => {
         id: lp.User?.id,
         lecturerProfileId: lp.id,
         name,
+        title: lp.title || null,
         email: lp.User?.email,
         role,
         roles: roleTypes,
@@ -987,7 +1011,7 @@ export const importLecturersFromExcel = async (req, res) => {
       const { row, rowNumber } = rows[i];
 
       try {
-        const fullName = String(row.fullName || row.full_name || '').trim();
+        const importedFullName = String(row.fullName || row.full_name || '').trim();
         const email = String(row.email || '').trim().toLowerCase();
         const rawHourlyRate =
           row.hourlyRate ?? row.hourly_rate ?? row['Hourly Rate'] ?? row['hourly rate'] ?? '';
@@ -998,6 +1022,7 @@ export const importLecturersFromExcel = async (req, res) => {
           row.positionAppliedFor || row.position_applied_for || row.position || ''
         ).trim();
         const interviewDateValue = row.interviewDate || row.interview_date || '';
+        const fullName = stripImportedTitleFromName(importedFullName);
 
         const missingFields = [];
         if (!fullName) missingFields.push('fullName');
@@ -1037,8 +1062,8 @@ export const importLecturersFromExcel = async (req, res) => {
           continue;
         }
 
-        const title = normalizeImportedTitle(titleInput);
-        if (titleInput && !title) {
+        const title = inferImportedTitle({ titleInput, fullName: importedFullName, genderInput });
+        if (String(titleInput || '').trim() && !title) {
           results.errors.push({
             row: rowNumber,
             error: `Invalid title value: ${titleInput}. Allowed values: Mr, Ms, Mrs, Dr, Prof`,
@@ -1111,6 +1136,7 @@ export const importLecturersFromExcel = async (req, res) => {
               status: 'done',
               hourlyRate,
               dept_id: departmentRow.id,
+              imported_from_file: true,
             },
             { transaction }
           );
@@ -1151,6 +1177,7 @@ export const importLecturersFromExcel = async (req, res) => {
             profile: {
               position: profile.position,
               fullName: profile.full_name_english,
+              title: profile.title,
               hourlyRate,
             },
           });

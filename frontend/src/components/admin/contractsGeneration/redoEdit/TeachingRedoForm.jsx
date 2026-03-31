@@ -13,6 +13,7 @@ export default function TeachingRedoForm(props) {
         endDate={props.endDate}
         setEndDate={props.setEndDate}
         errors={props.errors}
+        setErrors={props.setErrors}
       />
       <TeachingCoursesSection {...props} />
       <EditableStringListEditor

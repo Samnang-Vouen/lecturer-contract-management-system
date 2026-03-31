@@ -15,6 +15,7 @@ export default function AdvisorRedoForm(props) {
         endDate={props.endDate}
         setEndDate={props.setEndDate}
         errors={props.errors}
+        setErrors={props.setErrors}
       />
       <AdvisorBasicsSection {...props} />
       <AdvisorResponsibilitiesSection {...props} />

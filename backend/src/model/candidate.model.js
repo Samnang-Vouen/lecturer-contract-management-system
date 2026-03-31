@@ -59,6 +59,11 @@ const Candidate = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: true,
     },
+    imported_from_file: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
   },
   {
     tableName: 'Candidates',

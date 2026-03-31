@@ -10,7 +10,7 @@ export default function UploadPageHeader({ isUploading, isLoading, isGeneratingP
             <FolderUp className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-3xl font-semibold text-slate-900">Upload Evaluation</h1>
+            <h1 className="text-3xl font-semibold text-slate-900">Lecturer Evaluation</h1>
             <p className="text-sm text-slate-500">Upload Course Evaluation of Each lecturer</p>
           </div>
         </div>

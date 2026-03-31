@@ -3,6 +3,7 @@ import { Search } from 'lucide-react';
 import { Checkbox } from '../../../ui/Checkbox';
 import Input from '../../../ui/Input';
 import { canCombineTheoryFromMapping, getMappingTheoryHourLabel, hoursFromMapping } from '../../../../utils/contractHelpers';
+import { formatKhrFromUsd } from '../../../../utils/currency';
 
 export default function LecturerCourseSelectionSection({
   academicYear,
@@ -37,6 +38,7 @@ export default function LecturerCourseSelectionSection({
           const computedHours = hoursFromMapping({ ...mapping, theory_combined: combined });
           const rate = parseFloat(String(dlgHourlyRate || '').replace(/[^0-9.-]/g, ''));
           const estimatedSalary = Number.isFinite(rate) ? Math.round(rate * (computedHours || 0)) : null;
+          const estimatedSalaryDisplay = formatKhrFromUsd(estimatedSalary);
 
           return (
             <div key={mapping.id} className="p-3 hover:bg-gray-50">
@@ -58,7 +60,7 @@ export default function LecturerCourseSelectionSection({
                       <span className="text-gray-500">({theoryHours})</span>
                     </label>
                   ) : null}
-                  {estimatedSalary != null ? <div className="mt-1 text-xs text-gray-600">Est. salary: {estimatedSalary.toLocaleString('en-US')}</div> : null}
+                  {estimatedSalaryDisplay ? <div className="mt-1 text-xs text-gray-600">Est. salary: {estimatedSalaryDisplay}</div> : null}
                 </div>
               </div>
             </div>
