@@ -8,8 +8,6 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       MYSQL_DATABASE: lecturer-contract-management-system
-    ports:
-      - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
@@ -32,7 +30,7 @@ services:
       DATABASE_USER: root
       DATABASE_PASSWORD: ${DB_ROOT_PASSWORD}
       DATABASE_PORT: 3306
-      CLIENT_ORIGIN: http://localhost
+      CLIENT_ORIGIN: ${CLIENT_ORIGIN:-http://localhost}
     # Port 4000 is NOT exposed to the host — nginx reverse-proxies to it internally
     expose:
       - "4000"
