@@ -5,6 +5,10 @@ import {
   UserRole,
   DepartmentProfile,
   LecturerProfile,
+  ContractRedoRequest,
+  TeachingContract,
+  AdvisorContract,
+  NewContract,
 } from '../model/index.js';
 import bcrypt from 'bcrypt';
 import { Sequelize, Op } from 'sequelize';
@@ -580,6 +584,31 @@ export const deleteUser = async (req, res) => {
 
     // Perform DB deletions in a transaction for consistency
     await sequelize.transaction(async (t) => {
+      const [createdTeachingContracts, createdAdvisorContracts, createdSimpleContracts] =
+        await Promise.all([
+          TeachingContract.count({ where: { created_by: user.id }, transaction: t }),
+          AdvisorContract.count({ where: { created_by: user.id }, transaction: t }),
+          NewContract.count({ where: { created_by: user.id }, transaction: t }),
+        ]);
+
+      if (createdTeachingContracts || createdAdvisorContracts || createdSimpleContracts) {
+        const dependencyError = new Error(
+          'Cannot delete user because they are the creator of existing contract records'
+        );
+        dependencyError.statusCode = 409;
+        dependencyError.details = {
+          teachingContracts: createdTeachingContracts,
+          advisorContracts: createdAdvisorContracts,
+          simpleContracts: createdSimpleContracts,
+        };
+        throw dependencyError;
+      }
+
+      await ContractRedoRequest.destroy({
+        where: { requester_user_id: user.id },
+        transaction: t,
+      });
+
       // If lecturer profile exists, remove related rows
       if (profile) {
         // Remove LecturerCourse links
@@ -618,6 +647,12 @@ export const deleteUser = async (req, res) => {
     return res.json({ message: 'User deleted' });
   } catch (e) {
     console.error('deleteUser error', e);
+    if (e.statusCode === 409) {
+      return res.status(409).json({
+        message: 'Cannot delete user because they created existing contract records',
+        references: e.details,
+      });
+    }
     return res.status(500).json({ message: 'Failed to delete user' });
   }
 };
