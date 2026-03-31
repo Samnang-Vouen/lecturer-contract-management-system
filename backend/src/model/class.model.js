@@ -10,7 +10,7 @@ const ClassModel = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: true,
       defaultValue: null,
-      references: { model: 'Departments', key: 'id' },
+      references: { model: 'departments', key: 'id' },
     },
     specialization_id: {
       type: DataTypes.INTEGER,
