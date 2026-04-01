@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
 import { getSocket } from '../services/socket';
-import { fetchMyNotifications } from '../services/contract.service';
+import { fetchMyNotifications, markNotificationsRead } from '../services/contract.service';
 
 export const useNotifications = () => {
   const [notifications, setNotifications] = useState([]);
@@ -20,7 +20,7 @@ export const useNotifications = () => {
     fetchMyNotifications().then((data) => {
       const initial = (data || []).map((n) => {
         const ts = new Date(n.createdAt).getTime();
-        return { message: n.message, time: new Date(ts).toLocaleString(), ts, contract_id: n.contract_id || null };
+        return { id: n.id || null, message: n.message, time: new Date(ts).toLocaleString(), ts, contract_id: n.contract_id || null };
       });
       setNotifications(initial);
       const seen = (() => { try { return Number(localStorage.getItem('mgmtNotifLastSeenTs')) || 0; } catch { return 0; } })();
@@ -35,7 +35,7 @@ export const useNotifications = () => {
     const handleConnect = () => socket.emit('join', { id: authUser.id, role: authUser.role });
     const handleNotif = (notif) => {
       const ts = new Date(notif.createdAt || Date.now()).getTime();
-      const newNotif = { message: notif.message, time: new Date(ts).toLocaleString(), ts, _fromSocket: true, contract_id: notif.contract_id || null };
+      const newNotif = { id: notif.id || null, message: notif.message, time: new Date(ts).toLocaleString(), ts, _fromSocket: true, contract_id: notif.contract_id || null };
       setNotifications((prev) => [newNotif, ...prev]);
       if (!showNotificationsRef.current) setUnreadCount((prev) => prev + 1);
     };
@@ -92,6 +92,13 @@ export const useNotifications = () => {
         try { 
           localStorage.setItem('mgmtNotifLastSeenTs', String(maxTs)); 
         } catch {}
+        // Persist read state on the server for notifications that have an id
+        const unreadIds = notifications
+          .filter((n) => n.id && (n.ts || 0) > (lastViewedAtRef.current || 0))
+          .map((n) => n.id);
+        if (unreadIds.length > 0) {
+          markNotificationsRead(unreadIds).catch(() => {});
+        }
       }, 250);
       return () => clearTimeout(t);
     }

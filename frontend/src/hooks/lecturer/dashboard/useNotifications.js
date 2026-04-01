@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NOTIF_LAST_SEEN_KEY } from '../../../utils/lecturerDashboard.constants';
+import { markNotificationsRead } from '../../../services/contract.service';
 
 export const useNotifications = (notifications, showNotifications, setUnreadCount, lastViewedAtRef, showNotificationsRef) => {
   const [lastViewedAt, setLastViewedAt] = useState(0);
@@ -29,11 +30,19 @@ export const useNotifications = (notifications, showNotifications, setUnreadCoun
     if (!showNotifications || !notifications?.length) return;
     const maxTs = notifications.reduce((m, n) => Math.max(m, n.ts || 0), lastViewedAt || 0);
     if (maxTs > (lastViewedAt || 0)) {
+      const prevLastViewed = lastViewedAt;
       const t = setTimeout(() => {
         setLastViewedAt(maxTs);
         setUnreadCount(0);
         if (lastViewedAtRef) lastViewedAtRef.current = maxTs;
         try { localStorage.setItem(NOTIF_LAST_SEEN_KEY, String(maxTs)); } catch {}
+        // Persist read state on the server for notifications that have an id
+        const unreadIds = notifications
+          .filter((n) => n.id && (n.ts || 0) > prevLastViewed)
+          .map((n) => n.id);
+        if (unreadIds.length > 0) {
+          markNotificationsRead(unreadIds).catch(() => {});
+        }
       }, 250);
       return () => clearTimeout(t);
     }
