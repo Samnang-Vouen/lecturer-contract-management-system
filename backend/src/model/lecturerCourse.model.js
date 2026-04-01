@@ -14,6 +14,13 @@ const LecturerCourse = sequelize.define(
     timestamps: true,
     createdAt: 'created_at',
     updatedAt: 'updated_at',
+    indexes: [
+      {
+        unique: true,
+        fields: ['lecturer_profile_id', 'course_id'],
+        name: 'unique_lecturer_course',
+      },
+    ],
   }
 );
 
