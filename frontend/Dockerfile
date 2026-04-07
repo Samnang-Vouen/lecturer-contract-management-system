@@ -14,9 +14,10 @@ ENV VITE_API_URL=$VITE_API_URL
 RUN npm run build
 
 # Stage 2: Init container — copies built assets into the shared volume then exits.
-# Nginx reads from that volume; this container does NOT run nginx.
-FROM alpine:latest
 
+#So basically: FROM alpine:latest = "give me the smallest usable Linux to run shell commands."
+FROM alpine:latest
+# after that now docker contianer contain /dist: /index.html and /assets
 COPY --from=builder /app/dist /dist
 
 CMD ["sh", "-c", "cp -rT /dist /var/www/html && echo '[frontend] Assets copied to shared volume.'"]

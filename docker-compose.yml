@@ -9,7 +9,7 @@ services:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       MYSQL_DATABASE: lecturer-contract-management-system
     volumes:
-      - mysql_data:/var/lib/mysql
+      - mysql_data:/var/lib/mysql #the data from volumn will be mount input var/lib/mysql when the contianer start, so if we just write this, then the locatino of the volumn is always in var/lib/docker/volums? which is the host machine?
     networks:
       - lcms_network
     healthcheck:
@@ -85,4 +85,5 @@ volumes:
 
 networks:
   lcms_network:
+    name: lcms_network
     driver: bridge
