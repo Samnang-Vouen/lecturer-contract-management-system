@@ -56,7 +56,7 @@ export const useLecturerDashboard = (selectedTimeRange, lastViewedAtRef, showNot
     const handleConnect = () => socket.emit('join', { id: authUser.id, role: authUser.role });
     const handleNotif = (notif) => {
       const ts = new Date(notif.createdAt || notif.created_at || Date.now()).getTime();
-      const newNotif = { message: notif.message, time: new Date(ts).toLocaleString(), ts, _fromSocket: true, contract_id: notif.contract_id || null };
+      const newNotif = { id: notif.id || null, message: notif.message, time: new Date(ts).toLocaleString(), ts, _fromSocket: true, contract_id: notif.contract_id || null };
       setNotifications((prev) => [newNotif, ...prev]);
       if (!showNotificationsRef?.current) setUnreadCount((prev) => prev + 1);
     };
@@ -75,7 +75,7 @@ export const useLecturerDashboard = (selectedTimeRange, lastViewedAtRef, showNot
     fetchMyNotifications().then((data) => {
       const initial = (data || []).map((n) => {
         const ts = new Date(n.createdAt).getTime();
-        return { message: n.message, time: new Date(ts).toLocaleString(), ts, contract_id: n.contract_id || null };
+        return { id: n.id || null, message: n.message, time: new Date(ts).toLocaleString(), ts, contract_id: n.contract_id || null };
       });
       setNotifications(initial);
       const seen = (() => { try { return Number(localStorage.getItem(NOTIF_LAST_SEEN_KEY)) || 0; } catch { return 0; } })();

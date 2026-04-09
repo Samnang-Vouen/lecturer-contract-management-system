@@ -2,6 +2,24 @@ import { Notification, TeachingContract, AdvisorContract } from '../model/index.
 import { Op } from 'sequelize';
 import { HTTP_STATUS } from '../config/constants.js';
 
+export const markNotificationsRead = async (req, res) => {
+  try {
+    const { ids } = req.body;
+
+    const where = { user_id: req.user.id, readAt: null };
+    if (Array.isArray(ids) && ids.length > 0) {
+      where.id = { [Op.in]: ids.map(Number).filter((n) => Number.isInteger(n)) };
+    }
+
+    await Notification.update({ readAt: new Date() }, { where });
+
+    return res.json({ ok: true });
+  } catch (e) {
+    console.error('markNotificationsRead error', e.message);
+    return res.status(HTTP_STATUS.SERVER_ERROR).json({ message: 'Failed to mark notifications as read' });
+  }
+};
+
 export const getMyNotifications = async (req, res) => {
   try {
     const role = String(req.user?.role || '').toLowerCase();
