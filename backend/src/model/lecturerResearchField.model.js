@@ -13,7 +13,7 @@ const LecturerResearchField = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'Lecturer_Profiles',
+        model: 'lecturer_profiles',
         key: 'id',
       },
     },
@@ -21,7 +21,7 @@ const LecturerResearchField = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'Research_Fields',
+        model: 'research_fields',
         key: 'id',
       },
     },

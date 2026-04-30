@@ -40,7 +40,7 @@ try {
     await InterviewQuestion.sync({ alter: false });
     const qi = await sequelize.getQueryInterface();
     // Inspect columns to add missing ones gracefully (for existing DB without migration tooling)
-    const [cols] = await sequelize.query('SHOW COLUMNS FROM `Interview-Questions`');
+    const [cols] = await sequelize.query('SHOW COLUMNS FROM `interview-questions`');
     const colNames = cols.map((c) => c.Field);
     const pendingAlters = [];
     if (!colNames.includes('canonical_text'))
@@ -52,18 +52,18 @@ try {
     if (!colNames.includes('is_custom'))
       {pendingAlters.push('ADD COLUMN `is_custom` TINYINT(1) NOT NULL DEFAULT 0');}
     if (pendingAlters.length) {
-      const alterSql = `ALTER TABLE \`Interview-Questions\` ${pendingAlters.join(', ')}`;
+      const alterSql = `ALTER TABLE \`interview-questions\` ${pendingAlters.join(', ')}`;
       await sequelize.query(alterSql);
     }
     // Ensure no empty canonical_text rows (populate from question_text)
     await sequelize.query(
-      "UPDATE `Interview-Questions` SET `canonical_text` = LOWER(TRIM(REGEXP_REPLACE(question_text, ' +', ' '))) WHERE `canonical_text` = '' OR `canonical_text` IS NULL"
+      "UPDATE `interview-questions` SET `canonical_text` = LOWER(TRIM(REGEXP_REPLACE(question_text, ' +', ' '))) WHERE `canonical_text` = '' OR `canonical_text` IS NULL"
     );
-    const indexes = await qi.showIndex('Interview-Questions');
+    const indexes = await qi.showIndex('interview-questions');
     const exists = indexes.some((i) => i.name === 'uniq_category_canonical');
     if (!exists) {
       try {
-        await qi.addIndex('interview_questions', ['category', 'canonical_text'], {
+        await qi.addIndex('interview-questions', ['category', 'canonical_text'], {
           unique: true,
           name: 'uniq_category_canonical',
         });
