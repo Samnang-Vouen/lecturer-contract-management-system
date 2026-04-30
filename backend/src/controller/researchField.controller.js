@@ -1,85 +1,20 @@
-import ResearchField from '../model/researchField.model.js';
-import { Op } from 'sequelize';
+import { sendResponse } from '../utils/response.js';
+import { HTTP_STATUS } from '../config/constants.js';
+import { getResearchFieldsData, createResearchFieldData } from '../services/researchField.service.js';
+export { findOrCreateResearchFields } from '../services/researchField.service.js';
 
-export const getResearchFields = async (req, res) => {
+export const getResearchFields = async (_req, res, next) => {
   try {
-    const fields = await ResearchField.findAll({
-      order: [['name', 'ASC']],
-    });
-
-    res.json(fields);
-  } catch (error) {
-    console.error('Error fetching research fields:', error);
-    res.status(500).json({ error: 'Failed to fetch research fields' });
+    return sendResponse(res, await getResearchFieldsData());
+  } catch (err) {
+    return next(err);
   }
 };
 
-export const createResearchField = async (req, res) => {
+export const createResearchField = async (req, res, next) => {
   try {
-    const { name } = req.body;
-
-    if (!name || !name.trim()) {
-      return res.status(400).json({ error: 'Research field name is required' });
-    }
-
-    const trimmedName = name.trim();
-
-    // Check if field already exists (case-insensitive)
-    const existingField = await ResearchField.findOne({
-      where: {
-        name: trimmedName,
-      },
-    });
-
-    if (existingField) {
-      return res.status(409).json({ error: 'Research field already exists' });
-    }
-
-    const newField = await ResearchField.create({ name: trimmedName });
-    res.status(201).json(newField);
-  } catch (error) {
-    console.error('Error creating research field:', error);
-    res.status(500).json({ error: 'Failed to create research field' });
+    return sendResponse(res, await createResearchFieldData(req.body?.name), HTTP_STATUS.CREATED);
+  } catch (err) {
+    return next(err);
   }
-};
-
-export const findOrCreateResearchFields = async (fieldNames) => {
-  const results = [];
-
-  for (const name of fieldNames) {
-    if (!name || !name.trim()) continue;
-
-    const trimmedName = name.trim();
-
-    // Try to find existing field (case-insensitive)
-    let field = await ResearchField.findOne({
-      where: {
-        name: trimmedName,
-      },
-    });
-
-    // If not found, create it
-    if (!field) {
-      try {
-        field = await ResearchField.create({ name: trimmedName });
-      } catch (error) {
-        // Handle unique constraint error in case of race condition
-        if (error.name === 'SequelizeUniqueConstraintError') {
-          field = await ResearchField.findOne({
-            where: {
-              name: trimmedName,
-            },
-          });
-        } else {
-          throw error;
-        }
-      }
-    }
-
-    if (field) {
-      results.push(field);
-    }
-  }
-
-  return results;
 };

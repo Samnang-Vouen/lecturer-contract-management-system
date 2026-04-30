@@ -49,7 +49,7 @@ async function ensureContractItemsSchema() {
 async function main() {
   await ensureContractItemsSchema();
   // Pick users
-  let creator = await User.findOne();
+  const creator = await User.findOne();
   if (!creator) throw new Error('No users found in the database to use as creator/lecturer');
   let lecturer = await User.findOne({ where: {} });
   if (!lecturer) lecturer = creator;

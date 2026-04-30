@@ -2,11 +2,15 @@ import { HTTP_STATUS } from '../config/constants.js';
 
 // Simple zod-based validator middleware
 // Usage: validate(schema, 'body' | 'query' | 'params')
-export function validate(schema, source = 'body') {
-  return (req, res, next) => {
+export function validate(schema, source = 'body', options = {}) {
+  return async (req, res, next) => {
     try {
-      const parsed = schema.safeParse(req[source] || {});
+      const parsed = await schema.safeParseAsync(req[source] || {});
       if (!parsed.success) {
+        if (typeof options.formatError === 'function') {
+          const formatted = options.formatError(parsed.error, source, req);
+          return res.status(formatted.status).json(formatted.payload);
+        }
         const errors = parsed.error.issues.map((i) => ({
           path: i.path.join('.') || source,
           message: i.message,

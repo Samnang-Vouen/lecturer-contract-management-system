@@ -1,5 +1,6 @@
 import express from 'express';
 import { protect, authorizeRoles } from '../middleware/auth.middleware.js';
+import { uploadAdvisorSignature } from '../middleware/advisorContractUpload.middleware.js';
 import { validate } from '../middleware/validate.middleware.js';
 import {
   createAdvisorContract,
@@ -10,7 +11,6 @@ import {
   updateAdvisorStatus,
   editAdvisorContract,
   uploadAdvisorContractSignature,
-  uploadAdvisorSignature,
 } from '../controller/advisorContract.controller.js';
 import {
   AdvisorContractCreateSchema,
