@@ -83,3 +83,9 @@ export async function fetchMyNotifications() {
   const res = await axiosInstance.get('/notifications');
   return res.data;
 }
+
+export async function markNotificationsRead(ids) {
+  const body = Array.isArray(ids) && ids.length > 0 ? { ids } : {};
+  const res = await axiosInstance.patch('/notifications/mark-read', body);
+  return res.data;
+}
