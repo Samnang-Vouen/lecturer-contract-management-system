@@ -581,7 +581,7 @@ export async function generatePdfData({ id, userId, role, departmentName }) {
 
   const combined = `<html><head><style>.page-break{page-break-before:always;}</style></head><body><div>${htmlEn}</div><div class="page-break"></div><div>${htmlKh}</div></body></html>`;
 
-  const browser = await puppeteer.launch();
+  const browser = await puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
   const page = await browser.newPage();
   await page.setContent(combined, { waitUntil: 'networkidle0' });
   const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true });

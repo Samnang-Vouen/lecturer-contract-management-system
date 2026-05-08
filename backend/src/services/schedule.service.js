@@ -587,7 +587,7 @@ export async function generateFilteredSchedulePDFData({ class_name, dept_name, s
   const headContent = headMatch ? headMatch[1] : '';
   const finalHTML = `<!doctype html><html lang="en"><head>${headContent}</head><body>${combinedBodyContent}</body></html>`;
 
-  const browser = await puppeteer.launch();
+  const browser = await puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
   const page = await browser.newPage();
   await page.setContent(finalHTML, { waitUntil: 'networkidle0' });
   const pdfBuffer = await page.pdf({ format: 'A4', landscape: true, printBackground: true, margin: { top: '40px', bottom: '40px', left: '20px', right: '20px' } });
@@ -647,7 +647,7 @@ export async function generateSchedulePDFFromSavedHTMLData({ file: requestedFile
   const html = fs.readFileSync(filePath, 'utf8');
   const finalHTML = embedIdtLogo(html);
 
-  const browser = await puppeteer.launch();
+  const browser = await puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
   const page = await browser.newPage();
   await page.setContent(finalHTML, { waitUntil: 'networkidle0' });
   const pdfBuffer = await page.pdf({ format: 'A4', landscape: true, printBackground: true, margin: { top: '40px', bottom: '40px', left: '20px', right: '20px' } });
