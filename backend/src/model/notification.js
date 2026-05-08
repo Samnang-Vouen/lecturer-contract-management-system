@@ -12,7 +12,7 @@ const Notification = sequelize.define('Notification', {
     allowNull: false,
   },
   type: {
-    type: DataTypes.ENUM('contract_created', 'contract_signed', 'contract_request_redo', 'status_change'),
+    type: DataTypes.ENUM('contract_created', 'contract_signed', 'contract_request_redo', 'status_change', 'course_assigned'),
     allowNull: false
   },
   message: {
