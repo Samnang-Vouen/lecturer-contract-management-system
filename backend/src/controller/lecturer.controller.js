@@ -11,6 +11,7 @@ import { findOrCreateUniversities } from './university.controller.js';
 import { findOrCreateMajors } from './major.controller.js';
 import xlsx from 'xlsx';
 import bcrypt from 'bcrypt';
+import { getNotificationSocket } from '../socket/index.js';
 
 const TEMP_PASSWORD_LENGTH = 10;
 
@@ -798,6 +799,22 @@ export const updateLecturerCourses = async (req, res) => {
     await LecturerCourse.bulkCreate(
       courses.map((c) => ({ lecturer_profile_id: profile.id, course_id: c.id }))
     );
+
+    try {
+      const notificationSocket = getNotificationSocket();
+      if (notificationSocket) {
+        const courseNames = courses.map((c) => c.course_name || `Course #${c.id}`).join(', ');
+        await notificationSocket.notifyLecturer({
+          user_id: userId,
+          type: 'course_assigned',
+          message: `Your course assignments have been updated: ${courseNames}`,
+          data: { course_ids: courses.map((c) => c.id) },
+        });
+      }
+    } catch (notifErr) {
+      console.error('[updateLecturerCourses] notification failed:', notifErr.message);
+    }
+
     return res.json({
       message: 'Courses updated',
       count: courses.length,
