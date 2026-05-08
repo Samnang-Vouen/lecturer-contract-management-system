@@ -1,5 +1,14 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { getDashboardStats } from '../../../services/dashboard.service';
+import { listAdvisorContracts } from '../../../services/advisorContract.service';
+import { getDashboardStats, getTeachingContractsTotal } from '../../../services/dashboard.service';
+
+function readTotal(payload) {
+  return Number(payload?.data?.total ?? payload?.total ?? 0);
+}
+
+function readSettledTotal(result) {
+  return result?.status === 'fulfilled' ? readTotal(result.value) : 0;
+}
 
 export function useDashboardStats(selectedTimeRange) {
   const [dashboardData, setDashboardData] = useState({
@@ -23,7 +32,17 @@ export function useDashboardStats(selectedTimeRange) {
       if (showRefresh) setIsRefreshing(true);
       else setIsLoading(true);
 
-      const statsRes = await getDashboardStats(selectedTimeRange);
+      const [statsRes, contractCountResults] = await Promise.all([
+        getDashboardStats(selectedTimeRange),
+        Promise.allSettled([
+          getTeachingContractsTotal('WAITING_LECTURER'),
+          getTeachingContractsTotal('WAITING_MANAGEMENT'),
+          getTeachingContractsTotal('COMPLETED'),
+          listAdvisorContracts({ page: 1, limit: 1, status: 'DRAFT' }),
+          listAdvisorContracts({ page: 1, limit: 1, status: 'WAITING_MANAGEMENT' }),
+          listAdvisorContracts({ page: 1, limit: 1, status: 'COMPLETED' }),
+        ]),
+      ]);
 
       const rawStats = statsRes.data || {};
       const normalizedStats = { ...rawStats };
@@ -32,17 +51,33 @@ export function useDashboardStats(selectedTimeRange) {
         delete normalizedStats.renewals;
       }
 
-      const pendingCount = Number(normalizedStats?.pendingContracts?.count || 0);
+      const [
+        waitingLecturerResult,
+        teachingWaitingManagementResult,
+        teachingCompletedResult,
+        advisorDraftResult,
+        advisorWaitingManagementResult,
+        advisorCompletedResult,
+      ] = contractCountResults;
+
+      const deptScopedContractStatus = {
+        WAITING_LECTURER: readSettledTotal(waitingLecturerResult),
+        WAITING_ADVISOR: readSettledTotal(advisorDraftResult),
+        WAITING_MANAGEMENT:
+          readSettledTotal(teachingWaitingManagementResult) +
+          readSettledTotal(advisorWaitingManagementResult),
+        COMPLETED:
+          readSettledTotal(teachingCompletedResult) +
+          readSettledTotal(advisorCompletedResult),
+      };
+
+      const pendingCount =
+        deptScopedContractStatus.WAITING_LECTURER +
+        deptScopedContractStatus.WAITING_ADVISOR +
+        deptScopedContractStatus.WAITING_MANAGEMENT;
       const prevCount = Number(lastPendingCountRef.current || 0);
       const changePct = prevCount > 0 ? Math.round(((pendingCount - prevCount) / prevCount) * 100) : 0;
       lastPendingCountRef.current = pendingCount;
-
-      const deptScopedContractStatus = {
-        WAITING_LECTURER: Number(normalizedStats?.contractStatus?.WAITING_LECTURER || 0),
-        WAITING_ADVISOR: Number(normalizedStats?.contractStatus?.WAITING_ADVISOR || 0),
-        WAITING_MANAGEMENT: Number(normalizedStats?.contractStatus?.WAITING_MANAGEMENT || 0),
-        COMPLETED: Number(normalizedStats?.contractStatus?.COMPLETED || 0),
-      };
 
       setDashboardData(prev => ({
         ...prev,

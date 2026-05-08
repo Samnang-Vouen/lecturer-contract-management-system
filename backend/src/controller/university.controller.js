@@ -1,84 +1,20 @@
-import University from '../model/university.model.js';
+import { sendResponse } from '../utils/response.js';
+import { HTTP_STATUS } from '../config/constants.js';
+import { getUniversitiesData, createUniversityData } from '../services/university.service.js';
+export { findOrCreateUniversities } from '../services/university.service.js';
 
-export const getUniversities = async (req, res) => {
+export const getUniversities = async (_req, res, next) => {
   try {
-    const universities = await University.findAll({
-      order: [['name', 'ASC']],
-    });
-
-    res.json(universities);
-  } catch (error) {
-    console.error('Error fetching universities:', error);
-    res.status(500).json({ error: 'Failed to fetch universities' });
+    return sendResponse(res, await getUniversitiesData());
+  } catch (err) {
+    return next(err);
   }
 };
 
-export const createUniversity = async (req, res) => {
+export const createUniversity = async (req, res, next) => {
   try {
-    const { name } = req.body;
-
-    if (!name || !name.trim()) {
-      return res.status(400).json({ error: 'University name is required' });
-    }
-
-    const trimmedName = name.trim();
-
-    // Check if university already exists (case-insensitive)
-    const existingUniversity = await University.findOne({
-      where: {
-        name: trimmedName,
-      },
-    });
-
-    if (existingUniversity) {
-      return res.status(409).json({ error: 'University already exists' });
-    }
-
-    const newUniversity = await University.create({ name: trimmedName });
-    res.status(201).json(newUniversity);
-  } catch (error) {
-    console.error('Error creating university:', error);
-    res.status(500).json({ error: 'Failed to create university' });
+    return sendResponse(res, await createUniversityData(req.body?.name), HTTP_STATUS.CREATED);
+  } catch (err) {
+    return next(err);
   }
-};
-
-export const findOrCreateUniversities = async (universityNames) => {
-  const results = [];
-
-  for (const name of universityNames) {
-    if (!name || !name.trim()) continue;
-
-    const trimmedName = name.trim();
-
-    // Try to find existing university (case-insensitive)
-    let university = await University.findOne({
-      where: {
-        name: trimmedName,
-      },
-    });
-
-    // If not found, create it
-    if (!university) {
-      try {
-        university = await University.create({ name: trimmedName });
-      } catch (error) {
-        // Handle unique constraint error in case of race condition
-        if (error.name === 'SequelizeUniqueConstraintError') {
-          university = await University.findOne({
-            where: {
-              name: trimmedName,
-            },
-          });
-        } else {
-          throw error;
-        }
-      }
-    }
-
-    if (university) {
-      results.push(university);
-    }
-  }
-
-  return results;
 };

@@ -25,9 +25,6 @@ export const generateToken = (user, res, roleOverride) => {
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
   });
-  if (process.env.NODE_ENV !== 'production') {
-    console.log('[DEBUG] Issued JWT for user', user.id, 'role', role);
-  }
   return token;
 };
 

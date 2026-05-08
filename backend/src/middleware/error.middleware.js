@@ -1,3 +1,5 @@
+import { AppError } from '../utils/errors.js';
+
 // Express error and 404 middleware for consistent, graceful failures
 
 export const notFound = (req, res, next) => {
@@ -9,10 +11,11 @@ export const notFound = (req, res, next) => {
 export const errorHandler = (err, req, res, _next) => {
   const status = err.status || err.statusCode || 500;
   const message = err.message || 'Server error';
-  const payload = { success: false, message };
-  if (process.env.NODE_ENV !== 'production') {
-    payload.stack = err.stack;
+  if (err instanceof AppError && err.payload) {
+    console.error('[ERROR]', status, message);
+    return res.status(status).json(err.payload);
   }
+  const payload = { success: false, message };
   // Minimal structured log
   console.error('[ERROR]', status, message);
   return res.status(status).json(payload);

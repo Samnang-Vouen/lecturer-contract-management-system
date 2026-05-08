@@ -44,13 +44,13 @@ try {
     const colNames = cols.map((c) => c.Field);
     const pendingAlters = [];
     if (!colNames.includes('canonical_text'))
-      pendingAlters.push(
+      {pendingAlters.push(
         'ADD COLUMN `canonical_text` VARCHAR(500) NOT NULL DEFAULT "" AFTER `question_text`'
-      );
+      );}
     if (!colNames.includes('is_default'))
-      pendingAlters.push('ADD COLUMN `is_default` TINYINT(1) NOT NULL DEFAULT 1');
+      {pendingAlters.push('ADD COLUMN `is_default` TINYINT(1) NOT NULL DEFAULT 1');}
     if (!colNames.includes('is_custom'))
-      pendingAlters.push('ADD COLUMN `is_custom` TINYINT(1) NOT NULL DEFAULT 0');
+      {pendingAlters.push('ADD COLUMN `is_custom` TINYINT(1) NOT NULL DEFAULT 0');}
     if (pendingAlters.length) {
       const alterSql = `ALTER TABLE \`interview-questions\` ${pendingAlters.join(', ')}`;
       await sequelize.query(alterSql);

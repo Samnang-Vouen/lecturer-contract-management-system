@@ -64,8 +64,6 @@ export function useCourseMappingPageHandlers({
       await createMapping(payload);
       state.setAddOpen(false);
     } catch (error) {
-      console.error('[submitAdd] Error:', error);
-      console.error('[submitAdd] Error response:', error.response?.data);
       state.setAddError(getApiErrorMessage(error));
     }
   };
@@ -100,9 +98,7 @@ export function useCourseMappingPageHandlers({
     try {
       if (Array.isArray(mapping?.ids) && mapping.ids.length) await deleteMapping(mapping.ids);
       else await deleteMapping(mapping.id);
-    } catch (error) {
-      console.error('Delete failed:', error);
-    }
+    } catch (_error) {}
   };
 
   return { startAdd, submitAdd, startEdit, submitEdit, remove };

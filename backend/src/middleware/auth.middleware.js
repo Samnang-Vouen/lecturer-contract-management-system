@@ -18,7 +18,7 @@ export const protect = async (req, res, next) => {
     const user = await User.findByPk(resolvedId);
     if (!user) return res.status(HTTP_STATUS.UNAUTHORIZED).json({ message: 'Account not found' });
     if (user.status !== 'active')
-      return res.status(HTTP_STATUS.UNAUTHORIZED).json({ message: 'Account deactivated' });
+      {return res.status(HTTP_STATUS.UNAUTHORIZED).json({ message: 'Account deactivated' });}
     // Enrich req.user with commonly needed fields (department for inheritance, display name if needed)
     req.user = {
       id: resolvedId,

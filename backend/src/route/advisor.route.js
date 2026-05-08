@@ -1,6 +1,7 @@
 import express from 'express';
 import multer from 'multer';
 import { protect, authorizeRoles } from '../middleware/auth.middleware.js';
+import { validate } from '../middleware/validate.middleware.js';
 import { createAdvisor, createAdvisorFromCandidate } from '../controller/advisor.controller.js';
 import {
 	getLecturers,
@@ -11,6 +12,14 @@ import {
 } from '../controller/lecturer.controller.js';
 import { updateUser, toggleUserStatus, deleteUser } from '../controller/user.controller.js';
 import { ensureUserHasRoleParam } from '../middleware/ensureUserRoleParam.middleware.js';
+import {
+	AdvisorCreateSchema,
+	AdvisorFromCandidateBodySchema,
+	AdvisorFromCandidateParamsSchema,
+	formatAdvisorCandidateEmailError,
+	formatAdvisorCandidateIdError,
+	formatAdvisorValidationErrors,
+} from '../validators/advisor.validators.js';
 
 const router = express.Router();
 
@@ -18,10 +27,15 @@ const router = express.Router();
 router.use(protect, authorizeRoles(['admin']));
 
 // Create advisor (force role advisor)
-router.post('/', createAdvisor);
+router.post('/', validate(AdvisorCreateSchema, 'body', { formatError: formatAdvisorValidationErrors }), createAdvisor);
 
 // Create advisor from candidate (accepted only)
-router.post('/from-candidate/:id', createAdvisorFromCandidate);
+router.post(
+	'/from-candidate/:id',
+	validate(AdvisorFromCandidateParamsSchema, 'params', { formatError: formatAdvisorCandidateIdError }),
+	validate(AdvisorFromCandidateBodySchema, 'body', { formatError: formatAdvisorCandidateEmailError }),
+	createAdvisorFromCandidate
+);
 
 // List advisors (same shape as /api/lecturers but role-filtered)
 router.get('/', (req, _res, next) => {

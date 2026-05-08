@@ -40,12 +40,23 @@ export function useScheduleCreationData({
         getScheduleAcademicYears(),
       ]);
       const specPayload = specRes?.data;
-      setSpecializations(Array.isArray(specPayload) ? specPayload : safeArray(specPayload?.data));
-      setGroups(safeArray(groupsRes?.data?.group));
-      setAcademicYears(safeArray(yearsRes?.data?.data));
+      const nextSpecializations = Array.isArray(specPayload) ? specPayload : safeArray(specPayload?.data);
+      const nextGroups = safeArray(groupsRes?.data?.group);
+      const nextAcademicYears = safeArray(yearsRes?.data?.data);
+
+      setSpecializations(nextSpecializations);
+      setGroups(nextGroups);
+      setAcademicYears(nextAcademicYears);
+
+      return {
+        specializations: nextSpecializations,
+        groups: nextGroups,
+        academicYears: nextAcademicYears,
+      };
     } catch (error) {
       console.error("[ScheduleCreation] failed to load page data", error);
       toast.error("Failed to load schedule data");
+      return null;
     } finally {
       setIsLoading(false);
     }
