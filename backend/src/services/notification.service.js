@@ -106,3 +106,11 @@ export async function getMyNotificationsData({ userId, role }) {
 
   return [];
 }
+
+export async function markNotificationsReadData({ userId, ids }) {
+  const where = { user_id: userId, readAt: null };
+  if (Array.isArray(ids) && ids.length > 0) {
+    where.id = { [Op.in]: ids };
+  }
+  await Notification.update({ readAt: new Date() }, { where });
+}
